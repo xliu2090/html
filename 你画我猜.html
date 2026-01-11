@@ -1,0 +1,1668 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>你画我猜 · 手账绘本风（单文件）</title>
+  <style>
+    :root{
+      --paper:#fbf6ea;
+      --paper2:#f4e9d8;
+      --ink:#3a2f2a;
+      --muted:#6b5f59;
+      --accent:#d58e7b;
+      --accent2:#87a88c;
+      --danger:#b85a5a;
+      --card:rgba(255,255,255,.70);
+      --shadow: 0 10px 30px rgba(58,47,42,.12);
+      --radius: 22px;
+      --radius2: 16px;
+      --safeTop: env(safe-area-inset-top);
+      --safeBottom: env(safe-area-inset-bottom);
+    }
+
+    html,body{
+      height:100%;
+      margin:0;
+      color:var(--ink);
+      font-family: ui-rounded, system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+      background:
+        radial-gradient(1200px 900px at 20% 0%, #fff7e8 0%, transparent 60%),
+        radial-gradient(1200px 900px at 80% 10%, #fbe7e0 0%, transparent 62%),
+        linear-gradient(180deg, var(--paper) 0%, var(--paper2) 100%);
+      overflow:hidden;
+    }
+    body::before{
+      content:"";
+      position:fixed; inset:0;
+      pointer-events:none;
+      opacity:.18;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='.55'/%3E%3C/svg%3E");
+      mix-blend-mode:multiply;
+    }
+
+    .app{
+      height:100dvh;
+      display:flex;
+      flex-direction:column;
+      padding: calc(12px + var(--safeTop)) 12px calc(12px + var(--safeBottom));
+      gap:10px;
+      box-sizing:border-box;
+    }
+
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding:10px 10px;
+      border-radius: var(--radius);
+      background: rgba(255,255,255,.45);
+      box-shadow: var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .topbar::before{
+      content:"";
+      position:absolute;
+      width:88px; height:32px;
+      left:12px; top:-10px;
+      background: linear-gradient(135deg, rgba(242,214,166,.95), rgba(240,199,182,.85));
+      border-radius:12px;
+      transform: rotate(-7deg);
+      box-shadow: 0 8px 18px rgba(58,47,42,.10);
+    }
+    .brand{
+      position:relative;
+      display:flex; flex-direction:column;
+      gap:2px;
+      padding-left:6px;
+    }
+    .brand .t{ font-weight:850; letter-spacing:.2px; font-size:15px; }
+    .brand .s{ font-size:12px; color:var(--muted); }
+    .chips{
+      display:flex; flex-wrap:wrap;
+      gap:6px;
+      align-items:center;
+      justify-content:flex-end;
+    }
+    .chip{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background: rgba(255,255,255,.62);
+      border: 1px dashed rgba(58,47,42,.18);
+      color: var(--muted);
+      user-select:none;
+      white-space:nowrap;
+    }
+    .chip strong{ color:var(--ink); }
+
+    main{ flex:1; min-height:0; position:relative; }
+    .screen{
+      position:absolute; inset:0;
+      display:none;
+      overflow:auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 6px 2px 2px;
+    }
+    .screen.active{ display:block; }
+
+    .card{
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(58,47,42,.10);
+      padding: 14px;
+      position:relative;
+      overflow:hidden;
+      backdrop-filter: blur(6px);
+    }
+    .card .tape{
+      position:absolute;
+      width:120px; height:34px;
+      top:-10px;
+      right:10px;
+      background: linear-gradient(135deg, rgba(242,214,166,.95), rgba(240,199,182,.85));
+      border-radius:12px;
+      transform: rotate(8deg);
+      box-shadow: 0 8px 18px rgba(58,47,42,.10);
+      opacity:.9;
+    }
+    .card h2, .card h3{ margin:0 0 8px; font-size:16px; }
+    .card p{
+      margin: 6px 0;
+      color: var(--muted);
+      line-height:1.55;
+      font-size:13px;
+    }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .col{ display:flex; flex-direction:column; gap:8px; }
+    .btn{
+      appearance:none;
+      border:none;
+      border-radius: 999px;
+      padding: 12px 14px;
+      font-weight:750;
+      background: rgba(213,142,123,.20);
+      color: var(--ink);
+      box-shadow: 0 8px 18px rgba(58,47,42,.10);
+      border: 1px solid rgba(213,142,123,.25);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      cursor:pointer;
+      transition: transform .06s ease;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      justify-content:center;
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn.primary{
+      background: rgba(135,168,140,.22);
+      border-color: rgba(135,168,140,.30);
+    }
+    .btn.danger{
+      background: rgba(184,90,90,.18);
+      border-color: rgba(184,90,90,.26);
+    }
+    .btn.ghost{
+      background: rgba(255,255,255,.55);
+      border: 1px dashed rgba(58,47,42,.18);
+      box-shadow:none;
+      font-weight:650;
+    }
+    .btn.small{ padding: 9px 12px; font-size: 12px; font-weight:700; }
+    .btn:disabled{ opacity:.55; cursor:not-allowed; }
+
+    .input, select{
+      width:100%;
+      box-sizing:border-box;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(58,47,42,.18);
+      background: rgba(255,255,255,.62);
+      color: var(--ink);
+      outline:none;
+      font-size: 13px;
+    }
+    label{ font-size:12px; color: var(--muted); }
+    .divider{ height:1px; background: rgba(58,47,42,.10); margin: 10px 0; }
+    .grid{ display:grid; grid-template-columns: 1fr; gap:10px; }
+
+    .prompt{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .sticker{
+      background: rgba(255,255,255,.72);
+      border-radius: 18px;
+      padding: 10px 12px;
+      border: 1px dashed rgba(58,47,42,.20);
+      box-shadow: 0 10px 20px rgba(58,47,42,.08);
+      position:relative;
+      overflow:hidden;
+      flex:1;
+      min-width: 0;
+    }
+    .sticker::before{
+      content:"";
+      position:absolute;
+      left:-18px; top:12px;
+      width:44px; height:20px;
+      background: rgba(242,214,166,.85);
+      border-radius: 10px;
+      transform: rotate(-12deg);
+      opacity:.85;
+    }
+    .word{
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.4px;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .meta{
+      margin-top:4px;
+      font-size:12px;
+      color: var(--muted);
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .timer{
+      min-width: 84px;
+      text-align:center;
+      padding: 10px 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.62);
+      border: 1px dashed rgba(58,47,42,.20);
+      box-shadow: 0 10px 20px rgba(58,47,42,.08);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      gap:2px;
+    }
+    .timer .sec{ font-size:18px; font-weight:900; }
+    .timer .lab{ font-size:11px; color: var(--muted); }
+    .timer.low{
+      border-color: rgba(184,90,90,.35);
+      background: rgba(184,90,90,.10);
+    }
+
+    .canvasWrap{ padding: 12px; }
+    .canvasFrame{
+      position:relative;
+      border-radius: 18px;
+      overflow:hidden;
+      border: 1px solid rgba(58,47,42,.18);
+      background: linear-gradient(180deg, rgba(255,255,255,.75), rgba(255,255,255,.62));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+      touch-action: none; /* 画布容器禁用默认手势 */
+    }
+
+    canvas{
+      display:block;
+      width:100%;
+      height:48vh;
+      max-height: 520px;
+      min-height: 320px;
+      background:
+        linear-gradient(transparent 0, transparent 32px, rgba(58,47,42,.06) 33px) repeat,
+        radial-gradient(1000px 700px at 20% 0%, rgba(213,142,123,.09), transparent 70%),
+        radial-gradient(1000px 700px at 80% 10%, rgba(135,168,140,.09), transparent 70%),
+        rgba(255,255,255,.75);
+      background-size: 100% 34px, auto, auto, auto;
+
+      touch-action: none; /* ✅ 关键：部分手机只认加在 canvas 上 */
+    }
+    .canvasFrame::after{
+      content:"";
+      position:absolute; inset:0;
+      pointer-events:none;
+      opacity:.20;
+      background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='.4'/%3E%3C/svg%3E");
+      mix-blend-mode:multiply;
+    }
+
+    .tools{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      padding-top: 10px;
+    }
+    .tools .left, .tools .right{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .pill{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding: 10px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.62);
+      border: 1px dashed rgba(58,47,42,.18);
+      color: var(--muted);
+      font-size:12px;
+    }
+    input[type="range"]{ width: 120px; }
+
+    .bubble{
+      border-radius: 18px;
+      padding: 12px 12px;
+      background: rgba(255,255,255,.70);
+      border: 1px solid rgba(58,47,42,.12);
+      box-shadow: 0 10px 20px rgba(58,47,42,.08);
+      position:relative;
+    }
+    .bubble::before{
+      content:"";
+      position:absolute;
+      left: 14px;
+      top: -10px;
+      width: 22px;
+      height: 22px;
+      background: rgba(255,255,255,.70);
+      border-left: 1px solid rgba(58,47,42,.12);
+      border-top: 1px solid rgba(58,47,42,.12);
+      transform: rotate(45deg);
+    }
+    .bubble .line{
+      font-size:13px;
+      line-height:1.55;
+      color: var(--muted);
+      margin: 4px 0;
+      word-break: break-word;
+    }
+    .bubble .guess{
+      font-size:18px;
+      font-weight:900;
+      color: var(--ink);
+      margin: 2px 0 6px;
+    }
+    .bubble .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size:12px;
+      color: var(--muted);
+      padding: 6px 10px;
+      border-radius:999px;
+      background: rgba(213,142,123,.14);
+      border: 1px dashed rgba(213,142,123,.22);
+      margin-right:6px;
+      margin-top:6px;
+    }
+
+    details{
+      margin-top:10px;
+      background: rgba(255,255,255,.55);
+      border: 1px dashed rgba(58,47,42,.18);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    details summary{
+      cursor:pointer;
+      font-weight:800;
+      color: var(--muted);
+      font-size:12px;
+      user-select:none;
+    }
+    details pre{
+      white-space: pre-wrap;
+      word-break: break-word;
+      margin: 10px 0 0;
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.55;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .roundList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      margin-top:10px;
+    }
+    .roundItem{
+      background: rgba(255,255,255,.62);
+      border: 1px dashed rgba(58,47,42,.18);
+      border-radius: 16px;
+      padding: 10px 12px;
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:flex-start;
+    }
+    .roundItem .w{ font-weight:900; }
+    .roundItem .m{ font-size:12px; color: var(--muted); margin-top:2px; }
+    .roundItem .p{ font-weight:900; white-space:nowrap; }
+
+    .note{
+      font-size:12px;
+      color: var(--muted);
+      line-height:1.55;
+      background: rgba(255,255,255,.52);
+      border: 1px dashed rgba(58,47,42,.14);
+      border-radius: 16px;
+      padding: 10px 12px;
+    }
+    .footerPad{ height: 8px; }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="t">📒 你画我猜 · 手账绘本风</div>
+        <div class="s">玩家画画，AI 来猜（移动端触摸友好）</div>
+      </div>
+      <div class="chips">
+        <div class="chip" id="chipRound"><strong>回合</strong> 0/0</div>
+        <div class="chip" id="chipScore"><strong>积分</strong> 0</div>
+        <div class="chip" id="chipStreak"><strong>连胜</strong> 0</div>
+      </div>
+    </div>
+
+    <main>
+      <!-- ====== 开始界面 ====== -->
+      <section class="screen active" id="screenStart">
+        <div class="card">
+          <div class="tape"></div>
+          <h2>🌿 玩法小纸条</h2>
+          <p>系统会给你一个题目，你在画布上用“铅笔”画出来，然后点 <b>“让 AI 猜！”</b>。</p>
+          <p>猜对：加分 + 连胜加成；猜错：继续补充细节再让 AI 猜。还有：倒计时挑战、提示贴纸、AI 的搞笑误判。</p>
+          <div class="divider"></div>
+
+          <div class="col">
+            <div>
+              <label>VectorEngine API Key（本地保存，不写死在代码里）</label>
+              <input class="input" id="apiKey" type="password" inputmode="text" placeholder="粘贴你的 API Key（建议用代理避免暴露）" />
+              <p style="margin-top:6px;font-size:12px;color:var(--muted);">
+                ⚠️ 客户端直连会暴露 Key。正式环境建议：你自己加一层后端代理，再由本页面请求你的代理。
+              </p>
+            </div>
+
+            <div class="row">
+              <div style="flex:1; min-width: 140px;">
+                <label>回合数</label>
+                <select id="roundCount">
+                  <option value="3">3 回合（轻松）</option>
+                  <option value="5" selected>5 回合（标准）</option>
+                  <option value="7">7 回合（耐力）</option>
+                </select>
+              </div>
+              <div style="flex:1; min-width: 140px;">
+                <label>单回合时限</label>
+                <select id="timeLimit">
+                  <option value="45">45 秒（紧张）</option>
+                  <option value="60" selected>60 秒（舒适）</option>
+                  <option value="90">90 秒（悠闲）</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row" style="justify-content:space-between;">
+              <button class="btn ghost" id="btnToggleSound">🔊 音效：开</button>
+              <button class="btn ghost" id="btnClearSavedKey">🧹 清除已保存 Key</button>
+            </div>
+
+            <button class="btn primary" id="btnStartGame">📖 翻开日记，开始画！</button>
+          </div>
+        </div>
+
+        <div class="footerPad"></div>
+
+        <div class="note">
+          <b>小技巧：</b>画“大轮廓 + 关键特征”更容易被猜到，比如：猫=尖耳朵+胡须+尾巴；自行车=两个圆+车架。<br/>
+          <b>如果 AI 调用失败：</b>可能是 Key/权限、模型不支持图像、或被 CORS 拦截；你仍可用“跳过/自判”完成流程。
+        </div>
+      </section>
+
+      <!-- ====== 游戏界面 ====== -->
+      <section class="screen" id="screenPlay">
+        <div class="grid">
+          <div class="card">
+            <div class="prompt">
+              <div class="sticker">
+                <div class="word" id="promptWord">—</div>
+                <div class="meta">
+                  <span>📌 类别：<b id="promptCategory">—</b></span>
+                  <span>✨ 已用提示：<b id="hintUsed">0</b></span>
+                  <span>🎁 提示贴纸：<b id="hintCoins">2</b></span>
+                </div>
+              </div>
+              <div class="timer" id="timerBox">
+                <div class="sec" id="timerSec">60</div>
+                <div class="lab">倒计时</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card canvasWrap">
+            <div class="tape"></div>
+            <h3>✏️ 画布（手绘日记纸）</h3>
+
+            <div class="canvasFrame" id="canvasFrame">
+              <canvas id="drawCanvas"></canvas>
+            </div>
+
+            <div class="tools">
+              <div class="left">
+                <button class="btn small" id="btnPen">✏️ 铅笔</button>
+                <button class="btn small" id="btnEraser">🧽 橡皮</button>
+                <div class="pill">
+                  粗细
+                  <input type="range" id="brushSize" min="2" max="18" value="6" />
+                  <span id="brushLabel">6</span>
+                </div>
+              </div>
+              <div class="right">
+                <button class="btn small ghost" id="btnUndo">↩️ 撤销</button>
+                <button class="btn small danger" id="btnClear">🗑️ 清空</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="tape"></div>
+            <h3>🤖 AI 猜测区</h3>
+
+            <div class="row">
+              <button class="btn primary" id="btnGuess">🚀 让 AI 猜！</button>
+              <button class="btn" id="btnHint">🏷️ 用提示贴纸</button>
+              <button class="btn ghost" id="btnSkip">⏭️ 跳过/自判</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="bubble" id="aiBubble">
+              <div class="guess" id="aiGuess">（还没开始猜）</div>
+              <div class="line" id="aiSub">画得越清晰，AI 越容易猜到。可以多次让它猜！</div>
+              <div>
+                <span class="tag" id="aiConfidenceTag">🎯 置信度：—</span>
+                <span class="tag" id="aiFunnyTag">🧠 搞笑误判：—</span>
+              </div>
+
+              <details id="aiThinkingBox">
+                <summary>AI thinking（默认折叠，点我展开）</summary>
+                <pre id="aiThinking">(无)</pre>
+              </details>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="note">
+              <b>趣味机制：</b><br/>
+              • 连续猜对会叠加加分（连胜越高，越“赚”）<br/>
+              • 每回合默认 2 张提示贴纸，用完就靠你了<br/>
+              • 猜错别怕：继续补细节 → 再让 AI 猜（AI 还会嘴贫误判）
+            </div>
+
+            <div class="row" style="margin-top:10px; justify-content:flex-end;">
+              <button class="btn" id="btnNextRound" disabled>➡️ 下一题</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====== 结算界面 ====== -->
+      <section class="screen" id="screenEnd">
+        <div class="card">
+          <div class="tape"></div>
+          <h2>🎉 本次日记总结</h2>
+          <p id="endSummary">—</p>
+
+          <div class="row" style="justify-content:space-between;">
+            <div class="chip"><strong>本局总分</strong> <span id="endScore">0</span></div>
+            <div class="chip"><strong>最高连胜</strong> <span id="endBestStreak">0</span></div>
+            <div class="chip"><strong>历史最高</strong> <span id="endHighScore">0</span></div>
+          </div>
+
+          <div class="divider"></div>
+
+          <h3>📌 回合记录</h3>
+          <div class="roundList" id="roundList"></div>
+
+          <div class="divider"></div>
+
+          <div class="row">
+            <button class="btn primary" id="btnRestart">🔁 再翻一页（重开）</button>
+            <button class="btn ghost" id="btnBackToStart">🏠 回到封面</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /******************************************************************
+     * 你画我猜 · 单文件版（修复版）
+     * ✅ 修复“画布没反应”：游戏页 display:none 时初始化导致 canvas 0x0
+     *    -> 切到游戏页后 requestAnimationFrame 再 resize/init
+     * ✅ canvas touch-action:none + PointerEvent + touch 兜底
+     * 其余：
+     * - 多轮、积分、连胜、限时、提示贴纸、撤销/清空
+     * - AI 调用：VectorEngine /v1/chat/completions（OpenAI 兼容）
+     * - AI thinking 默认折叠（details）
+     * - Web Audio API 音效（落笔/倒计时/猜测中/猜对/猜错）
+     ******************************************************************/
+
+    // ========= 配置 =========
+    const API_URL = "https://api.vectorengine.ai/v1/chat/completions";
+    const MODEL = "claude-opus-4-5-20251101-thinking";
+
+    // 题库（可扩充）
+    const WORD_BANK = [
+      { word:"猫", category:"动物", hints:["尖耳朵", "胡须", "尾巴"] , answers:["猫","小猫","猫咪"]},
+      { word:"太阳", category:"自然", hints:["圆", "光芒", "天空里"] , answers:["太阳","日"]},
+      { word:"雨伞", category:"日常", hints:["弧形", "手柄", "下雨用"] , answers:["雨伞","伞"]},
+      { word:"自行车", category:"交通", hints:["两个轮子", "车架", "脚踏"] , answers:["自行车","单车","脚踏车"]},
+      { word:"蛋糕", category:"食物", hints:["分层", "蜡烛", "奶油"] , answers:["蛋糕"]},
+      { word:"眼镜", category:"物品", hints:["两个圆/方框", "镜腿", "戴在脸上"] , answers:["眼镜"]},
+      { word:"房子", category:"建筑", hints:["屋顶", "窗户", "门"] , answers:["房子","房屋","小屋"]},
+      { word:"鲸鱼", category:"动物", hints:["巨大", "喷水", "海里"] , answers:["鲸鱼","鲸"]},
+      { word:"火箭", category:"科技", hints:["尖头", "尾焰", "飞向太空"] , answers:["火箭"]},
+      { word:"冰淇淋", category:"食物", hints:["蛋筒", "球形", "融化"] , answers:["冰淇淋","冰激凌"]},
+      { word:"树", category:"自然", hints:["树干", "树冠", "叶子"] , answers:["树","大树"]},
+      { word:"汉堡", category:"食物", hints:["上下两片面包", "肉饼", "生菜"] , answers:["汉堡","汉堡包"]},
+      { word:"手机", category:"日常", hints:["长方形", "屏幕", "摄像头"] , answers:["手机","智能手机"]},
+      { word:"鱼", category:"动物", hints:["鱼鳍", "尾巴", "水里"] , answers:["鱼","小鱼"]},
+    ];
+
+    const FUNNY_WRONG = [
+      "一只很有理想的土豆",
+      "正在开会的寿司",
+      "戴帽子的云朵",
+      "迷路的牙刷",
+      "会唱歌的扳手",
+      "一颗想当明星的番茄",
+      "正在健身的团子",
+      "来自外星的拖鞋"
+    ];
+
+    const $ = (s)=>document.querySelector(s);
+
+    // ========= UI =========
+    const screenStart = $("#screenStart");
+    const screenPlay  = $("#screenPlay");
+    const screenEnd   = $("#screenEnd");
+
+    const chipRound = $("#chipRound");
+    const chipScore = $("#chipScore");
+    const chipStreak= $("#chipStreak");
+
+    const apiKeyInput = $("#apiKey");
+    const roundCountSel = $("#roundCount");
+    const timeLimitSel  = $("#timeLimit");
+
+    const btnStartGame = $("#btnStartGame");
+    const btnToggleSound = $("#btnToggleSound");
+    const btnClearSavedKey = $("#btnClearSavedKey");
+
+    const promptWord = $("#promptWord");
+    const promptCategory = $("#promptCategory");
+    const hintUsedEl = $("#hintUsed");
+    const hintCoinsEl= $("#hintCoins");
+
+    const timerBox = $("#timerBox");
+    const timerSec = $("#timerSec");
+
+    const canvas = $("#drawCanvas");
+    const canvasFrame = $("#canvasFrame");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+    const btnPen = $("#btnPen");
+    const btnEraser = $("#btnEraser");
+    const btnUndo = $("#btnUndo");
+    const btnClear = $("#btnClear");
+    const brushSize = $("#brushSize");
+    const brushLabel= $("#brushLabel");
+
+    const btnGuess = $("#btnGuess");
+    const btnHint = $("#btnHint");
+    const btnSkip = $("#btnSkip");
+    const btnNextRound = $("#btnNextRound");
+
+    const aiGuessEl = $("#aiGuess");
+    const aiSubEl   = $("#aiSub");
+    const aiConfidenceTag = $("#aiConfidenceTag");
+    const aiFunnyTag = $("#aiFunnyTag");
+    const aiThinkingBox = $("#aiThinkingBox");
+    const aiThinkingPre = $("#aiThinking");
+
+    const endSummary = $("#endSummary");
+    const endScore = $("#endScore");
+    const endBestStreak = $("#endBestStreak");
+    const endHighScore = $("#endHighScore");
+    const roundList = $("#roundList");
+    const btnRestart = $("#btnRestart");
+    const btnBackToStart = $("#btnBackToStart");
+
+    // ========= 音效（Web Audio） =========
+    const SFX = (() => {
+      let enabled = true;
+      let ac = null;
+      let master = null;
+      let tickingInterval = null;
+
+      function ensure(){
+        if(!enabled) return null;
+        if(ac) return ac;
+        ac = new (window.AudioContext || window.webkitAudioContext)();
+        master = ac.createGain();
+        master.gain.value = 0.55;
+        master.connect(ac.destination);
+        return ac;
+      }
+
+      function resume(){
+        const a = ensure();
+        if(a && a.state === "suspended") a.resume().catch(()=>{});
+      }
+
+      function beep(freq=440, dur=0.08, type="sine", gain=0.12){
+        const a = ensure(); if(!a) return;
+        const o = a.createOscillator();
+        const g = a.createGain();
+        o.type = type;
+        o.frequency.value = freq;
+        g.gain.value = gain;
+        o.connect(g);
+        g.connect(master);
+        const t = a.currentTime;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(gain, t+0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t+dur);
+        o.start(t);
+        o.stop(t+dur+0.02);
+      }
+
+      function noiseBurst(dur=0.06, gain=0.08, hp=800){
+        const a = ensure(); if(!a) return;
+        const bufferSize = Math.floor(a.sampleRate * dur);
+        const buffer = a.createBuffer(1, bufferSize, a.sampleRate);
+        const data = buffer.getChannelData(0);
+        for(let i=0;i<bufferSize;i++){
+          data[i] = (Math.random()*2-1) * Math.pow(1 - i/bufferSize, 2);
+        }
+        const src = a.createBufferSource();
+        src.buffer = buffer;
+
+        const filter = a.createBiquadFilter();
+        filter.type = "highpass";
+        filter.frequency.value = hp;
+
+        const g = a.createGain();
+        g.gain.value = gain;
+
+        src.connect(filter);
+        filter.connect(g);
+        g.connect(master);
+
+        src.start();
+        src.stop(a.currentTime + dur);
+      }
+
+      function scribble(){
+        noiseBurst(0.04, 0.06, 900);
+      }
+
+      function start(){
+        resume();
+        beep(523,0.07,"triangle",0.12);
+        beep(659,0.08,"triangle",0.10);
+      }
+      function correct(){
+        beep(784,0.08,"sine",0.12);
+        beep(988,0.10,"sine",0.12);
+        beep(1319,0.12,"triangle",0.14);
+      }
+      function wrong(){
+        beep(220,0.12,"sawtooth",0.08);
+        beep(196,0.14,"sawtooth",0.07);
+      }
+      function thinkingTick(){
+        noiseBurst(0.08, 0.04, 1200);
+        beep(392,0.03,"sine",0.03);
+      }
+
+      function startTicking(){
+        if(!enabled) return;
+        stopTicking();
+        tickingInterval = setInterval(()=>beep(880,0.02,"sine",0.02), 1000);
+      }
+      function stopTicking(){
+        if(tickingInterval){ clearInterval(tickingInterval); tickingInterval=null; }
+      }
+
+      function setEnabled(v){
+        enabled = v;
+        if(!enabled) stopTicking();
+      }
+      function isEnabled(){ return enabled; }
+
+      return { resume, scribble, start, correct, wrong, thinkingTick, startTicking, stopTicking, setEnabled, isEnabled };
+    })();
+
+    // ========= 状态 =========
+    const state = {
+      phase: "start",
+      roundsTotal: 5,
+      timeLimit: 60,
+      roundIndex: 0,
+      score: 0,
+      streak: 0,
+      bestStreak: 0,
+      hintCoins: 2,
+
+      current: null,
+      timerLeft: 60,
+      timerId: null,
+      guessCount: 0,
+      hintUsed: 0,
+      roundLog: [],
+    };
+
+    // ========= 画笔 =========
+    const draw = {
+      mode: "pen",
+      size: 6,
+      isDown: false,
+      last: null,
+      undoStack: [],
+      maxUndo: 20,
+      lastScribbleAt: 0,
+      dpr: 1,
+    };
+
+    // ========= 本地存储键 =========
+    const LS = {
+      key: "pict_ai_key",
+      sound: "pict_sound",
+      high: "pict_highscore"
+    };
+
+    function setScreen(which){
+      state.phase = which;
+      screenStart.classList.toggle("active", which==="start");
+      screenPlay.classList.toggle("active", which==="play");
+      screenEnd.classList.toggle("active", which==="end");
+
+      // ✅ 关键修复：切到 play 时，等布局生效后再 resize canvas
+      if(which === "play"){
+        requestAnimationFrame(()=>{
+          ensureCanvasReady(true);
+        });
+      }
+    }
+
+    function normalizeText(s){
+      return (s||"")
+        .toString()
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g,"")
+        .replace(/[，。！？,.!?;:·、"'“”‘’（）()【】\[\]{}<>]/g,"");
+    }
+
+    function updateTopChips(){
+      chipRound.innerHTML = `<strong>回合</strong> ${Math.min(state.roundIndex+1,state.roundsTotal)}/${state.roundsTotal}`;
+      chipScore.innerHTML = `<strong>积分</strong> ${state.score}`;
+      chipStreak.innerHTML= `<strong>连胜</strong> ${state.streak}`;
+    }
+
+    function shuffle(arr){
+      const a = arr.slice();
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]]=[a[j],a[i]];
+      }
+      return a;
+    }
+
+    function pickRounds(n){
+      return shuffle(WORD_BANK).slice(0, Math.min(n, WORD_BANK.length));
+    }
+
+    // ========= Canvas 尺寸（核心：必须在可见后算 rect） =========
+    function resizeCanvasKeepContent(){
+      const rect = canvasFrame.getBoundingClientRect();
+
+      // 如果屏幕还不可见/布局未计算（width=0），直接跳过
+      if(rect.width < 10){
+        return false;
+      }
+
+      // 保存当前内容
+      const dataUrl = canvas.toDataURL("image/png");
+
+      const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      draw.dpr = dpr;
+
+      // 让内部像素按 DPR 放大，绘图用 CSS 像素坐标（ctx scale）
+      const cssW = rect.width;
+      // canvasFrame 的高度由 canvas CSS height 决定，取 rect.height 更准确
+      const cssH = Math.min(rect.height || (window.innerHeight * 0.52), window.innerHeight * 0.62);
+
+      canvas.width  = Math.max(2, Math.floor(cssW * dpr));
+      canvas.height = Math.max(2, Math.floor(cssH * dpr));
+      canvas.style.width = cssW + "px";
+      canvas.style.height = cssH + "px";
+
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.scale(dpr, dpr);
+
+      // 恢复内容
+      const img = new Image();
+      img.onload = () => {
+        ctx.save();
+        // 画到内部像素空间（原图是内部像素截图）
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        ctx.restore();
+      };
+      img.src = dataUrl;
+
+      return true;
+    }
+
+    // ✅ 修复点：确保 canvas 不是 0x0（切屏后一定要调用）
+    function ensureCanvasReady(force=false){
+      const need = force || canvas.width < 10 || canvas.height < 10;
+      if(!need) return;
+
+      // 连续两帧更稳（某些手机第一次 RAF rect 还没刷新）
+      requestAnimationFrame(()=>{
+        const ok1 = resizeCanvasKeepContent();
+        if(!ok1){
+          requestAnimationFrame(()=>resizeCanvasKeepContent());
+        }
+      });
+    }
+
+    function clearCanvas(silent=false){
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.restore();
+      draw.undoStack = [];
+      if(!silent) SFX.wrong();
+    }
+
+    function pushUndo(){
+      try{
+        if(draw.undoStack.length >= draw.maxUndo) draw.undoStack.shift();
+        const snap = ctx.getImageData(0,0,canvas.width,canvas.height);
+        draw.undoStack.push(snap);
+      }catch(e){}
+    }
+
+    function undo(){
+      const snap = draw.undoStack.pop();
+      if(!snap) return;
+      ctx.putImageData(snap, 0, 0);
+    }
+
+    function isCanvasBlankFast(){
+      const w = canvas.width, h = canvas.height;
+      if(!w || !h) return true;
+      const sample = 18;
+      const stepX = Math.max(1, Math.floor(w / sample));
+      const stepY = Math.max(1, Math.floor(h / sample));
+      const img = ctx.getImageData(0,0,w,h).data;
+      for(let y=0;y<h;y+=stepY){
+        for(let x=0;x<w;x+=stepX){
+          const i = (y*w + x)*4;
+          if(img[i+3] > 8) return false;
+        }
+      }
+      return true;
+    }
+
+    function getLocalPointLike(clientX, clientY){
+      const rect = canvas.getBoundingClientRect();
+      return { x: (clientX - rect.left), y: (clientY - rect.top) };
+    }
+
+    function drawSegment(a,b){
+      const size = draw.size;
+      const isEraser = draw.mode === "eraser";
+
+      ctx.save();
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = isEraser ? size*2.2 : size;
+
+      if(isEraser){
+        ctx.globalCompositeOperation = "destination-out";
+        ctx.strokeStyle = "rgba(0,0,0,1)";
+        ctx.globalAlpha = 1;
+      }else{
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = "rgba(59,47,43,.86)";
+        ctx.globalAlpha = 0.85;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+
+      if(!isEraser){
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const dist = Math.hypot(dx,dy);
+        const steps = Math.max(2, Math.floor(dist / 6));
+        for(let i=0;i<steps;i++){
+          const t = i/steps;
+          const px = a.x + dx*t + (Math.random()*2-1)*0.9;
+          const py = a.y + dy*t + (Math.random()*2-1)*0.9;
+          ctx.globalAlpha = 0.14;
+          ctx.beginPath();
+          ctx.arc(px, py, Math.random()*0.9 + 0.2, 0, Math.PI*2);
+          ctx.fillStyle = "rgba(59,47,43,.55)";
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+
+    // ========= 游戏流程 =========
+    let selectedRounds = [];
+
+    function startGame(){
+      state.roundsTotal = parseInt(roundCountSel.value, 10);
+      state.timeLimit = parseInt(timeLimitSel.value, 10);
+
+      state.roundIndex = 0;
+      state.score = 0;
+      state.streak = 0;
+      state.bestStreak = 0;
+      state.hintCoins = 2;
+      state.roundLog = [];
+
+      selectedRounds = pickRounds(state.roundsTotal);
+
+      updateTopChips();
+      setScreen("play");
+      SFX.start();
+
+      // ✅ 关键修复：等游戏页显示出来后再 loadRound（否则 canvas 可能还是 0x0）
+      requestAnimationFrame(()=>{
+        ensureCanvasReady(true);
+        loadRound(0);
+      });
+    }
+
+    function loadRound(i){
+      ensureCanvasReady(); // 双保险
+      state.roundIndex = i;
+      state.current = selectedRounds[i];
+      state.timerLeft = state.timeLimit;
+      state.guessCount = 0;
+      state.hintUsed = 0;
+      state.hintCoins = 2;
+
+      promptWord.textContent = state.current.word;
+      promptCategory.textContent = state.current.category;
+      hintUsedEl.textContent = state.hintUsed;
+      hintCoinsEl.textContent = state.hintCoins;
+
+      timerSec.textContent = state.timerLeft;
+      timerBox.classList.remove("low");
+
+      aiGuessEl.textContent = "（还没开始猜）";
+      aiSubEl.textContent = "你可以多画点关键特征，再让 AI 猜～";
+      aiConfidenceTag.textContent = "🎯 置信度：—";
+      aiFunnyTag.textContent = "🧠 搞笑误判：—";
+      aiThinkingPre.textContent = "(无)";
+      aiThinkingBox.open = false;
+
+      btnNextRound.disabled = true;
+      btnGuess.disabled = false;
+
+      clearCanvas(true);
+      pushUndo();
+
+      updateTopChips();
+      startTimer();
+    }
+
+    function startTimer(){
+      stopTimer();
+      SFX.stopTicking();
+      state.timerId = setInterval(()=>{
+        state.timerLeft -= 1;
+        timerSec.textContent = state.timerLeft;
+
+        if(state.timerLeft <= 10){
+          timerBox.classList.add("low");
+          if(state.timerLeft === 10) SFX.startTicking();
+        }
+        if(state.timerLeft <= 0){
+          stopTimer();
+          SFX.stopTicking();
+          onTimeUp();
+        }
+      }, 1000);
+    }
+
+    function stopTimer(){
+      if(state.timerId){
+        clearInterval(state.timerId);
+        state.timerId = null;
+      }
+    }
+
+    function onTimeUp(){
+      btnGuess.disabled = true;
+      btnNextRound.disabled = false;
+
+      state.streak = 0;
+      updateTopChips();
+
+      aiGuessEl.textContent = "⏰ 时间到！";
+      aiSubEl.textContent = `这题答案是「${state.current.word}」。下一题继续加油～`;
+
+      state.roundLog.push({
+        word: state.current.word,
+        ok: false,
+        points: 0,
+        guesses: state.guessCount,
+        timeLeft: 0,
+        note: "时间到"
+      });
+    }
+
+    function endGame(){
+      stopTimer();
+      SFX.stopTicking();
+      setScreen("end");
+
+      const total = state.score;
+      const high = Math.max(total, parseInt(localStorage.getItem(LS.high)||"0",10));
+      localStorage.setItem(LS.high, String(high));
+
+      endScore.textContent = total;
+      endBestStreak.textContent = state.bestStreak;
+      endHighScore.textContent = high;
+
+      endSummary.textContent = `你完成了 ${state.roundsTotal} 回合，最高连胜 ${state.bestStreak}，总分 ${total} 分。今天的日记页：画得很有灵魂～`;
+
+      roundList.innerHTML = "";
+      state.roundLog.forEach((r, idx)=>{
+        const el = document.createElement("div");
+        el.className = "roundItem";
+        el.innerHTML = `
+          <div style="min-width:0;">
+            <div class="w">第 ${idx+1} 回合 · ${r.ok ? "✅ 猜对" : "❌ 未猜中"} · 「${escapeHtml(r.word)}」</div>
+            <div class="m">尝试 ${r.guesses} 次 · 剩余 ${r.timeLeft}s · ${escapeHtml(r.note||"")}</div>
+          </div>
+          <div class="p">${r.ok ? "+" : ""}${r.points}</div>
+        `;
+        roundList.appendChild(el);
+      });
+    }
+
+    function nextRound(){
+      const next = state.roundIndex + 1;
+      if(next >= state.roundsTotal) endGame();
+      else loadRound(next);
+    }
+
+    // ========= 提示贴纸 =========
+    function useHint(){
+      if(state.hintCoins <= 0){
+        aiSubEl.textContent = "提示贴纸用完啦！靠你的灵感继续画～";
+        SFX.wrong();
+        return;
+      }
+      state.hintCoins -= 1;
+      state.hintUsed += 1;
+
+      hintCoinsEl.textContent = state.hintCoins;
+      hintUsedEl.textContent = state.hintUsed;
+
+      const hint = state.current.hints[Math.min(state.hintUsed-1, state.current.hints.length-1)];
+      aiSubEl.textContent = `🏷️ 提示贴纸：${hint}（继续画这个特征更好猜）`;
+    }
+
+    // ========= AI 猜测 =========
+    async function aiGuess(){
+      SFX.resume();
+
+      const apiKey = (apiKeyInput.value || "").trim() || (localStorage.getItem(LS.key)||"").trim();
+      if(!apiKey){
+        aiGuessEl.textContent = "⚠️ 需要 API Key";
+        aiSubEl.textContent = "请回到封面页粘贴 API Key（或已保存后重开）。";
+        SFX.wrong();
+        return;
+      }
+
+      if(isCanvasBlankFast()){
+        aiGuessEl.textContent = "（画布还是空的）";
+        aiSubEl.textContent = "先画两笔再让 AI 猜～";
+        SFX.wrong();
+        return;
+      }
+
+      btnGuess.disabled = true;
+      state.guessCount += 1;
+
+      aiGuessEl.textContent = "🤔 AI 正在盯着你的涂鸦…";
+      aiSubEl.textContent = "（猜测中…）";
+      aiConfidenceTag.textContent = "🎯 置信度：—";
+      aiFunnyTag.textContent = "🧠 搞笑误判：—";
+      aiThinkingPre.textContent = "(等待返回…)";
+      aiThinkingBox.open = false;
+
+      const thinkPulse = setInterval(()=>SFX.thinkingTick(), 320);
+
+      try{
+        const dataUrl = getCanvasDataUrlDownscaled(768);
+
+        const prompt = [
+          "你是一个‘你画我猜’的AI裁判。你会收到玩家的涂鸦图片。",
+          "请根据图片猜测画的是什么（用中文、尽量简短，优先名词或短语）。",
+          "请严格按如下格式输出（每行一项）：",
+          "GUESS: <你的猜测>",
+          "CONFIDENCE: <0到1的小数>",
+          "FUNNY_MISGUESS: <一个搞笑的错误猜测>",
+          "THINKING: <你的思考过程，可稍长>",
+          "",
+          "注意：如果你不确定，也要给出最可能的一个猜测。"
+        ].join("\n");
+
+        const payload = {
+          model: MODEL,
+          temperature: 0.4,
+          max_tokens: 600,
+          stream: false,
+          messages: [
+            { role: "system", content: "你是一个温柔但嘴贫的手账裁判。回答要可爱一点，但猜测要认真。" },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: dataUrl } }
+              ]
+            }
+          ]
+        };
+
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + apiKey
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await res.text();
+        let json;
+        try { json = JSON.parse(text); } catch(e){ json = null; }
+
+        if(!res.ok){
+          throw new Error(`HTTP ${res.status}: ${json?.error?.message || text.slice(0,220)}`);
+        }
+        if(!json?.choices?.[0]?.message?.content){
+          throw new Error("返回格式异常：缺少 choices[0].message.content");
+        }
+
+        const raw = String(json.choices[0].message.content);
+        const parsed = parseModelOutput(raw);
+
+        aiGuessEl.textContent = parsed.guess || "（没猜出来）";
+        aiConfidenceTag.textContent = `🎯 置信度：${isFinite(parsed.confidence) ? parsed.confidence.toFixed(2) : "—"}`;
+        aiFunnyTag.textContent = `🧠 搞笑误判：${parsed.funny || pick(FUNNY_WRONG)}`;
+        aiSubEl.textContent = parsed.guess
+          ? "我已经给出猜测啦：如果猜错，你可以继续加细节再让我猜～"
+          : "我有点迷糊…你可以画得更明显一点（轮廓+关键特征）再试一次～";
+
+        aiThinkingPre.textContent = parsed.thinking || "(无 / 模型未返回 thinking)";
+        aiThinkingBox.open = false;
+
+        const ok = isCorrectGuess(parsed.guess, state.current.answers);
+        if(ok) onCorrect(parsed.guess, parsed.confidence);
+        else onWrong(parsed.guess, parsed.funny);
+
+      }catch(err){
+        aiGuessEl.textContent = "⚠️ AI 调用失败";
+        aiSubEl.textContent =
+          "可能原因：Key/权限不对、模型不支持图像、或浏览器被 CORS 拦截。\n" +
+          "你仍可点「跳过/自判」继续流程。\n" +
+          "错误信息：" + (err?.message || String(err));
+
+        aiConfidenceTag.textContent = "🎯 置信度：—";
+        aiFunnyTag.textContent = "🧠 搞笑误判：—";
+        aiThinkingPre.textContent = "(无)";
+        aiThinkingBox.open = false;
+
+        SFX.wrong();
+        btnGuess.disabled = false;
+      }finally{
+        clearInterval(thinkPulse);
+      }
+    }
+
+    function parseModelOutput(raw){
+      const out = { guess:"", confidence: NaN, funny:"", thinking:"" };
+      const text = raw.replace(/\r/g,"").trim();
+
+      function pickLine(key){
+        const re = new RegExp(`^\\s*${key}\\s*[:：]\\s*(.*)$`, "im");
+        const m = text.match(re);
+        return m ? m[1].trim() : "";
+      }
+
+      out.guess = pickLine("GUESS") || pickLine("答案") || "";
+      const c = pickLine("CONFIDENCE") || pickLine("置信度") || "";
+      if(c){
+        const num = parseFloat(c);
+        if(isFinite(num)) out.confidence = Math.max(0, Math.min(1, num));
+      }
+      out.funny = pickLine("FUNNY_MISGUESS") || pickLine("搞笑误判") || "";
+
+      const m = text.match(/^\s*THINKING\s*[:：]\s*([\s\S]*)$/im);
+      if(m) out.thinking = m[1].trim();
+
+      if(!out.guess){
+        const first = text.split("\n").find(l=>l.trim()) || "";
+        out.guess = first.slice(0, 24);
+      }
+      return out;
+    }
+
+    function isCorrectGuess(guess, answers){
+      const g = normalizeText(guess);
+      if(!g) return false;
+      return (answers||[]).some(a=>{
+        const aa = normalizeText(a);
+        return g === aa || g.includes(aa) || aa.includes(g);
+      });
+    }
+
+    function onCorrect(guess, conf){
+      stopTimer();
+      SFX.stopTicking();
+
+      const base = 100;
+      const timeBonus = Math.max(0, state.timerLeft) * 2;
+      const streakBonus = state.streak * 18;
+      const triesPenalty = Math.max(0, state.guessCount - 1) * 12;
+      const hintPenalty = state.hintUsed * 10;
+
+      const gained = Math.max(10, base + timeBonus + streakBonus - triesPenalty - hintPenalty);
+
+      state.score += gained;
+      state.streak += 1;
+      state.bestStreak = Math.max(state.bestStreak, state.streak);
+
+      aiSubEl.textContent = `✅ 猜对啦！你画的是「${state.current.word}」。本回合 +${gained} 分（连胜：${state.streak}）。`;
+      aiConfidenceTag.textContent = `🎯 置信度：${isFinite(conf) ? conf.toFixed(2) : "—"} · ✅ 命中`;
+      aiFunnyTag.textContent = `🧠 搞笑误判：今天不需要它登场～`;
+
+      state.roundLog.push({
+        word: state.current.word,
+        ok: true,
+        points: gained,
+        guesses: state.guessCount,
+        timeLeft: state.timerLeft,
+        note: state.hintUsed ? `用了 ${state.hintUsed} 张提示贴纸` : "纯手感通关"
+      });
+
+      updateTopChips();
+      btnNextRound.disabled = false;
+      btnGuess.disabled = true;
+
+      SFX.correct();
+    }
+
+    function onWrong(guess, funny){
+      state.streak = 0;
+      updateTopChips();
+
+      const roast = pick([
+        "我好像被你的艺术气息晃了一下。",
+        "这线条…有点像…我先不说。",
+        "我看到了灵魂，但还没看清主题。",
+        "再加点关键特征，我就要开悟了！"
+      ]);
+
+      aiSubEl.textContent = `❌ 这次没猜中：我猜「${guess||"（空）"}」。${roast} 继续补细节再试～`;
+      aiFunnyTag.textContent = `🧠 搞笑误判：${funny || pick(FUNNY_WRONG)}`;
+
+      SFX.wrong();
+      btnGuess.disabled = false;
+    }
+
+    function getCanvasDataUrlDownscaled(maxSide=768){
+      const w = canvas.width, h = canvas.height;
+      const scale = Math.min(1, maxSide / Math.max(w,h));
+      const tw = Math.max(1, Math.floor(w * scale));
+      const th = Math.max(1, Math.floor(h * scale));
+
+      const off = document.createElement("canvas");
+      off.width = tw;
+      off.height = th;
+      const octx = off.getContext("2d");
+      octx.fillStyle = "#ffffff";
+      octx.fillRect(0,0,tw,th);
+      octx.drawImage(canvas, 0, 0, tw, th);
+
+      return off.toDataURL("image/png");
+    }
+
+    // ========= 触摸绘画（Pointer + Touch 兜底） =========
+    function setupPointer(){
+      const start = (clientX, clientY) => {
+        SFX.resume();
+        ensureCanvasReady(); // 防止某些机型切屏后第一次触摸还没 resize
+        draw.isDown = true;
+        pushUndo();
+        draw.last = getLocalPointLike(clientX, clientY);
+        SFX.scribble();
+      };
+
+      const move = (clientX, clientY) => {
+        if(!draw.isDown) return;
+        const p = getLocalPointLike(clientX, clientY);
+        drawSegment(draw.last, p);
+        draw.last = p;
+
+        const now = Date.now();
+        if(now - draw.lastScribbleAt > 55){
+          draw.lastScribbleAt = now;
+          SFX.scribble();
+        }
+      };
+
+      const end = () => {
+        draw.isDown = false;
+        draw.last = null;
+      };
+
+      if (window.PointerEvent) {
+        canvas.addEventListener("pointerdown", (e)=>{
+          e.preventDefault();
+          canvas.setPointerCapture(e.pointerId);
+          start(e.clientX, e.clientY);
+        }, {passive:false});
+
+        canvas.addEventListener("pointermove", (e)=>{
+          e.preventDefault();
+          move(e.clientX, e.clientY);
+        }, {passive:false});
+
+        canvas.addEventListener("pointerup", (e)=>{ e.preventDefault(); end(); }, {passive:false});
+        canvas.addEventListener("pointercancel", (e)=>{ e.preventDefault(); end(); }, {passive:false});
+      } else {
+        canvas.addEventListener("touchstart", (e)=>{
+          e.preventDefault();
+          const t = e.touches[0];
+          if(!t) return;
+          start(t.clientX, t.clientY);
+        }, {passive:false});
+
+        canvas.addEventListener("touchmove", (e)=>{
+          e.preventDefault();
+          const t = e.touches[0];
+          if(!t) return;
+          move(t.clientX, t.clientY);
+        }, {passive:false});
+
+        canvas.addEventListener("touchend", (e)=>{ e.preventDefault(); end(); }, {passive:false});
+        canvas.addEventListener("touchcancel", (e)=>{ e.preventDefault(); end(); }, {passive:false});
+      }
+    }
+
+    // ========= 跳过/自判 =========
+    function skipOrSelfJudge(){
+      stopTimer();
+      SFX.stopTicking();
+
+      const ok = confirm("你要自判吗？\n\n【确定】= 我画对了（低分通过）\n【取消】= 跳过（本回合 0 分）");
+      if(ok){
+        const gained = 40 + Math.max(0, state.timerLeft);
+        state.score += gained;
+        state.streak += 1;
+        state.bestStreak = Math.max(state.bestStreak, state.streak);
+
+        state.roundLog.push({
+          word: state.current.word,
+          ok: true,
+          points: gained,
+          guesses: state.guessCount,
+          timeLeft: state.timerLeft,
+          note: "自判通过（低分）"
+        });
+
+        aiGuessEl.textContent = "📝 自判通过";
+        aiSubEl.textContent = `你选择了自判通过：+${gained} 分（低分模式）。`;
+        aiConfidenceTag.textContent = "🎯 置信度：— · 📝 自判";
+        aiFunnyTag.textContent = "🧠 搞笑误判：—";
+        SFX.correct();
+      }else{
+        state.streak = 0;
+        state.roundLog.push({
+          word: state.current.word,
+          ok: false,
+          points: 0,
+          guesses: state.guessCount,
+          timeLeft: state.timerLeft,
+          note: "跳过"
+        });
+
+        aiGuessEl.textContent = "⏭️ 已跳过";
+        aiSubEl.textContent = `答案是「${state.current.word}」。下一题继续！`;
+        aiConfidenceTag.textContent = "🎯 置信度：—";
+        aiFunnyTag.textContent = `🧠 搞笑误判：${pick(FUNNY_WRONG)}`;
+        SFX.wrong();
+      }
+
+      updateTopChips();
+      btnGuess.disabled = true;
+      btnNextRound.disabled = false;
+    }
+
+    // ========= 工具 =========
+    function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+    function escapeHtml(s){
+      return String(s||"")
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#039;");
+    }
+
+    // ========= 事件 =========
+    btnStartGame.addEventListener("click", ()=>{
+      SFX.resume();
+      const key = (apiKeyInput.value||"").trim();
+      if(key) localStorage.setItem(LS.key, key);
+      startGame();
+    });
+
+    btnToggleSound.addEventListener("click", ()=>{
+      const v = !SFX.isEnabled();
+      SFX.setEnabled(v);
+      localStorage.setItem(LS.sound, v ? "1" : "0");
+      btnToggleSound.textContent = v ? "🔊 音效：开" : "🔇 音效：关";
+      if(v) SFX.resume();
+    });
+
+    btnClearSavedKey.addEventListener("click", ()=>{
+      localStorage.removeItem(LS.key);
+      apiKeyInput.value = "";
+      alert("已清除本地保存的 API Key。");
+    });
+
+    btnPen.addEventListener("click", ()=>{
+      draw.mode = "pen";
+      btnPen.classList.add("primary");
+      btnEraser.classList.remove("primary");
+    });
+
+    btnEraser.addEventListener("click", ()=>{
+      draw.mode = "eraser";
+      btnEraser.classList.add("primary");
+      btnPen.classList.remove("primary");
+    });
+
+    brushSize.addEventListener("input", ()=>{
+      draw.size = parseInt(brushSize.value,10);
+      brushLabel.textContent = draw.size;
+    });
+
+    btnUndo.addEventListener("click", ()=>{ SFX.resume(); undo(); });
+    btnClear.addEventListener("click", ()=>{
+      SFX.resume();
+      if(confirm("确定清空画布吗？")){
+        clearCanvas(true);
+        pushUndo();
+        SFX.wrong();
+      }
+    });
+
+    btnHint.addEventListener("click", ()=>{ SFX.resume(); useHint(); });
+    btnGuess.addEventListener("click", aiGuess);
+    btnSkip.addEventListener("click", ()=>{ SFX.resume(); skipOrSelfJudge(); });
+    btnNextRound.addEventListener("click", ()=>{ SFX.resume(); nextRound(); });
+
+    btnRestart.addEventListener("click", ()=>{ SFX.resume(); startGame(); });
+    btnBackToStart.addEventListener("click", ()=>{
+      SFX.resume();
+      setScreen("start");
+      updateTopChips();
+    });
+
+    // ========= 初始化 =========
+    function init(){
+      const sound = localStorage.getItem(LS.sound);
+      if(sound === "0"){
+        SFX.setEnabled(false);
+        btnToggleSound.textContent = "🔇 音效：关";
+      }else{
+        SFX.setEnabled(true);
+        btnToggleSound.textContent = "🔊 音效：开";
+      }
+
+      const savedKey = localStorage.getItem(LS.key) || "";
+      if(savedKey) apiKeyInput.value = savedKey;
+
+      // 先在封面页初始化一次（可选），真正有效的 resize 会在进入 play 时做
+      requestAnimationFrame(()=>{
+        ensureCanvasReady(true);
+        clearCanvas(true);
+        pushUndo();
+      });
+
+      // 旋转/resize
+      window.addEventListener("resize", ()=>{
+        clearTimeout(init._rt);
+        init._rt = setTimeout(()=>{
+          if(state.phase === "play"){
+            ensureCanvasReady(true);
+          }
+        }, 120);
+      });
+
+      // 监听画布容器尺寸变化（更稳：尤其是地址栏收起/弹出）
+      if("ResizeObserver" in window){
+        const ro = new ResizeObserver(()=>{
+          if(state.phase === "play"){
+            ensureCanvasReady(true);
+          }
+        });
+        ro.observe(canvasFrame);
+      }
+
+      setupPointer();
+
+      btnPen.classList.add("primary");
+      btnEraser.classList.remove("primary");
+      draw.size = parseInt(brushSize.value,10);
+      brushLabel.textContent = draw.size;
+
+      updateTopChips();
+    }
+    init();
+
+    // iOS：首次触摸唤醒音频
+    window.addEventListener("pointerdown", ()=>SFX.resume(), { once:false });
+  </script>
+</body>
+</html>
