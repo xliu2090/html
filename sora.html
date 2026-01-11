@@ -3,247 +3,430 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sora 2 生成器 (V5 最终稳定版)</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>纸上贴贴 - 手账联机小游戏</title>
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zeyada&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
+    
     <style>
-        body { background-color: #0f172a; color: #e2e8f0; -webkit-tap-highlight-color: transparent; }
-        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        video { width: 100%; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
+        :root {
+            --paper-bg: #fdf6e3;
+            --pencil-gray: #5e503f;
+            --pencil-light: #a99985;
+            --warm-highlight: #e6ccb2;
+            --tape-color: #ddb892;
+            --shadow: rgba(94, 80, 63, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f0e6d2;
+            /* 纸张纹理模拟 */
+            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
+            font-family: 'Zeyada', 'Noto Sans SC', cursive;
+            color: var(--pencil-gray);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        /* 手账本容器 */
+        .journal-book {
+            background: var(--paper-bg);
+            width: 100%;
+            max-width: 400px;
+            height: 90vh;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            /* 稍微旋转一点，看起来自然 */
+            transform: rotate(-1deg);
+        }
+
+        /* 顶部纸胶带装饰 */
+        .washi-tape {
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%) rotate(2deg);
+            width: 120px;
+            height: 30px;
+            background-color: var(--tape-color);
+            opacity: 0.8;
+            border-left: 2px dashed rgba(255,255,255,0.4);
+            border-right: 2px dashed rgba(255,255,255,0.4);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2.2rem;
+            margin: 15px 0;
+            font-weight: normal;
+            border-bottom: 2px solid var(--pencil-light);
+            padding-bottom: 10px;
+        }
+
+        /* 连接控制面板 */
+        .connection-panel {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* 手绘边框效果 */
+            border: 2px solid var(--pencil-light);
+            margin-bottom: 20px;
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        input {
+            border: none;
+            border-bottom: 2px dashed var(--pencil-light);
+            background: transparent;
+            padding: 5px;
+            width: 100%;
+            font-family: inherit;
+            color: var(--pencil-gray);
+            outline: none;
+        }
+
+        button {
+            background: var(--pencil-gray);
+            color: #fff;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-family: 'Zeyada', cursive;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        button.copy-btn {
+            background: var(--tape-color);
+            font-size: 1rem;
+            padding: 4px 10px;
+        }
+
+        /* 游戏棋盘 */
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin: auto 0;
+            padding: 10px;
+            display: none; /* 连接后显示 */
+        }
+
+        .cell {
+            aspect-ratio: 1;
+            background: #fff;
+            border: 2px solid var(--pencil-gray);
+            /* 随机一点的不规则圆角 */
+            border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 3rem;
+            cursor: pointer;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
+            transition: transform 0.2s;
+        }
+
+        .cell:active {
+            transform: scale(0.9);
+        }
+
+        .cell.taken {
+            pointer-events: none;
+        }
+
+        /* 状态栏 */
+        .status-bar {
+            text-align: center;
+            font-size: 1.5rem;
+            margin-top: 20px;
+            min-height: 40px;
+        }
+
+        .loading {
+            text-align: center;
+            color: var(--pencil-light);
+            font-size: 0.9rem;
+        }
+
+        /* 贴纸动画 */
+        @keyframes pop {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        
+        .sticker-anim {
+            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #my-id-display {
+            font-weight: bold;
+            color: #a67c52;
+            letter-spacing: 1px;
+        }
+        
+        .hidden { display: none !important; }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body>
 
-    <header class="flex justify-between items-center p-4 glass-panel z-50">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-                <i class="fa-solid fa-check text-white text-sm"></i>
-            </div>
-            <h1 class="font-bold text-lg tracking-wide">SoraGen <span class="text-xs font-normal text-green-400">V5</span></h1>
-        </div>
-        <button onclick="toggleSettings()" class="text-gray-400 hover:text-white transition p-2">
-            <i class="fa-solid fa-gear text-xl"></i>
-        </button>
-    </header>
+    <div class="journal-book">
+        <div class="washi-tape"></div>
+        <h1>Paper Tic-Tac-Toe</h1>
 
-    <div id="settings-panel" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
-        <div class="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
-            <h2 class="text-xl font-bold mb-4">API 设置</h2>
-            <label class="block text-xs text-gray-400 mb-1">API Endpoint</label>
-            <input type="text" id="api-url" value="https://api.vectorengine.ai" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm mb-4">
-            <label class="block text-xs text-gray-400 mb-1">API Key</label>
-            <input type="password" id="api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm mb-6">
-            <button onclick="saveSettings()" class="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition">保存设置</button>
-        </div>
-    </div>
-
-    <main class="flex-1 overflow-y-auto p-4 no-scrollbar pb-32">
-        <div class="grid grid-cols-2 gap-4 mb-6">
-            <div>
-                <label class="text-xs text-green-400 font-semibold uppercase mb-2 block">模型</label>
-                <select id="model-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none">
-                    <option value="sora-2-all">Sora 2 (标准)</option>
-                    <option value="sora-2-pro-all">Sora 2 Pro (专业)</option>
-                </select>
+        <div id="lobby" class="connection-panel">
+            <p>1. 你的房间号: <span id="my-id-display">生成中...</span> <button class="copy-btn" onclick="copyId()">复制</button></p>
+            
+            <div style="margin: 15px 0; border-top: 1px dashed var(--pencil-light);"></div>
+            
+            <p>2. 加入朋友的房间:</p>
+            <div class="input-group">
+                <input type="text" id="friend-id" placeholder="粘贴朋友的号码...">
+                <button onclick="connectToFriend()">连接</button>
             </div>
-            <div>
-                <label class="text-xs text-green-400 font-semibold uppercase mb-2 block">尺寸</label>
-                <select id="size-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none">
-                    <option value="1920x1080">16:9 横屏</option>
-                    <option value="1080x1920">9:16 竖屏</option>
-                </select>
-            </div>
+            <p class="loading" id="status-msg">等待连接...</p>
         </div>
 
-        <div id="result-area" class="min-h-[200px] flex flex-col items-center justify-center rounded-2xl bg-slate-800/50 border border-slate-700 border-dashed mb-6 relative overflow-hidden">
-            <div id="placeholder" class="text-center p-6">
-                <i class="fa-solid fa-film text-4xl text-slate-600 mb-3"></i>
-                <p class="text-sm text-slate-500">准备生成</p>
+        <div id="game-ui" class="hidden" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
+            <div class="status-bar" id="game-status">
+                等待对方先手...
+            </div>
+
+            <div class="game-board" id="board" style="display: grid;">
+                <div class="cell" data-index="0"></div>
+                <div class="cell" data-index="1"></div>
+                <div class="cell" data-index="2"></div>
+                <div class="cell" data-index="3"></div>
+                <div class="cell" data-index="4"></div>
+                <div class="cell" data-index="5"></div>
+                <div class="cell" data-index="6"></div>
+                <div class="cell" data-index="7"></div>
+                <div class="cell" data-index="8"></div>
             </div>
             
-            <div id="loading" class="hidden absolute inset-0 bg-slate-900/95 z-10 flex flex-col items-center justify-center text-center p-4">
-                <div class="loader mb-4"></div>
-                <p id="loading-text" class="text-sm font-semibold text-green-400 animate-pulse">正在处理...</p>
-                <p id="timer" class="text-xs text-gray-500 mt-2">耗时: 0s</p>
-                <div class="w-full max-w-[200px] h-1.5 bg-slate-700 rounded-full mt-4 overflow-hidden">
-                    <div id="progress-bar" class="h-full bg-green-500 w-0 transition-all duration-300"></div>
-                </div>
-                <button onclick="location.reload()" class="mt-6 text-xs text-red-400 border border-red-400/30 px-3 py-1 rounded hover:bg-red-400/10">
-                    卡住了？点击刷新
-                </button>
+            <div style="text-align: center; margin-top: auto;">
+                <button onclick="resetGame()" id="restart-btn" class="hidden" style="margin-top: 10px;">再玩一局 ↺</button>
             </div>
-
-            <div id="video-container" class="hidden w-full">
-                <video id="output-video" controls playsinline loop></video>
-                <a id="download-btn" href="#" target="_blank" class="block mt-2 bg-slate-700 text-xs py-2 rounded text-center">下载视频</a>
-            </div>
-        </div>
-
-        <div class="p-3 bg-black/40 rounded-lg border border-slate-800">
-            <div class="flex justify-between items-center mb-2">
-                <div class="text-xs text-gray-400">实时日志</div>
-                <button onclick="clearLog()" class="text-xs text-gray-600">清空</button>
-            </div>
-            <div id="status-log" class="text-[10px] text-green-400 font-mono break-all max-h-40 overflow-y-auto">...</div>
-        </div>
-    </main>
-
-    <div class="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-800 z-40">
-        <div class="relative">
-            <textarea id="prompt-input" rows="3" class="w-full bg-slate-800 text-white rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-none" placeholder="描述你的视频..."></textarea>
-            <button onclick="startProcess()" class="absolute right-2 bottom-2 bg-green-600 text-white w-10 h-10 rounded-lg flex items-center justify-center">
-                <i class="fa-solid fa-paper-plane"></i>
-            </button>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedKey = localStorage.getItem('vectorengine_key');
-            if (savedKey) document.getElementById('api-key').value = savedKey;
-            if (!savedKey) toggleSettings();
+        // --- 游戏配置 ---
+        const peer = new Peer(); // 初始化PeerJS
+        let conn = null;
+        let myTurn = false;
+        let mySymbol = '🌸'; // 默认贴纸
+        let opponentSymbol = '🧸';
+        let gameState = ['', '', '', '', '', '', '', '', ''];
+        let isGameActive = false;
+
+        // --- 1. P2P 连接逻辑 ---
+
+        // 获取自己的ID
+        peer.on('open', (id) => {
+            document.getElementById('my-id-display').innerText = id;
+            document.getElementById('status-msg').innerText = "就绪。发送号码给朋友，或输入朋友的号码。";
         });
 
-        function toggleSettings() { document.getElementById('settings-panel').classList.toggle('hidden'); }
-        function clearLog() { document.getElementById('status-log').innerHTML = ''; }
-        
-        function saveSettings() {
-            const key = document.getElementById('api-key').value.trim();
-            localStorage.setItem('vectorengine_key', key);
-            toggleSettings();
-        }
+        // 被动连接 (作为房主)
+        peer.on('connection', (c) => {
+            conn = c;
+            setupConnection("host");
+        });
 
-        function log(msg, type = 'info') {
-            const logEl = document.getElementById('status-log');
-            const color = type === 'error' ? 'text-red-400' : 'text-green-400';
-            logEl.innerHTML = `<div class="mb-1 ${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>` + logEl.innerHTML;
-        }
-
-        // 关键改进：带超时的 fetch 函数，防止手机端卡死
-        async function fetchWithTimeout(resource, options = {}) {
-            const { timeout = 8000 } = options; // 默认8秒超时
-            const controller = new AbortController();
-            const id = setTimeout(() => controller.abort(), timeout);
-            const response = await fetch(resource, { ...options, signal: controller.signal });
-            clearTimeout(id);
-            return response;
-        }
-
-        let timerInterval, pollInterval;
-
-        async function startProcess() {
-            const apiKey = document.getElementById('api-key').value.trim();
-            const baseUrl = document.getElementById('api-url').value.trim() || 'https://api.vectorengine.ai';
-            const prompt = document.getElementById('prompt-input').value.trim();
-            const model = document.getElementById('model-select').value;
-            const size = document.getElementById('size-select').value;
-
-            if (!apiKey) return alert('请配置 API Key');
-            if (!prompt) return alert('请输入提示词');
-
-            // Reset UI
-            document.getElementById('placeholder').classList.add('hidden');
-            document.getElementById('video-container').classList.add('hidden');
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('progress-bar').style.width = '5%';
+        // 主动连接 (作为客端)
+        function connectToFriend() {
+            const friendId = document.getElementById('friend-id').value.trim();
+            if (!friendId) return alert("请输入朋友的号码");
             
-            let seconds = 0;
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                seconds++;
-                document.getElementById('timer').innerText = `耗时: ${seconds}s`;
-            }, 1000);
+            document.getElementById('status-msg').innerText = "正在呼叫...";
+            conn = peer.connect(friendId);
+            
+            conn.on('open', () => {
+                setupConnection("guest");
+            });
+        }
 
-            try {
-                log(`[1/3] 提交任务: ${size}`);
-                const resp = await fetchWithTimeout(`${baseUrl}/v1/video/create`, {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, prompt, size })
-                });
+        // 通用连接设置
+        function setupConnection(role) {
+            document.getElementById('lobby').classList.add('hidden');
+            document.getElementById('game-ui').classList.remove('hidden');
+            
+            // 数据监听
+            conn.on('data', (data) => {
+                handleData(data);
+            });
 
-                const data = await resp.json();
-                
-                if (data.id) {
-                    log(`[2/3] 收到任务ID，开始轮询...`);
-                    startPolling(baseUrl, apiKey, data.id);
-                } else if (data.data && typeof data.data === 'string' && data.data.startsWith('http')) {
-                    showVideo(data.data);
-                } else if (data.data && Array.isArray(data.data) && data.data[0].url) {
-                    showVideo(data.data[0].url);
-                } else {
-                    throw new Error("API返回了未知格式: " + JSON.stringify(data));
-                }
-            } catch (error) {
-                handleError(error);
+            // 掉线处理
+            conn.on('close', () => {
+                alert("对方已断开连接");
+                location.reload();
+            });
+
+            // 初始化游戏状态
+            isGameActive = true;
+            if (role === "host") {
+                mySymbol = '🌸';
+                opponentSymbol = '🧸';
+                myTurn = true; // 房主先手
+                updateStatus("轮到你贴贴纸了 (🌸)");
+            } else {
+                mySymbol = '🧸';
+                opponentSymbol = '🌸';
+                myTurn = false;
+                updateStatus("等待对方贴贴纸 (🌸)...");
+            }
+            renderBoard();
+        }
+
+        // --- 2. 游戏逻辑 ---
+
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            cell.addEventListener('click', () => handleCellClick(cell));
+        });
+
+        function handleCellClick(cell) {
+            const index = cell.getAttribute('data-index');
+
+            if (!isGameActive || !myTurn || gameState[index] !== '') return;
+
+            // 1. 更新本地
+            makeMove(index, mySymbol);
+            myTurn = false;
+            updateStatus(`等待对方 (${opponentSymbol})...`);
+
+            // 2. 发送给对方
+            if(conn) {
+                conn.send({ type: 'move', index: index });
+            }
+
+            checkResult();
+        }
+
+        function handleData(data) {
+            if (data.type === 'move') {
+                makeMove(data.index, opponentSymbol);
+                myTurn = true;
+                updateStatus(`轮到你贴贴纸了 (${mySymbol})`);
+                checkResult();
+            } else if (data.type === 'restart') {
+                resetBoardLocal();
             }
         }
 
-        async function startPolling(baseUrl, apiKey, taskId) {
-            document.getElementById('loading-text').innerText = "AI 正在生成中...";
-            let attempts = 0;
-            
-            clearInterval(pollInterval);
-            pollInterval = setInterval(async () => {
-                attempts++;
-                document.getElementById('progress-bar').style.width = `${Math.min(90, attempts * 5)}%`;
+        function makeMove(index, symbol) {
+            gameState[index] = symbol;
+            const cell = document.querySelector(`.cell[data-index='${index}']`);
+            cell.innerHTML = `<span class="sticker-anim">${symbol}</span>`;
+            cell.classList.add('taken');
+        }
 
-                try {
-                    // 使用带超时的请求，防止卡死
-                    const resp = await fetchWithTimeout(`${baseUrl}/v1/video/query`, {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ id: taskId }),
-                        timeout: 5000 // 轮询接口5秒超时
-                    });
-                    
-                    const data = await resp.json();
-                    const status = (data.status || "UNKNOWN").toUpperCase();
-                    
-                    // 每次都打印状态，确保你知道它还活着
-                    log(`轮询 #${attempts}: ${status}`);
+        function updateStatus(msg) {
+            document.getElementById('game-status').innerText = msg;
+        }
 
-                    if (status.includes("SUCC") || status === "COMPLETED") {
-                        let url = data.data?.url || (Array.isArray(data.data) ? data.data[0]?.url : "");
-                        if (url) showVideo(url);
-                    } else if (status.includes("FAIL")) {
-                        throw new Error(`服务端报错: ${data.fail_reason}`);
-                    }
-                } catch (e) {
-                    // 忽略网络超时，继续下一次轮询，保持循环不中断
-                    console.log("Polling skip:", e.message);
+        // --- 3. 胜负判定 ---
+        const winningConditions = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8],
+            [0, 3, 6], [1, 4, 7], [2, 5, 8],
+            [0, 4, 8], [2, 4, 6]
+        ];
+
+        function checkResult() {
+            let roundWon = false;
+            let winner = null;
+
+            for (let i = 0; i <= 7; i++) {
+                const winCondition = winningConditions[i];
+                let a = gameState[winCondition[0]];
+                let b = gameState[winCondition[1]];
+                let c = gameState[winCondition[2]];
+                if (a === '' || b === '' || c === '') continue;
+                if (a === b && b === c) {
+                    roundWon = true;
+                    winner = a;
+                    break;
                 }
-            }, 4000);
+            }
+
+            if (roundWon) {
+                endGame(winner === mySymbol ? "你赢了！🎉" : "对方赢了！👏");
+                return;
+            }
+
+            if (!gameState.includes("")) {
+                endGame("平局！☕");
+                return;
+            }
         }
 
-        function showVideo(url) {
-            clearInterval(timerInterval);
-            clearInterval(pollInterval);
-            log("✅ 成功! 下载视频中...", 'success');
-            document.getElementById('progress-bar').style.width = '100%';
-            
-            const videoEl = document.getElementById('output-video');
-            videoEl.src = url;
-            document.getElementById('download-btn').href = url;
-            
-            setTimeout(() => {
-                document.getElementById('loading').classList.add('hidden');
-                document.getElementById('video-container').classList.remove('hidden');
-                videoEl.play();
-            }, 500);
+        function endGame(message) {
+            isGameActive = false;
+            updateStatus(message);
+            document.getElementById('restart-btn').classList.remove('hidden');
         }
 
-        function handleError(error) {
-            clearInterval(timerInterval);
-            clearInterval(pollInterval);
-            log(`❌ ${error.message}`, 'error');
-            document.getElementById('loading').classList.add('hidden');
-            document.getElementById('placeholder').classList.remove('hidden');
-            alert(error.message);
+        // --- 4. 重置游戏 ---
+        function resetGame() {
+            if(conn) conn.send({ type: 'restart' });
+            resetBoardLocal();
+        }
+
+        function resetBoardLocal() {
+            gameState = ['', '', '', '', '', '', '', '', ''];
+            isGameActive = true;
+            document.getElementById('restart-btn').classList.add('hidden');
+            cells.forEach(cell => {
+                cell.innerHTML = "";
+                cell.classList.remove('taken');
+            });
+            
+            // 简单规则：谁点重置，谁就后手（或者保持原样，这里简化为根据符号判断）
+            if (mySymbol === '🌸') {
+                myTurn = true;
+                updateStatus("新局开始：轮到你 (🌸)");
+            } else {
+                myTurn = false;
+                updateStatus("新局开始：等待对方 (🌸)");
+            }
+        }
+
+        // --- 辅助功能 ---
+        function copyId() {
+            const idText = document.getElementById('my-id-display').innerText;
+            navigator.clipboard.writeText(idText).then(() => {
+                alert("号码已复制！发给朋友吧。");
+            });
         }
     </script>
 </body>
 </html>
+
