@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sora 2 生成器 (V5 最终稳定版)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; -webkit-tap-highlight-color: transparent; }
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .loader { border: 3px solid #f3f3f3; border-radius: 50%; border-top: 3px solid #3b82f6; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        video { width: 100%; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="flex flex-col h-screen overflow-hidden">
+
+    <header class="flex justify-between items-center p-4 glass-panel z-50">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-check text-white text-sm"></i>
+            </div>
+            <h1 class="font-bold text-lg tracking-wide">SoraGen <span class="text-xs font-normal text-green-400">V5</span></h1>
+        </div>
+        <button onclick="toggleSettings()" class="text-gray-400 hover:text-white transition p-2">
+            <i class="fa-solid fa-gear text-xl"></i>
+        </button>
+    </header>
+
+    <div id="settings-panel" class="hidden fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
+        <div class="bg-slate-800 w-full max-w-sm rounded-2xl p-6 border border-slate-700 shadow-2xl">
+            <h2 class="text-xl font-bold mb-4">API 设置</h2>
+            <label class="block text-xs text-gray-400 mb-1">API Endpoint</label>
+            <input type="text" id="api-url" value="https://api.vectorengine.ai" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm mb-4">
+            <label class="block text-xs text-gray-400 mb-1">API Key</label>
+            <input type="password" id="api-key" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-sm mb-6">
+            <button onclick="saveSettings()" class="w-full bg-green-600 hover:bg-green-500 text-white font-semibold py-3 rounded-xl transition">保存设置</button>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-y-auto p-4 no-scrollbar pb-32">
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div>
+                <label class="text-xs text-green-400 font-semibold uppercase mb-2 block">模型</label>
+                <select id="model-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none">
+                    <option value="sora-2-all">Sora 2 (标准)</option>
+                    <option value="sora-2-pro-all">Sora 2 Pro (专业)</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-green-400 font-semibold uppercase mb-2 block">尺寸</label>
+                <select id="size-select" class="w-full bg-slate-800 border border-slate-700 rounded-lg p-3 text-sm outline-none">
+                    <option value="1920x1080">16:9 横屏</option>
+                    <option value="1080x1920">9:16 竖屏</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="result-area" class="min-h-[200px] flex flex-col items-center justify-center rounded-2xl bg-slate-800/50 border border-slate-700 border-dashed mb-6 relative overflow-hidden">
+            <div id="placeholder" class="text-center p-6">
+                <i class="fa-solid fa-film text-4xl text-slate-600 mb-3"></i>
+                <p class="text-sm text-slate-500">准备生成</p>
+            </div>
+            
+            <div id="loading" class="hidden absolute inset-0 bg-slate-900/95 z-10 flex flex-col items-center justify-center text-center p-4">
+                <div class="loader mb-4"></div>
+                <p id="loading-text" class="text-sm font-semibold text-green-400 animate-pulse">正在处理...</p>
+                <p id="timer" class="text-xs text-gray-500 mt-2">耗时: 0s</p>
+                <div class="w-full max-w-[200px] h-1.5 bg-slate-700 rounded-full mt-4 overflow-hidden">
+                    <div id="progress-bar" class="h-full bg-green-500 w-0 transition-all duration-300"></div>
+                </div>
+                <button onclick="location.reload()" class="mt-6 text-xs text-red-400 border border-red-400/30 px-3 py-1 rounded hover:bg-red-400/10">
+                    卡住了？点击刷新
+                </button>
+            </div>
+
+            <div id="video-container" class="hidden w-full">
+                <video id="output-video" controls playsinline loop></video>
+                <a id="download-btn" href="#" target="_blank" class="block mt-2 bg-slate-700 text-xs py-2 rounded text-center">下载视频</a>
+            </div>
+        </div>
+
+        <div class="p-3 bg-black/40 rounded-lg border border-slate-800">
+            <div class="flex justify-between items-center mb-2">
+                <div class="text-xs text-gray-400">实时日志</div>
+                <button onclick="clearLog()" class="text-xs text-gray-600">清空</button>
+            </div>
+            <div id="status-log" class="text-[10px] text-green-400 font-mono break-all max-h-40 overflow-y-auto">...</div>
+        </div>
+    </main>
+
+    <div class="fixed bottom-0 left-0 right-0 p-4 bg-slate-900 border-t border-slate-800 z-40">
+        <div class="relative">
+            <textarea id="prompt-input" rows="3" class="w-full bg-slate-800 text-white rounded-xl pl-4 pr-14 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-green-600 resize-none" placeholder="描述你的视频..."></textarea>
+            <button onclick="startProcess()" class="absolute right-2 bottom-2 bg-green-600 text-white w-10 h-10 rounded-lg flex items-center justify-center">
+                <i class="fa-solid fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedKey = localStorage.getItem('vectorengine_key');
+            if (savedKey) document.getElementById('api-key').value = savedKey;
+            if (!savedKey) toggleSettings();
+        });
+
+        function toggleSettings() { document.getElementById('settings-panel').classList.toggle('hidden'); }
+        function clearLog() { document.getElementById('status-log').innerHTML = ''; }
+        
+        function saveSettings() {
+            const key = document.getElementById('api-key').value.trim();
+            localStorage.setItem('vectorengine_key', key);
+            toggleSettings();
+        }
+
+        function log(msg, type = 'info') {
+            const logEl = document.getElementById('status-log');
+            const color = type === 'error' ? 'text-red-400' : 'text-green-400';
+            logEl.innerHTML = `<div class="mb-1 ${color}">[${new Date().toLocaleTimeString()}] ${msg}</div>` + logEl.innerHTML;
+        }
+
+        // 关键改进：带超时的 fetch 函数，防止手机端卡死
+        async function fetchWithTimeout(resource, options = {}) {
+            const { timeout = 8000 } = options; // 默认8秒超时
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
+            const response = await fetch(resource, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return response;
+        }
+
+        let timerInterval, pollInterval;
+
+        async function startProcess() {
+            const apiKey = document.getElementById('api-key').value.trim();
+            const baseUrl = document.getElementById('api-url').value.trim() || 'https://api.vectorengine.ai';
+            const prompt = document.getElementById('prompt-input').value.trim();
+            const model = document.getElementById('model-select').value;
+            const size = document.getElementById('size-select').value;
+
+            if (!apiKey) return alert('请配置 API Key');
+            if (!prompt) return alert('请输入提示词');
+
+            // Reset UI
+            document.getElementById('placeholder').classList.add('hidden');
+            document.getElementById('video-container').classList.add('hidden');
+            document.getElementById('loading').classList.remove('hidden');
+            document.getElementById('progress-bar').style.width = '5%';
+            
+            let seconds = 0;
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                seconds++;
+                document.getElementById('timer').innerText = `耗时: ${seconds}s`;
+            }, 1000);
+
+            try {
+                log(`[1/3] 提交任务: ${size}`);
+                const resp = await fetchWithTimeout(`${baseUrl}/v1/video/create`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, prompt, size })
+                });
+
+                const data = await resp.json();
+                
+                if (data.id) {
+                    log(`[2/3] 收到任务ID，开始轮询...`);
+                    startPolling(baseUrl, apiKey, data.id);
+                } else if (data.data && typeof data.data === 'string' && data.data.startsWith('http')) {
+                    showVideo(data.data);
+                } else if (data.data && Array.isArray(data.data) && data.data[0].url) {
+                    showVideo(data.data[0].url);
+                } else {
+                    throw new Error("API返回了未知格式: " + JSON.stringify(data));
+                }
+            } catch (error) {
+                handleError(error);
+            }
+        }
+
+        async function startPolling(baseUrl, apiKey, taskId) {
+            document.getElementById('loading-text').innerText = "AI 正在生成中...";
+            let attempts = 0;
+            
+            clearInterval(pollInterval);
+            pollInterval = setInterval(async () => {
+                attempts++;
+                document.getElementById('progress-bar').style.width = `${Math.min(90, attempts * 5)}%`;
+
+                try {
+                    // 使用带超时的请求，防止卡死
+                    const resp = await fetchWithTimeout(`${baseUrl}/v1/video/query`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: taskId }),
+                        timeout: 5000 // 轮询接口5秒超时
+                    });
+                    
+                    const data = await resp.json();
+                    const status = (data.status || "UNKNOWN").toUpperCase();
+                    
+                    // 每次都打印状态，确保你知道它还活着
+                    log(`轮询 #${attempts}: ${status}`);
+
+                    if (status.includes("SUCC") || status === "COMPLETED") {
+                        let url = data.data?.url || (Array.isArray(data.data) ? data.data[0]?.url : "");
+                        if (url) showVideo(url);
+                    } else if (status.includes("FAIL")) {
+                        throw new Error(`服务端报错: ${data.fail_reason}`);
+                    }
+                } catch (e) {
+                    // 忽略网络超时，继续下一次轮询，保持循环不中断
+                    console.log("Polling skip:", e.message);
+                }
+            }, 4000);
+        }
+
+        function showVideo(url) {
+            clearInterval(timerInterval);
+            clearInterval(pollInterval);
+            log("✅ 成功! 下载视频中...", 'success');
+            document.getElementById('progress-bar').style.width = '100%';
+            
+            const videoEl = document.getElementById('output-video');
+            videoEl.src = url;
+            document.getElementById('download-btn').href = url;
+            
+            setTimeout(() => {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('video-container').classList.remove('hidden');
+                videoEl.play();
+            }, 500);
+        }
+
+        function handleError(error) {
+            clearInterval(timerInterval);
+            clearInterval(pollInterval);
+            log(`❌ ${error.message}`, 'error');
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('placeholder').classList.remove('hidden');
+            alert(error.message);
+        }
+    </script>
+</body>
+</html>
