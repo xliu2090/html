@@ -402,7 +402,7 @@
     }
 
     /* 点击成图可预览 */
-    .gen-img{ cursor: zoom-in; }
+    .gen-img{ cursor: pointer; }
 
     .hist-meta{
       padding: 12px 14px;
@@ -590,7 +590,7 @@
       min-height: 16px;
     }
 
-    /* ===== 图片预览弹窗（Lightbox） ===== */
+    /* ===== 图片预览弹窗（Lightbox）- 虽然不使用但保留样式以防万一 ===== */
     .viewer{
       position:fixed; inset:0;
       z-index: 2000;
@@ -739,7 +739,7 @@
     
     <div class="remember-box">
       <input type="checkbox" id="rememberMe">
-      <label for="rememberMe">记住账号密码 (本地保存)</label>
+      <label for="rememberMe">记住账号密码 </label>
     </div>
 
     <button class="btn" id="btnLogin">立即登录</button>
@@ -861,7 +861,7 @@
     clearHistory: $("clearHistory")
   };
 
-  // ===== 图片预览弹窗（Lightbox） =====
+  // ===== 图片预览弹窗（Lightbox）- 代码保留但不再通过点击触发，以防未来需要恢复 =====
   const viewer = {
     layer: document.getElementById("imgViewer"),
     img: document.getElementById("viewerImg"),
@@ -965,6 +965,7 @@
   function renderItem(item, replaceElem) {
     const url = URL.createObjectURL(item.blob);
 
+    // 修改：将 span 按钮改为 a 标签，并添加 target="_blank"
     const html = `
       <img src="${url}" class="gen-img" />
       <div class="hist-meta">
@@ -973,7 +974,7 @@
             <span class="meta-res">读取分辨率...</span>
         </div>
         <div class="actions-group">
-            <span class="link-btn open-btn" role="button" tabindex="0">打开</span>
+            <a href="${url}" target="_blank" class="link-btn open-btn">打开</a>
             <a href="${url}" download="img_${item.id}.png" class="link-btn">下载</a>
             <span class="del-btn">删除</span>
         </div>
@@ -993,14 +994,11 @@
         if (img.complete) updateRes();
         else img.onload = updateRes;
 
-        // 点击图片本身：弹窗预览（不新开页面）
-        img.onclick = () => openViewer(url, `img_${item.id}.png`);
+        // 修改：点击图片本身不再调用 openViewer，而是直接在新标签页打开
+        img.onclick = () => window.open(url, '_blank');
 
-        // 点击“打开”：弹窗预览（修复“没反应”）
-        openBtn.onclick = () => openViewer(url, `img_${item.id}.png`);
-        openBtn.onkeydown = (e) => {
-          if (e.key === "Enter" || e.key === " ") openViewer(url, `img_${item.id}.png`);
-        };
+        // 注意：openBtn 已经是 a 标签且有 target="_blank"，浏览器原生处理即可，
+        // 这里不需要再绑定 onclick 事件，保留代码简洁性。
 
         delBtn.onclick = () => deleteItem(item.id, container);
     };
