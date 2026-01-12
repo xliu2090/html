@@ -550,14 +550,38 @@
       letter-spacing: .2px;
     }
 
-    .loginBox input{
+    .loginBox input[type="text"],
+    .loginBox input[type="password"] {
       text-align:center;
       margin-bottom: 12px;
       height: 46px;
       border-radius: 14px;
       background: rgba(248,250,252,.9);
     }
-    .loginBox input:last-of-type{margin-bottom: 18px}
+    .loginBox input[type="password"] {margin-bottom: 18px}
+
+    /* 记住账号 checkbox 样式修正 */
+    .remember-box {
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      margin-bottom: 4px;
+      padding-left: 4px;
+    }
+    #rememberMe {
+      width: 16px;
+      height: 16px;
+      margin: 0 6px 0 0;
+      box-shadow: none;
+      background: transparent;
+      border-color: var(--line-strong);
+    }
+    .remember-box label {
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
 
     #loginMsg{
       margin-top: 10px;
@@ -712,6 +736,12 @@
     <h3>欢迎回来</h3>
     <input id="u_name" type="text" placeholder="账号" />
     <input id="u_pass" type="password" placeholder="密码" />
+    
+    <div class="remember-box">
+      <input type="checkbox" id="rememberMe">
+      <label for="rememberMe">记住账号密码 (本地保存)</label>
+    </div>
+
     <button class="btn" id="btnLogin">立即登录</button>
     <div id="loginMsg"></div>
   </div>
@@ -789,7 +819,6 @@
   </div>
 </div>
 
-<!-- 图片预览弹窗（不新开页面） -->
 <div id="imgViewer" class="viewer" aria-hidden="true">
   <div class="viewer-backdrop"></div>
   <div class="viewer-panel" role="dialog" aria-modal="true">
@@ -826,6 +855,7 @@
     historyList: $("historyList"),
     loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
     btnLogin: $("btnLogin"), loginMsg: $("loginMsg"),
+    rememberMe: $("rememberMe"), // 新增
     welcomeText: $("welcomeText"),
     logoutBtn: $("logoutBtn"),
     clearHistory: $("clearHistory")
@@ -988,6 +1018,17 @@
   }
 
   // --- Logic ---
+  // 1. 初始化时检查本地缓存
+  const LS_USER = "ai_art_user";
+  const LS_PASS = "ai_art_pass";
+  const savedUser = localStorage.getItem(LS_USER);
+  const savedPass = localStorage.getItem(LS_PASS);
+  if (savedUser && savedPass) {
+    el.u_name.value = savedUser;
+    el.u_pass.value = savedPass;
+    el.rememberMe.checked = true;
+  }
+
   function updateUserInfo() {
     if (!currentUser) return;
     el.welcomeText.textContent = currentUser;
@@ -998,6 +1039,16 @@
       const p = el.u_pass.value.trim();
       if (USERS_DB[u] && USERS_DB[u].pwd === p) {
           currentUser = u;
+
+          // 2. 登录成功，处理记住密码逻辑
+          if (el.rememberMe.checked) {
+            localStorage.setItem(LS_USER, u);
+            localStorage.setItem(LS_PASS, p);
+          } else {
+            localStorage.removeItem(LS_USER);
+            localStorage.removeItem(LS_PASS);
+          }
+
           el.loginLayer.style.display = "none";
           updateUserInfo();
           initDB();
@@ -1053,7 +1104,7 @@
     loadingCard.innerHTML = `
         <div class="loading-placeholder">
             <div class="spinner"></div>
-            <div>AI 正在绘制中...</div>
+            <div>绘制中...</div>
         </div>
     `;
     el.historyList.prepend(loadingCard);
