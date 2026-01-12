@@ -1,324 +1,779 @@
-<!doctype html>        
-<html lang="zh-CN">          
-<head>          
-  <meta charset="utf-8" />          
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />          
-  <title>AI 绘图系统</title>          
-  <style>          
-    :root{          
-      /* 明亮主题配色 */
-      --bg:#F5F7FA; --card:#FFFFFF; --line:#E1E4E8;          
-      --text:#1F2937; --muted:#6B7280;          
-      --brand:#2563EB; --brand-light:#EFF6FF;           
-      --radius:16px; --input-bg:#F9FAFB;          
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
-      --sans: system-ui, -apple-system, sans-serif;          
-    }          
-    *{box-sizing:border-box}          
-    body{          
-      margin:0; font-family:var(--sans); color:var(--text);          
-      background: var(--bg); min-height:100vh;          
-      -webkit-font-smoothing: antialiased;          
-    }          
-    .wrap{max-width:720px; margin:0 auto; padding:20px 16px 60px;}          
-    
-    /* 顶部导航 */
-    .head{          
-      display:flex; align-items:center; justify-content:space-between;          
-      padding-bottom:16px; margin-bottom:10px;          
-    }          
-    .brand{display:flex; align-items:center; gap:12px;}          
-    .logo{          
-      width:36px; height:36px; border-radius:10px;          
-      background: linear-gradient(135deg, #3B82F6, #8B5CF6);          
-      box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
-    }          
-    .title b{display:block; font-size:18px; font-weight: 700; color: #111827;}          
-    .title span{font-size:13px; color:var(--muted);}          
-    
-    /* 主操作卡片 */
-    .card{          
-      background: var(--card); border:1px solid var(--line);          
-      border-radius:var(--radius); padding:20px;          
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>AI 绘图系统</title>
+  <style>
+    :root{
+      /* ===== 商用级：克制中性 + 质感阴影 + 统一间距 ===== */
+      --bg: #F6F7FB;
+      --bg2:#EEF2FF;
+      --card:#FFFFFF;
+      --line: rgba(17, 24, 39, 0.10);
+      --line-strong: rgba(17, 24, 39, 0.14);
+
+      --text:#0F172A;
+      --muted:#64748B;
+
+      --brand:#2563EB;
+      --brand-2:#1D4ED8;
+      --brand-soft: rgba(37, 99, 235, 0.12);
+
+      --danger:#EF4444;
+      --success:#16A34A;
+
+      --radius:18px;
+      --radius-sm:12px;
+
+      --input-bg:#F8FAFC;
+
+      --shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.06);
+      --shadow: 0 12px 30px rgba(2, 6, 23, 0.08);
+      --shadow-2: 0 18px 50px rgba(2, 6, 23, 0.10);
+
+      --ring: 0 0 0 4px var(--brand-soft);
+
+      --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      min-height:100vh;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+
+      /* 背景做一点高级感，但不花哨 */
+      background:
+        radial-gradient(1200px 700px at 15% -10%, rgba(37,99,235,.10), transparent 55%),
+        radial-gradient(900px 600px at 100% 0%, rgba(99,102,241,.08), transparent 50%),
+        linear-gradient(180deg, var(--bg), #F7F8FC);
+    }
+
+    a{color:inherit}
+    ::selection{background: rgba(37, 99, 235, .18)}
+
+    .wrap{
+      max-width: 780px;
+      margin: 0 auto;
+      padding: 28px 16px 72px;
+    }
+
+    /* ===== 顶部导航 ===== */
+    .head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding: 14px 14px;
+      margin-bottom: 18px;
+
+      background: rgba(255,255,255,.70);
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 2px);
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(10px);
+    }
+
+    .brand{
+      display:flex;
+      align-items:center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo{
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #1D4ED8, #2563EB);
+      box-shadow: 0 10px 22px rgba(37, 99, 235, 0.22);
+      position: relative;
+      overflow: hidden;
+    }
+    /* 小高光，增加“做工” */
+    .logo::after{
+      content:"";
+      position:absolute;
+      inset:-40% -40% auto auto;
+      width: 120%;
+      height: 120%;
+      transform: rotate(18deg);
+      background: linear-gradient(90deg, rgba(255,255,255,.0), rgba(255,255,255,.25), rgba(255,255,255,.0));
+      opacity: .8;
+    }
+
+    .title{min-width:0}
+    .title b{
+      display:block;
+      font-size: 18px;
+      font-weight: 800;
+      letter-spacing: .2px;
+      color: #0B1220;
+      line-height: 1.15;
+    }
+    .title span{
+      display:block;
+      margin-top: 4px;
+      font-size: 12.5px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 48vw;
+    }
+
+    #logoutBtn{
+      font-size: 12.5px;
+      color: var(--muted);
+      cursor:pointer;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      transition: background .2s ease, border-color .2s ease, color .2s ease;
+      user-select:none;
+    }
+    #logoutBtn:hover{
+      background: rgba(15, 23, 42, 0.04);
+      border-color: var(--line);
+      color: #0F172A;
+    }
+    #logoutBtn:active{transform: translateY(1px)}
+
+    /* ===== 主操作卡片 ===== */
+    .card{
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
       box-shadow: var(--shadow);
-    }          
+      backdrop-filter: blur(10px);
+    }
 
     /* 紧凑网格布局 */
-    .settings-grid {
-      display: grid; 
-      grid-template-columns: 1fr 1fr; 
-      gap: 16px; margin-bottom: 16px;
-    }
-    
-    .control-item { display: flex; flex-direction: column; gap: 6px; }
-    .control-item label { font-size: 12px; color: var(--muted); font-weight: 600; }
-    
-    input, select, textarea {          
-      width:100%; border-radius:10px; border:1px solid var(--line);          
-      background: var(--input-bg); color:var(--text);          
-      padding: 0 12px; height: 42px; font-size:14px; outline:none;          
-      transition: all 0.2s;
-    }     
-    input:focus, select:focus, textarea:focus { 
-      border-color: var(--brand); background: #fff; 
-      box-shadow: 0 0 0 3px var(--brand-light);
-    }
-    
-    /* 禁用状态的 Select 样式 */
-    option:disabled {
-        color: #9ca3af;
-        font-style: italic;
-    }
-    
-    /* 只读样式 */
-    .readonly-input { 
-      color: var(--brand); font-weight: bold; cursor: default; 
-      background: var(--brand-light); border-color: transparent;
+    .settings-grid{
+      display:grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 16px;
     }
 
-    textarea{ height:auto; min-height:80px; padding:12px; resize:vertical; line-height:1.5; }          
-    
-    /* 按钮样式 */
-    .btn{          
-      border:none; border-radius:10px; padding:0 20px; height:46px; font-weight:600; cursor:pointer;          
-      background: linear-gradient(90deg, #2563EB, #4F46E5); color:#fff;          
-      font-size: 15px; width: 100%; margin-top: 20px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
-      transition: transform 0.1s, opacity 0.2s;
-    }          
-    .btn:active { transform: scale(0.98); opacity: 0.9; }
-    .btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
-    
-    /* 参考图上传框 */
-    .upload-box {
-      position:relative; width:100%; height:42px;
-      border:1px dashed var(--line); border-radius:10px; 
-      display:flex; align-items:center; justify-content:center; 
-      color:var(--muted); font-size:13px; background:var(--input-bg);
-      cursor: pointer; transition: all 0.2s;
+
+    .control-item{
+      display:flex;
+      flex-direction:column;
+      gap: 7px;
+      min-width: 0;
     }
-    .upload-box:hover { border-color: var(--brand); color: var(--brand); background: #fff; }
+
+    .control-item label{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+
+    input, select, textarea{
+      width:100%;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: var(--input-bg);
+      color: var(--text);
+      padding: 0 12px;
+      height: 44px;
+      font-size: 14px;
+      outline:none;
+      transition: border-color .2s ease, box-shadow .2s ease, background .2s ease, transform .05s ease;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+    }
+
+    /* select 细节：更像商用品质 */
+    select{
+      appearance:none;
+      padding-right: 40px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(15,23,42,.55) 50%),
+        linear-gradient(135deg, rgba(15,23,42,.55) 50%, transparent 50%),
+        linear-gradient(to right, transparent, transparent);
+      background-position:
+        calc(100% - 18px) 18px,
+        calc(100% - 13px) 18px,
+        0 0;
+      background-size:
+        5px 5px,
+        5px 5px,
+        100% 100%;
+      background-repeat:no-repeat;
+    }
+
+    textarea{
+      height:auto;
+      min-height: 92px;
+      padding: 12px;
+      resize: vertical;
+      line-height: 1.55;
+    }
+
+    input:focus, select:focus, textarea:focus{
+      border-color: rgba(37,99,235,.65);
+      background: #fff;
+      box-shadow: var(--ring);
+    }
+
+    input::placeholder, textarea::placeholder{
+      color: rgba(100,116,139,.85);
+    }
+
+    /* 禁用状态的 Select 样式 */
+    option:disabled{
+      color: #94A3B8;
+      font-style: italic;
+    }
+
+    /* 只读样式 */
+    .readonly-input{
+      color: var(--brand);
+      font-weight: 700;
+      cursor: default;
+      background: rgba(37,99,235,.08);
+      border-color: transparent;
+    }
+
+    /* ===== 按钮样式 ===== */
+    .btn{
+      border:none;
+      border-radius: 12px;
+      padding: 0 18px;
+      height: 48px;
+      font-weight: 800;
+      cursor:pointer;
+      background: linear-gradient(180deg, var(--brand), var(--brand-2));
+      color:#fff;
+      font-size: 15px;
+      width: 100%;
+      margin-top: 18px;
+      box-shadow:
+        0 14px 30px rgba(37, 99, 235, 0.18),
+        0 2px 0 rgba(255,255,255,.18) inset;
+      transition: transform .08s ease, filter .2s ease, box-shadow .2s ease, opacity .2s ease;
+      letter-spacing: .2px;
+    }
+    .btn:hover{
+      filter: brightness(1.02);
+      box-shadow:
+        0 18px 36px rgba(37, 99, 235, 0.20),
+        0 2px 0 rgba(255,255,255,.18) inset;
+      transform: translateY(-1px);
+    }
+    .btn:active{
+      transform: translateY(0px) scale(0.99);
+      opacity: .95;
+    }
+    .btn:disabled{
+      background: linear-gradient(180deg, #CBD5E1, #94A3B8);
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+      opacity: 1;
+    }
+
+    /* ===== 参考图上传框 ===== */
+    .upload-box{
+      position:relative;
+      width:100%;
+      height:44px;
+      border: 1px dashed rgba(100,116,139,.35);
+      border-radius: 12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      background: rgba(248,250,252,.85);
+      cursor: pointer;
+      transition: border-color .2s ease, background .2s ease, color .2s ease, transform .08s ease;
+      user-select:none;
+    }
+    .upload-box:hover{
+      border-color: rgba(37,99,235,.55);
+      color: var(--brand);
+      background: #fff;
+      transform: translateY(-1px);
+    }
+    .upload-box span{
+      font-weight: 700;
+      letter-spacing: .1px;
+    }
 
     /* 参考图缩略图 */
-    .ref-grid {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-      gap: 10px; margin-top: 10px;
+    .ref-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
     }
-    .ref-item {
-      position: relative; aspect-ratio: 1; border-radius: 8px; overflow: hidden;
-      border: 1px solid var(--line); background: #f0f0f0;
+    .ref-item{
+      position:relative;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: #F1F5F9;
+      box-shadow: 0 8px 18px rgba(2,6,23,.06);
+      transition: transform .12s ease, box-shadow .2s ease;
     }
-    .ref-item img { width: 100%; height: 100%; object-fit: cover; }
-    .ref-del {
-      position: absolute; top: 2px; right: 2px; width: 20px; height: 20px;
-      background: rgba(255,255,255,0.9); color: #ef4444; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 14px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    .ref-item:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 14px 26px rgba(2,6,23,.08);
     }
+    .ref-item img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
+    .ref-del{
+      position:absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      background: rgba(255,255,255,.92);
+      color: var(--danger);
+      border-radius: 999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size: 14px;
+      cursor:pointer;
+      box-shadow: 0 10px 20px rgba(2,6,23,.10);
+      border: 1px solid rgba(2,6,23,.08);
+      transition: transform .08s ease, filter .2s ease;
+    }
+    .ref-del:hover{filter: brightness(.98); transform: scale(1.05)}
+    .ref-del:active{transform: scale(.98)}
 
-    /* 历史记录 */
-    .history-section { margin-top: 40px; }
-    .history-head { 
-      display: flex; justify-content: space-between; align-items: center; 
-      margin-bottom: 20px; padding-bottom: 10px; border-bottom: 2px solid var(--line);
+    /* ===== 历史记录 ===== */
+    .history-section{margin-top: 34px;}
+    .history-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom: 14px;
+      padding: 0 4px 10px;
+      border-bottom: 1px solid var(--line);
     }
-    .hist-card { 
-      background: var(--card); border-radius: 16px; overflow: hidden; 
-      border: 1px solid var(--line); margin-bottom: 24px;
+    #clearHistory{
+      font-size: 13px;
+      color: var(--muted);
+      cursor:pointer;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      transition: background .2s ease, border-color .2s ease, color .2s ease;
+      user-select:none;
+    }
+    #clearHistory:hover{
+      background: rgba(15, 23, 42, 0.04);
+      border-color: var(--line);
+      color: #0F172A;
+    }
+    #clearHistory:active{transform: translateY(1px)}
+
+    .hist-card{
+      background: rgba(255,255,255,.95);
+      border-radius: var(--radius);
+      overflow:hidden;
+      border: 1px solid var(--line);
+      margin-bottom: 18px;
+      box-shadow: var(--shadow-sm);
+      transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
+      animation: slideIn 0.25s ease-out;
+    }
+    .hist-card:hover{
+      transform: translateY(-2px);
       box-shadow: var(--shadow);
-      animation: slideIn 0.3s ease-out;
+      border-color: var(--line-strong);
     }
-    @keyframes slideIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 
-    .hist-card img { width: 100%; display: block; background: #f9f9f9; min-height: 200px; object-fit: contain; }
-    
+    @keyframes slideIn{
+      from { opacity:0; transform: translateY(8px); }
+      to   { opacity:1; transform: translateY(0); }
+    }
+
+    .hist-card img{
+      width:100%;
+      display:block;
+      background: #F8FAFC;
+      min-height: 220px;
+      object-fit: contain;
+    }
+
     /* 图片底部信息栏 */
-    .hist-meta { 
-      padding: 12px 16px; display: flex; justify-content: space-between; align-items: center; 
-      border-top: 1px solid var(--line); background: #fdfdfd;
+    .hist-meta{
+      padding: 12px 14px;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap: 12px;
+      border-top: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.96));
     }
-    .meta-info { display: flex; flex-direction: column; gap: 2px; }
-    .meta-title { font-size: 13px; font-weight: 600; color: var(--text); }
-    .meta-res { font-size: 11px; color: var(--muted); font-family: monospace; }
-    
-    .actions-group { display: flex; gap: 12px; align-items: center; }
-    .link-btn { color: var(--brand); text-decoration: none; font-weight: 500; font-size: 13px; cursor: pointer; transition: opacity 0.2s;}
-    .link-btn:hover { opacity: 0.7; }
-    .del-btn { color: #ef4444; font-size: 13px; cursor: pointer; transition: opacity 0.2s;}
-    .del-btn:hover { opacity: 0.7; }
+    .meta-info{
+      display:flex;
+      flex-direction:column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .meta-title{
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 52vw;
+    }
+    .meta-res{
+      font-size: 11px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      letter-spacing: .2px;
+    }
 
-    /* 加载占位符样式 (Skeleton) */
-    .loading-placeholder {
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      height: 300px; background: #F3F4F6; color: var(--muted); gap: 15px;
+    .actions-group{
+      display:flex;
+      gap: 10px;
+      align-items:center;
+      flex-shrink: 0;
     }
-    .spinner {
-      width: 40px; height: 40px; border: 3px solid #E5E7EB;
-      border-left-color: var(--brand); border-radius: 50%;
+
+    /* 链接做成“轻按钮”质感 */
+    .link-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(37,99,235,.22);
+      background: rgba(37,99,235,.06);
+      color: var(--brand);
+      text-decoration:none;
+      font-weight: 800;
+      font-size: 12.5px;
+      cursor:pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .link-btn:hover{
+      background: rgba(37,99,235,.10);
+      border-color: rgba(37,99,235,.30);
+      transform: translateY(-1px);
+    }
+    .link-btn:active{transform: translateY(0px); filter: brightness(.98)}
+
+    .del-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(239,68,68,.22);
+      background: rgba(239,68,68,.06);
+      color: var(--danger);
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor:pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .del-btn:hover{
+      background: rgba(239,68,68,.10);
+      border-color: rgba(239,68,68,.30);
+      transform: translateY(-1px);
+    }
+    .del-btn:active{transform: translateY(0px); filter: brightness(.98)}
+
+    /* ===== 加载占位符（更像产品） ===== */
+    .loading-placeholder{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      height: 300px;
+      background:
+        radial-gradient(500px 250px at 40% 0%, rgba(37,99,235,.08), transparent 65%),
+        linear-gradient(180deg, #F8FAFC, #F1F5F9);
+      color: var(--muted);
+      gap: 14px;
+    }
+    .spinner{
+      width: 44px;
+      height: 44px;
+      border: 3px solid rgba(100,116,139,.22);
+      border-top-color: rgba(37,99,235,.85);
+      border-radius: 50%;
       animation: spin 1s linear infinite;
+      box-shadow: 0 10px 24px rgba(2,6,23,.08);
+      background: rgba(255,255,255,.65);
     }
-    @keyframes spin { 100% { transform: rotate(360deg); } }
+    @keyframes spin{100%{transform:rotate(360deg)}}
 
-    /* 登录弹窗 (明亮版) */
-    #loginLayer {
-        position: fixed; top:0; left:0; width:100%; height:100vh;
-        background: rgba(255,255,255,0.6); z-index: 999;
-        display: flex; align-items: center; justify-content: center;
-        backdrop-filter: blur(15px);
+    /* ===== 登录弹窗 ===== */
+    #loginLayer{
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,0.18);
+      z-index: 999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      backdrop-filter: blur(14px);
+      animation: fadeIn .18s ease-out;
     }
-    .loginBox {
-        width: 320px; padding: 30px;
-        background: #fff; border: 1px solid var(--line);
-        border-radius: 20px; text-align: center;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+    .loginBox{
+      width: 340px;
+      padding: 26px 22px 22px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(255,255,255,.55);
+      border-radius: 22px;
+      text-align:center;
+      box-shadow: var(--shadow-2);
+      position: relative;
+      overflow:hidden;
+      transform: translateY(0);
     }
-    .loginBox h3 { margin: 0 0 20px; color: #111; font-size: 20px; }
-  </style>          
-</head>  
-<body>          
+
+    .loginBox::before{
+      content:"";
+      position:absolute;
+      inset:-2px -2px auto -2px;
+      height: 110px;
+      background: radial-gradient(700px 120px at 50% 0%, rgba(37,99,235,.20), transparent 60%);
+      pointer-events:none;
+    }
+
+    .loginBox h3{
+      margin: 2px 0 16px;
+      color: #0B1220;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: .2px;
+    }
+
+    .loginBox input{
+      text-align:center;
+      margin-bottom: 12px;
+      height: 46px;
+      border-radius: 14px;
+      background: rgba(248,250,252,.9);
+    }
+    .loginBox input:last-of-type{margin-bottom: 18px}
+
+    #loginMsg{
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--danger);
+      min-height: 16px;
+    }
+
+    /* 降低动效偏好 */
+    @media (prefers-reduced-motion: reduce){
+      *{animation:none !important; transition:none !important; scroll-behavior:auto !important;}
+    }
+
+    /* 可选：系统深色模式（不改变功能，仅视觉），风格依然克制 */
+    @media (prefers-color-scheme: dark){
+      :root{
+        --bg:#0B1220;
+        --bg2:#0B1220;
+        --card: rgba(15,23,42,.72);
+        --line: rgba(148,163,184,.18);
+        --line-strong: rgba(148,163,184,.26);
+        --text:#E5E7EB;
+        --muted:#A3B2C7;
+        --input-bg: rgba(2,6,23,.35);
+        --shadow-sm: 0 10px 30px rgba(0,0,0,.35);
+        --shadow: 0 18px 60px rgba(0,0,0,.40);
+        --shadow-2: 0 25px 90px rgba(0,0,0,.50);
+      }
+
+      body{
+        background:
+          radial-gradient(1200px 700px at 15% -10%, rgba(37,99,235,.22), transparent 55%),
+          radial-gradient(900px 600px at 100% 0%, rgba(99,102,241,.16), transparent 50%),
+          linear-gradient(180deg, #0B1220, #0A1020);
+      }
+
+      .head{
+        background: rgba(15,23,42,.55);
+        border-color: var(--line);
+      }
+
+      .card{background: rgba(15,23,42,.62)}
+      .hist-card{background: rgba(15,23,42,.62)}
+      .hist-meta{background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35))}
+      .upload-box{background: rgba(2,6,23,.25)}
+      input,select,textarea{color: var(--text)}
+      select{
+        background-image:
+          linear-gradient(45deg, transparent 50%, rgba(226,232,240,.65) 50%),
+          linear-gradient(135deg, rgba(226,232,240,.65) 50%, transparent 50%),
+          linear-gradient(to right, transparent, transparent);
+      }
+      #loginLayer{background: rgba(2,6,23,.55)}
+      .loginBox{background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.18)}
+      .logo{box-shadow: 0 18px 40px rgba(37, 99, 235, 0.20)}
+    }
+  </style>
+</head>
+
+<body>
 
 <div id="loginLayer">
-    <div class="loginBox">
-        <h3>欢迎回来</h3>
-        <input id="u_name" type="text" placeholder="账号" style="margin-bottom:12px; text-align:center" />
-        <input id="u_pass" type="password" placeholder="密码" style="margin-bottom:20px; text-align:center" />
-        <button class="btn" id="btnLogin">立即登录</button>
-        <div id="loginMsg" style="margin-top:10px; font-size:12px; color:#ef4444"></div>
-    </div>
+  <div class="loginBox">
+    <h3>欢迎回来</h3>
+    <input id="u_name" type="text" placeholder="账号" />
+    <input id="u_pass" type="password" placeholder="密码" />
+    <button class="btn" id="btnLogin">立即登录</button>
+    <div id="loginMsg"></div>
+  </div>
 </div>
 
-<div class="wrap">          
-  <div class="head">          
-    <div class="brand">          
-      <div class="logo"></div>          
-      <div class="title">          
-        <b>AI 绘图工作台</b>          
-        <span id="welcomeText">未登录</span>          
-      </div>          
+<div class="wrap">
+  <div class="head">
+    <div class="brand">
+      <div class="logo"></div>
+      <div class="title">
+        <b>AI 绘图工作台</b>
+        <span id="welcomeText">未登录</span>
+      </div>
     </div>
     <div style="text-align:right">
-         <div id="quotaText" style="font-size:13px; color:var(--brand); font-weight:700"></div>
-         <div style="font-size:12px; color:var(--muted); cursor:pointer; margin-top:2px" id="logoutBtn">退出</div>
+      <div id="logoutBtn">退出</div>
     </div>
-  </div>    
-  
-  <div class="card">          
-    
+  </div>
+
+  <div class="card">
+
     <div class="settings-grid">
-        <div class="control-item">
-            <label>生成模型</label>
-            <select id="modelSelect">
-                <option value="gemini-3-pro-image-preview">Gemini 3 Pro</option>
-                <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash</option>
-            </select>
-        </div>
+      <div class="control-item">
+        <label>生成模型</label>
+        <select id="modelSelect">
+          <option value="gemini-3-pro-image-preview">Gemini 3 Pro(nanobanana pro)</option>
+          <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash</option>
+        </select>
+      </div>
 
-        <div class="control-item">
-            <label>画面比例</label>
-            <select id="ratio">          
-              <option value="1:1">1:1 (正方形)</option>          
-              <option value="16:9" selected>16:9 (横屏)</option>          
-              <option value="9:16">9:16 (竖屏)</option>          
-              <option value="4:3">4:3</option>          
-              <option value="3:4">3:4</option>          
-            </select>
-        </div>
+      <div class="control-item">
+        <label>画面比例</label>
+        <select id="ratio">
+          <option value="1:1">1:1 (正方形)</option>
+          <option value="16:9" selected>16:9 (横屏)</option>
+          <option value="9:16">9:16 (竖屏)</option>
+          <option value="4:3">4:3</option>
+          <option value="3:4">3:4</option>
+        </select>
+      </div>
 
-        <div class="control-item">
-            <label>分辨率</label>
-            <select id="res">          
-              <option value="1K">标准 (1K)</option>          
-              <option value="2K">高清 (2K)</option>
-              <option value="4K" selected>超清 (4K)</option>
-            </select> 
-        </div>
+      <div class="control-item">
+        <label>分辨率</label>
+        <select id="res">
+          <option value="1K">标准 (1K)</option>
+          <option value="2K">高清 (2K)</option>
+          <option value="4K" selected>超清 (4K)</option>
+        </select>
+      </div>
 
-        <div class="control-item">
-            <label>参考图片 (可选)</label>
-            <div class="upload-box">
-                <input id="fileInput" type="file" accept="image/*" multiple style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;" />
-                <span>+ 上传图片 (Max 9)</span>
-            </div>
+      <div class="control-item">
+        <label>参考图片 (可选)</label>
+        <div class="upload-box">
+          <input id="fileInput" type="file" accept="image/*" multiple style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;" />
+          <span>+ 上传图片 (Max 9)</span>
         </div>
+      </div>
     </div>
 
     <div id="refGrid" class="ref-grid" style="display:none"></div>
-        
+
     <div class="control-item" style="margin-top:16px;">
-        <label>创意描述 (Prompt)</label>
-        <textarea id="prompt" placeholder="在此输入画面描述，例如：阳光下的向日葵花海，吉卜力画风，色彩鲜艳..."></textarea>
+      <label>创意描述 (Prompt)</label>
+      <textarea id="prompt" placeholder="在此输入画面描述，例如：阳光下的向日葵花海，吉卜力画风，色彩鲜艳..."></textarea>
     </div>
 
-    <button class="btn" id="gen">开始生成图片</button>          
-  </div>  
+    <button class="btn" id="gen">开始生成图片</button>
+  </div>
 
   <div class="history-section">
-      <div class="history-head">
-          <span style="font-size:16px; font-weight:700; color:var(--text)">生成结果 & 历史</span>
-          <span id="clearHistory" style="font-size:13px; color:var(--muted); cursor:pointer">清空记录</span>
-      </div>
-      
-      <div id="historyList"></div>
-  </div>
-</div>  
+    <div class="history-head">
+      <span style="font-size:16px; font-weight:900; color:var(--text)">生成结果 & 历史</span>
+      <span id="clearHistory">清空记录</span>
+    </div>
 
-<script>          
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<script>
 (() => {
   // ================= 配置区 =================
   const USERS_DB = {
-      "xliu2090": { 
-          pwd: "123456kk", 
-          key: "sk-ZA5sEkC0iK2huymcy99ZshEmS1eUVWkbSZkMdni8Tz8WeQGX", 
+      "xliu2090": {
+          pwd: "123456kk",
+          key: "sk-ZA5sEkC0iK2huymcy99ZshEmS1eUVWkbSZkMdni8Tz8WeQGX",
           limit: 50
       }
   };
-  const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";       
+  const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
   // =========================================
 
   let currentUser = null;
-  let refImages = []; 
-  const $ = (id) => document.getElementById(id);          
-  const el = {          
-    model: $("modelSelect"), // 绑定模型选择框
-    ratio: $("ratio"), 
-    res: $("res"), 
-    fileInput: $("fileInput"),          
-    refGrid: $("refGrid"), prompt: $("prompt"), gen: $("gen"),          
+  let refImages = [];
+  const $ = (id) => document.getElementById(id);
+  const el = {
+    model: $("modelSelect"),
+    ratio: $("ratio"),
+    res: $("res"),
+    fileInput: $("fileInput"),
+    refGrid: $("refGrid"), prompt: $("prompt"), gen: $("gen"),
     historyList: $("historyList"),
-    loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"), 
-    btnLogin: $("btnLogin"), loginMsg: $("loginMsg"), 
-    welcomeText: $("welcomeText"), quotaText: $("quotaText"), logoutBtn: $("logoutBtn"),
+    loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
+    btnLogin: $("btnLogin"), loginMsg: $("loginMsg"),
+    welcomeText: $("welcomeText"),
+    // 已删除 quotaText 的引用
+    logoutBtn: $("logoutBtn"),
     clearHistory: $("clearHistory")
-  };          
+  };
 
-  // --- 新增逻辑：模型切换时的分辨率限制 ---
+  // --- 模型切换时的分辨率限制逻辑 ---
   el.model.onchange = () => {
-      // 检查当前选中的值是否包含 "flash"
       const isFlash = el.model.value.includes("flash");
-      
-      // 获取分辨率选项
       const opts = el.res.options;
-      
+
       if (isFlash) {
-          // 如果是 Flash 模型：强制切回 1K
           el.res.value = "1K";
-          
-          // 禁用 2K (index 1) 和 4K (index 2)
           opts[1].disabled = true;
           opts[2].disabled = true;
           opts[1].text = "高清 (2K) - 仅 Pro 可用";
           opts[2].text = "超清 (4K) - 仅 Pro 可用";
       } else {
-          // 如果是 Pro 模型：恢复所有选项
           opts[1].disabled = false;
           opts[2].disabled = false;
           opts[1].text = "高清 (2K)";
           opts[2].text = "超清 (4K)";
       }
   };
-  // 初始化运行一次，确保状态正确
   el.model.onchange();
-
 
   // --- IndexedDB ---
   const DB_NAME = "AI_Art_Light";
@@ -361,18 +816,18 @@
 
   function loadHistory() {
     if (!dbInstance) return;
-    el.historyList.innerHTML = ""; 
+    el.historyList.innerHTML = "";
     const tx = dbInstance.transaction([STORE_NAME], "readonly");
     const req = tx.objectStore(STORE_NAME).getAll();
     req.onsuccess = () => {
       const items = req.result.sort((a, b) => b.id - a.id);
-      items.forEach(item => renderItem(item, null)); 
+      items.forEach(item => renderItem(item, null));
     };
   }
 
   function renderItem(item, replaceElem) {
-    const url = URL.createObjectURL(item.blob); 
-    
+    const url = URL.createObjectURL(item.blob);
+
     const html = `
       <img src="${url}" class="gen-img" />
       <div class="hist-meta">
@@ -396,7 +851,7 @@
         const updateRes = () => {
              resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
         };
-        
+
         if (img.complete) {
             updateRes();
         } else {
@@ -419,11 +874,9 @@
   }
 
   // --- Logic ---
-  function updateQuota() {
+  function updateUserInfo() {
     if (!currentUser) return;
-    const used = parseInt(localStorage.getItem("used_" + currentUser) || "0");
-    const total = USERS_DB[currentUser].limit;
-    el.quotaText.textContent = `剩余额度: ${total - used}`;
+    // 这里不再更新额度显示，只更新用户名
     el.welcomeText.textContent = currentUser;
   }
 
@@ -433,7 +886,7 @@
       if (USERS_DB[u] && USERS_DB[u].pwd === p) {
           currentUser = u;
           el.loginLayer.style.display = "none";
-          updateQuota();
+          updateUserInfo();
           initDB();
       } else {
           el.loginMsg.textContent = "账号或密码错误";
@@ -446,7 +899,7 @@
     const files = Array.from(el.fileInput.files);
     if (!files.length) return;
     if (refImages.length + files.length > 9) return alert("最多9张");
-    
+
     for (const f of files) {
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -477,7 +930,7 @@
     if (!currentUser) return;
     const prompt = el.prompt.value.trim();
     if (!prompt) return alert("请输入提示词");
-    
+
     const used = parseInt(localStorage.getItem("used_" + currentUser) || "0");
     if (used >= USERS_DB[currentUser].limit) return alert("额度已用完");
 
@@ -511,35 +964,34 @@
                 generationConfig: { imageConfig: { aspectRatio: el.ratio.value, imageSize: el.res.value } }
             })
         });
-        
+
         const json = await resp.json();
-        
+
         let imgData = null;
         if (json.candidates) {
             for (let p of json.candidates[0].content.parts) {
                 if (p.inlineData) { imgData = p.inlineData; break; }
             }
         }
-        
+
         if (!imgData) throw new Error("生成失败，请调整提示词重试");
 
         const binary = atob(imgData.data);
         const array = new Uint8Array(binary.length);
         for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
         const blob = new Blob([array], {type: imgData.mimeType});
-        
-        // 记录一下是哪个模型生成的，显示在历史记录里
+
         const modelName = el.model.options[el.model.selectedIndex].text;
         const meta = `${modelName} · ${el.ratio.value}`;
 
         // 2. 替换为真图
         const item = { id: Date.now(), blob: blob, meta: meta };
         renderItem(item, loadingCard);
-        
+
         saveToDB(blob, meta);
         localStorage.setItem("used_" + currentUser, used + 1);
-        updateQuota();
-        
+        updateUserInfo(); // 更新信息，但不包括额度
+
     } catch (e) {
         loadingCard.remove();
         alert(e.message);
@@ -548,7 +1000,7 @@
         el.gen.textContent = "开始生成图片";
     }
   };
-})();          
-</script>  
-</body>          
+})();
+</script>
+</body>
 </html>
