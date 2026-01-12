@@ -8,7 +8,6 @@
     :root{
       /* ===== 商用级：克制中性 + 质感阴影 + 统一间距 ===== */
       --bg: #F6F7FB;
-      --bg2:#EEF2FF;
       --card:#FFFFFF;
       --line: rgba(17, 24, 39, 0.10);
       --line-strong: rgba(17, 24, 39, 0.14);
@@ -21,7 +20,6 @@
       --brand-soft: rgba(37, 99, 235, 0.12);
 
       --danger:#EF4444;
-      --success:#16A34A;
 
       --radius:18px;
       --radius-sm:12px;
@@ -46,8 +44,6 @@
       min-height:100vh;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
-
-      /* 背景做一点高级感，但不花哨 */
       background:
         radial-gradient(1200px 700px at 15% -10%, rgba(37,99,235,.10), transparent 55%),
         radial-gradient(900px 600px at 100% 0%, rgba(99,102,241,.08), transparent 50%),
@@ -94,7 +90,6 @@
       position: relative;
       overflow: hidden;
     }
-    /* 小高光，增加“做工” */
     .logo::after{
       content:"";
       position:absolute;
@@ -153,7 +148,7 @@
       backdrop-filter: blur(10px);
     }
 
-    /* 紧凑网格布局 */
+    /* 永远保持一行两个 */
     .settings-grid{
       display:grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -161,6 +156,12 @@
       margin-bottom: 16px;
     }
 
+    @media (max-width: 560px){
+      .settings-grid{grid-template-columns: repeat(2, minmax(0, 1fr));} /* 强制两列 */
+      .wrap{padding-top: 18px}
+      .head{padding: 12px}
+      .card{padding: 16px}
+    }
 
     .control-item{
       display:flex;
@@ -190,7 +191,6 @@
       box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
     }
 
-    /* select 细节：更像商用品质 */
     select{
       appearance:none;
       padding-right: 40px;
@@ -223,17 +223,13 @@
       box-shadow: var(--ring);
     }
 
-    input::placeholder, textarea::placeholder{
-      color: rgba(100,116,139,.85);
-    }
+    input::placeholder, textarea::placeholder{color: rgba(100,116,139,.85)}
 
-    /* 禁用状态的 Select 样式 */
     option:disabled{
       color: #94A3B8;
       font-style: italic;
     }
 
-    /* 只读样式 */
     .readonly-input{
       color: var(--brand);
       font-weight: 700;
@@ -242,7 +238,7 @@
       border-color: transparent;
     }
 
-    /* ===== 按钮样式 ===== */
+    /* ===== 按钮 ===== */
     .btn{
       border:none;
       border-radius: 12px;
@@ -280,7 +276,7 @@
       opacity: 1;
     }
 
-    /* ===== 参考图上传框 ===== */
+    /* ===== 上传框 ===== */
     .upload-box{
       position:relative;
       width:100%;
@@ -304,10 +300,7 @@
       background: #fff;
       transform: translateY(-1px);
     }
-    .upload-box span{
-      font-weight: 700;
-      letter-spacing: .1px;
-    }
+    .upload-box span{font-weight: 700; letter-spacing: .1px;}
 
     /* 参考图缩略图 */
     .ref-grid{
@@ -330,12 +323,7 @@
       transform: translateY(-1px);
       box-shadow: 0 14px 26px rgba(2,6,23,.08);
     }
-    .ref-item img{
-      width:100%;
-      height:100%;
-      object-fit: cover;
-      display:block;
-    }
+    .ref-item img{width:100%; height:100%; object-fit: cover; display:block;}
     .ref-del{
       position:absolute;
       top: 6px;
@@ -353,11 +341,12 @@
       box-shadow: 0 10px 20px rgba(2,6,23,.10);
       border: 1px solid rgba(2,6,23,.08);
       transition: transform .08s ease, filter .2s ease;
+      user-select:none;
     }
     .ref-del:hover{filter: brightness(.98); transform: scale(1.05)}
     .ref-del:active{transform: scale(.98)}
 
-    /* ===== 历史记录 ===== */
+    /* ===== 历史 ===== */
     .history-section{margin-top: 34px;}
     .history-head{
       display:flex;
@@ -399,7 +388,6 @@
       box-shadow: var(--shadow);
       border-color: var(--line-strong);
     }
-
     @keyframes slideIn{
       from { opacity:0; transform: translateY(8px); }
       to   { opacity:1; transform: translateY(0); }
@@ -413,7 +401,9 @@
       object-fit: contain;
     }
 
-    /* 图片底部信息栏 */
+    /* 点击成图可预览 */
+    .gen-img{ cursor: zoom-in; }
+
     .hist-meta{
       padding: 12px 14px;
       display:flex;
@@ -423,12 +413,7 @@
       border-top: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.96));
     }
-    .meta-info{
-      display:flex;
-      flex-direction:column;
-      gap: 3px;
-      min-width: 0;
-    }
+    .meta-info{display:flex; flex-direction:column; gap: 3px; min-width:0;}
     .meta-title{
       font-size: 13px;
       font-weight: 800;
@@ -445,14 +430,8 @@
       letter-spacing: .2px;
     }
 
-    .actions-group{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-      flex-shrink: 0;
-    }
+    .actions-group{display:flex; gap: 10px; align-items:center; flex-shrink:0;}
 
-    /* 链接做成“轻按钮”质感 */
     .link-btn{
       display:inline-flex;
       align-items:center;
@@ -502,7 +481,7 @@
     }
     .del-btn:active{transform: translateY(0px); filter: brightness(.98)}
 
-    /* ===== 加载占位符（更像产品） ===== */
+    /* ===== Loading ===== */
     .loading-placeholder{
       display:flex;
       flex-direction:column;
@@ -587,16 +566,86 @@
       min-height: 16px;
     }
 
+    /* ===== 图片预览弹窗（Lightbox） ===== */
+    .viewer{
+      position:fixed; inset:0;
+      z-index: 2000;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 22px;
+    }
+    .viewer-backdrop{
+      position:absolute; inset:0;
+      background: rgba(2,6,23,.55);
+      backdrop-filter: blur(10px);
+    }
+    .viewer-panel{
+      position:relative;
+      width: min(980px, 92vw);
+      max-height: 86vh;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow:hidden;
+      box-shadow: var(--shadow-2);
+      backdrop-filter: blur(10px);
+    }
+    .viewer-img{
+      display:block;
+      width:100%;
+      height:auto;
+      max-height: 76vh;
+      object-fit: contain;
+      background: #0B1220;
+    }
+    .viewer-bar{
+      display:flex;
+      justify-content:flex-end;
+      gap: 10px;
+      padding: 12px 12px;
+      border-top: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.96));
+    }
+    .viewer-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height: 32px;
+      padding: 0 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(15,23,42,.12);
+      background: rgba(15,23,42,.04);
+      color: var(--text);
+      font-weight: 800;
+      font-size: 12.5px;
+      cursor:pointer;
+      user-select:none;
+      text-decoration:none;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
+      white-space: nowrap;
+    }
+    .viewer-btn:hover{
+      background: rgba(15,23,42,.06);
+      border-color: rgba(15,23,42,.18);
+      transform: translateY(-1px);
+    }
+    .viewer-btn:active{ transform: translateY(0px); filter: brightness(.98) }
+    .viewer-btn.primary{
+      border-color: rgba(37,99,235,.22);
+      background: rgba(37,99,235,.08);
+      color: var(--brand);
+    }
+
     /* 降低动效偏好 */
     @media (prefers-reduced-motion: reduce){
       *{animation:none !important; transition:none !important; scroll-behavior:auto !important;}
     }
 
-    /* 可选：系统深色模式（不改变功能，仅视觉），风格依然克制 */
+    /* 深色模式：依然克制 */
     @media (prefers-color-scheme: dark){
       :root{
         --bg:#0B1220;
-        --bg2:#0B1220;
         --card: rgba(15,23,42,.72);
         --line: rgba(148,163,184,.18);
         --line-strong: rgba(148,163,184,.26);
@@ -634,12 +683,30 @@
       #loginLayer{background: rgba(2,6,23,.55)}
       .loginBox{background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.18)}
       .logo{box-shadow: 0 18px 40px rgba(37, 99, 235, 0.20)}
+
+      .viewer-panel{
+        background: rgba(15,23,42,.78);
+        border-color: rgba(148,163,184,.18);
+      }
+      .viewer-bar{
+        background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35));
+        border-top-color: rgba(148,163,184,.18);
+      }
+      .viewer-btn{
+        border-color: rgba(148,163,184,.18);
+        background: rgba(148,163,184,.08);
+        color: var(--text);
+      }
+      .viewer-btn.primary{
+        border-color: rgba(37,99,235,.28);
+        background: rgba(37,99,235,.16);
+        color: #BFDBFE;
+      }
     }
   </style>
 </head>
 
 <body>
-
 <div id="loginLayer">
   <div class="loginBox">
     <h3>欢迎回来</h3>
@@ -665,13 +732,12 @@
   </div>
 
   <div class="card">
-
     <div class="settings-grid">
       <div class="control-item">
         <label>生成模型</label>
         <select id="modelSelect">
-          <option value="gemini-3-pro-image-preview">Gemini 3 Pro</option>
-          <option value="gemini-2.5-flash-image-preview">Gemini 2.5 Flash</option>
+          <option value="gemini-3-pro-image-preview">NanoBanana Pro</option>
+          <option value="gemini-2.5-flash-image-preview">NanoBanana</option>
         </select>
       </div>
 
@@ -719,8 +785,19 @@
       <span style="font-size:16px; font-weight:900; color:var(--text)">生成结果 & 历史</span>
       <span id="clearHistory">清空记录</span>
     </div>
-
     <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- 图片预览弹窗（不新开页面） -->
+<div id="imgViewer" class="viewer" aria-hidden="true">
+  <div class="viewer-backdrop"></div>
+  <div class="viewer-panel" role="dialog" aria-modal="true">
+    <img id="viewerImg" class="viewer-img" alt="预览图">
+    <div class="viewer-bar">
+      <a id="viewerDownload" class="viewer-btn primary" download>下载</a>
+      <span id="viewerClose" class="viewer-btn">关闭</span>
+    </div>
   </div>
 </div>
 
@@ -750,10 +827,40 @@
     loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
     btnLogin: $("btnLogin"), loginMsg: $("loginMsg"),
     welcomeText: $("welcomeText"),
-    // 已删除 quotaText 的引用
     logoutBtn: $("logoutBtn"),
     clearHistory: $("clearHistory")
   };
+
+  // ===== 图片预览弹窗（Lightbox） =====
+  const viewer = {
+    layer: document.getElementById("imgViewer"),
+    img: document.getElementById("viewerImg"),
+    close: document.getElementById("viewerClose"),
+    download: document.getElementById("viewerDownload"),
+    backdrop: document.querySelector("#imgViewer .viewer-backdrop"),
+  };
+
+  function openViewer(url, filename) {
+    viewer.img.src = url;
+    viewer.download.href = url;
+    viewer.download.download = filename || "image.png";
+    viewer.layer.style.display = "flex";
+    viewer.layer.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeViewer() {
+    viewer.layer.style.display = "none";
+    viewer.layer.setAttribute("aria-hidden", "true");
+    viewer.img.src = "";
+    document.body.style.overflow = "";
+  }
+
+  viewer.close.onclick = closeViewer;
+  viewer.backdrop.onclick = closeViewer;
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && viewer.layer.style.display === "flex") closeViewer();
+  });
 
   // --- 模型切换时的分辨率限制逻辑 ---
   el.model.onchange = () => {
@@ -836,7 +943,7 @@
             <span class="meta-res">读取分辨率...</span>
         </div>
         <div class="actions-group">
-            <a href="${url}" target="_blank" class="link-btn">打开</a>
+            <span class="link-btn open-btn" role="button" tabindex="0">打开</span>
             <a href="${url}" download="img_${item.id}.png" class="link-btn">下载</a>
             <span class="del-btn">删除</span>
         </div>
@@ -847,16 +954,23 @@
         const img = container.querySelector(".gen-img");
         const resSpan = container.querySelector(".meta-res");
         const delBtn = container.querySelector(".del-btn");
+        const openBtn = container.querySelector(".open-btn");
 
         const updateRes = () => {
              resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
         };
 
-        if (img.complete) {
-            updateRes();
-        } else {
-            img.onload = updateRes;
-        }
+        if (img.complete) updateRes();
+        else img.onload = updateRes;
+
+        // 点击图片本身：弹窗预览（不新开页面）
+        img.onclick = () => openViewer(url, `img_${item.id}.png`);
+
+        // 点击“打开”：弹窗预览（修复“没反应”）
+        openBtn.onclick = () => openViewer(url, `img_${item.id}.png`);
+        openBtn.onkeydown = (e) => {
+          if (e.key === "Enter" || e.key === " ") openViewer(url, `img_${item.id}.png`);
+        };
 
         delBtn.onclick = () => deleteItem(item.id, container);
     };
@@ -876,7 +990,6 @@
   // --- Logic ---
   function updateUserInfo() {
     if (!currentUser) return;
-    // 这里不再更新额度显示，只更新用户名
     el.welcomeText.textContent = currentUser;
   }
 
@@ -951,7 +1064,6 @@
     const parts = [{ text: prompt }];
     refImages.forEach(img => parts.push({ inlineData: { mimeType: img.mime, data: img.b64 } }));
 
-    // 动态构建 URL
     const currentModelId = el.model.value;
     const finalUrl = `${BASE_URL}${currentModelId}:generateContent`;
 
@@ -990,7 +1102,7 @@
 
         saveToDB(blob, meta);
         localStorage.setItem("used_" + currentUser, used + 1);
-        updateUserInfo(); // 更新信息，但不包括额度
+        updateUserInfo();
 
     } catch (e) {
         loadingCard.remove();
