@@ -3,7 +3,7 @@
 <head>          
   <meta charset="utf-8" />          
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />          
-  <title>nanobanana pro绘图</title>          
+  <title>AI 绘图系统</title>          
   <style>          
     :root{          
       /* 明亮主题配色 */
@@ -62,6 +62,12 @@
     input:focus, select:focus, textarea:focus { 
       border-color: var(--brand); background: #fff; 
       box-shadow: 0 0 0 3px var(--brand-light);
+    }
+    
+    /* 禁用状态的 Select 样式 */
+    option:disabled {
+        color: #9ca3af;
+        font-style: italic;
     }
     
     /* 只读样式 */
@@ -266,7 +272,6 @@
           limit: 50
       }
   };
-  // 核心修改：改为 Base URL，不再写死完整路径
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";       
   // =========================================
 
@@ -274,9 +279,10 @@
   let refImages = []; 
   const $ = (id) => document.getElementById(id);          
   const el = {          
-    // 新增 modelSelect 引用
-    model: $("modelSelect"),
-    ratio: $("ratio"), res: $("res"), fileInput: $("fileInput"),          
+    model: $("modelSelect"), // 绑定模型选择框
+    ratio: $("ratio"), 
+    res: $("res"), 
+    fileInput: $("fileInput"),          
     refGrid: $("refGrid"), prompt: $("prompt"), gen: $("gen"),          
     historyList: $("historyList"),
     loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"), 
@@ -284,6 +290,35 @@
     welcomeText: $("welcomeText"), quotaText: $("quotaText"), logoutBtn: $("logoutBtn"),
     clearHistory: $("clearHistory")
   };          
+
+  // --- 新增逻辑：模型切换时的分辨率限制 ---
+  el.model.onchange = () => {
+      // 检查当前选中的值是否包含 "flash"
+      const isFlash = el.model.value.includes("flash");
+      
+      // 获取分辨率选项
+      const opts = el.res.options;
+      
+      if (isFlash) {
+          // 如果是 Flash 模型：强制切回 1K
+          el.res.value = "1K";
+          
+          // 禁用 2K (index 1) 和 4K (index 2)
+          opts[1].disabled = true;
+          opts[2].disabled = true;
+          opts[1].text = "高清 (2K) - 仅 Pro 可用";
+          opts[2].text = "超清 (4K) - 仅 Pro 可用";
+      } else {
+          // 如果是 Pro 模型：恢复所有选项
+          opts[1].disabled = false;
+          opts[2].disabled = false;
+          opts[1].text = "高清 (2K)";
+          opts[2].text = "超清 (4K)";
+      }
+  };
+  // 初始化运行一次，确保状态正确
+  el.model.onchange();
+
 
   // --- IndexedDB ---
   const DB_NAME = "AI_Art_Light";
@@ -463,8 +498,7 @@
     const parts = [{ text: prompt }];
     refImages.forEach(img => parts.push({ inlineData: { mimeType: img.mime, data: img.b64 } }));
 
-    // 核心修改：动态构建 URL
-    // 获取当前下拉框的值 (带 preview)
+    // 动态构建 URL
     const currentModelId = el.model.value;
     const finalUrl = `${BASE_URL}${currentModelId}:generateContent`;
 
@@ -493,7 +527,10 @@
         const array = new Uint8Array(binary.length);
         for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
         const blob = new Blob([array], {type: imgData.mimeType});
-        const meta = `${el.ratio.value} · ${el.res.value}`;
+        
+        // 记录一下是哪个模型生成的，显示在历史记录里
+        const modelName = el.model.options[el.model.selectedIndex].text;
+        const meta = `${modelName} · ${el.ratio.value}`;
 
         // 2. 替换为真图
         const item = { id: Date.now(), blob: blob, meta: meta };
