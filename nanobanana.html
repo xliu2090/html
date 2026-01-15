@@ -6,7 +6,6 @@
   <title>AI 绘图系统</title>
   <style>
     :root{
-      /* ===== 商用级：克制中性 + 质感阴影 + 统一间距 ===== */
       --bg: #F6F7FB;
       --card:#FFFFFF;
       --line: rgba(17, 24, 39, 0.10);
@@ -59,7 +58,6 @@
       padding: 28px 16px 72px;
     }
 
-    /* ===== 顶部导航 ===== */
     .head{
       display:flex;
       align-items:center;
@@ -138,7 +136,6 @@
     }
     #logoutBtn:active{transform: translateY(1px)}
 
-    /* ===== 主操作卡片 ===== */
     .card{
       background: rgba(255,255,255,.92);
       border: 1px solid var(--line);
@@ -148,7 +145,6 @@
       backdrop-filter: blur(10px);
     }
 
-    /* 永远保持一行两个 */
     .settings-grid{
       display:grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -157,7 +153,7 @@
     }
 
     @media (max-width: 560px){
-      .settings-grid{grid-template-columns: repeat(2, minmax(0, 1fr));} /* 强制两列 */
+      .settings-grid{grid-template-columns: repeat(2, minmax(0, 1fr));}
       .wrap{padding-top: 18px}
       .head{padding: 12px}
       .card{padding: 16px}
@@ -238,7 +234,6 @@
       border-color: transparent;
     }
 
-    /* ===== 按钮 ===== */
     .btn{
       border:none;
       border-radius: 12px;
@@ -276,7 +271,6 @@
       opacity: 1;
     }
 
-    /* ===== 上传框 ===== */
     .upload-box{
       position:relative;
       width:100%;
@@ -302,7 +296,6 @@
     }
     .upload-box span{font-weight: 700; letter-spacing: .1px;}
 
-    /* 参考图缩略图 */
     .ref-grid{
       display:grid;
       grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
@@ -346,7 +339,6 @@
     .ref-del:hover{filter: brightness(.98); transform: scale(1.05)}
     .ref-del:active{transform: scale(.98)}
 
-    /* ===== 历史 ===== */
     .history-section{margin-top: 34px;}
     .history-head{
       display:flex;
@@ -401,7 +393,6 @@
       object-fit: contain;
     }
 
-    /* 点击成图可预览 */
     .gen-img{ cursor: pointer; }
 
     .hist-meta{
@@ -481,7 +472,6 @@
     }
     .del-btn:active{transform: translateY(0px); filter: brightness(.98)}
 
-    /* ===== Loading ===== */
     .loading-placeholder{
       display:flex;
       flex-direction:column;
@@ -506,7 +496,6 @@
     }
     @keyframes spin{100%{transform:rotate(360deg)}}
 
-    /* ===== 登录弹窗 ===== */
     #loginLayer{
       position: fixed;
       inset: 0;
@@ -560,7 +549,6 @@
     }
     .loginBox input[type="password"] {margin-bottom: 18px}
 
-    /* 记住账号 checkbox 样式修正 */
     .remember-box {
       display:flex;
       align-items:center;
@@ -590,83 +578,92 @@
       min-height: 16px;
     }
 
-    /* ===== 图片预览弹窗（Lightbox）- 虽然不使用但保留样式以防万一 ===== */
-    .viewer{
-      position:fixed; inset:0;
-      z-index: 2000;
+    /* 新增：自定义模型区域 */
+    .custom-panel{
       display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 22px;
-    }
-    .viewer-backdrop{
-      position:absolute; inset:0;
-      background: rgba(2,6,23,.55);
-      backdrop-filter: blur(10px);
-    }
-    .viewer-panel{
-      position:relative;
-      width: min(980px, 92vw);
-      max-height: 86vh;
-      background: rgba(255,255,255,.92);
       border: 1px solid var(--line);
-      border-radius: 18px;
-      overflow:hidden;
-      box-shadow: var(--shadow-2);
-      backdrop-filter: blur(10px);
-    }
-    .viewer-img{
-      display:block;
-      width:100%;
-      height:auto;
-      max-height: 76vh;
-      object-fit: contain;
-      background: #0B1220;
-    }
-    .viewer-bar{
-      display:flex;
-      justify-content:flex-end;
+      border-radius: 14px;
+      background: rgba(248,250,252,.75);
+      padding: 12px;
       gap: 10px;
-      padding: 12px 12px;
-      border-top: 1px solid var(--line);
-      background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.96));
     }
-    .viewer-btn{
-      display:inline-flex;
+    .custom-row{
+      display:flex;
+      gap: 10px;
       align-items:center;
-      justify-content:center;
-      height: 32px;
-      padding: 0 12px;
-      border-radius: 10px;
-      border: 1px solid rgba(15,23,42,.12);
-      background: rgba(15,23,42,.04);
-      color: var(--text);
-      font-weight: 800;
-      font-size: 12.5px;
-      cursor:pointer;
-      user-select:none;
-      text-decoration:none;
-      transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
-      white-space: nowrap;
     }
-    .viewer-btn:hover{
-      background: rgba(15,23,42,.06);
-      border-color: rgba(15,23,42,.18);
-      transform: translateY(-1px);
-    }
-    .viewer-btn:active{ transform: translateY(0px); filter: brightness(.98) }
-    .viewer-btn.primary{
-      border-color: rgba(37,99,235,.22);
+    .custom-row > *{flex:1}
+    .small-btn{
+      height: 44px;
+      border-radius: 12px;
+      border: 1px solid rgba(37,99,235,.22);
       background: rgba(37,99,235,.08);
       color: var(--brand);
+      font-weight: 900;
+      cursor:pointer;
+      transition: transform .08s ease, filter .2s ease;
+    }
+    .small-btn:hover{transform: translateY(-1px); filter: brightness(1.02)}
+    .small-btn:active{transform: translateY(0px); filter: brightness(.98)}
+    .pill-list{
+      display:flex;
+      flex-wrap:wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .pill{
+      display:flex;
+      align-items:center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.9);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .pill b{color: var(--text)}
+    .pill .x{
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      cursor:pointer;
+      color: var(--danger);
+      border: 1px solid rgba(239,68,68,.18);
+      background: rgba(239,68,68,.06);
+      font-weight: 900;
+      user-select:none;
+    }
+    .pill .x:hover{filter: brightness(.98)}
+    .hint{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-top: 6px;
     }
 
-    /* 降低动效偏好 */
+    /* 新增：错误展示 */
+    .error-box{
+      margin-top: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(239,68,68,.22);
+      background: rgba(239,68,68,.06);
+      color: #991B1B;
+      font-size: 12.5px;
+      line-height: 1.5;
+      display:none;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     @media (prefers-reduced-motion: reduce){
       *{animation:none !important; transition:none !important; scroll-behavior:auto !important;}
     }
 
-    /* 深色模式：依然克制 */
     @media (prefers-color-scheme: dark){
       :root{
         --bg:#0B1220;
@@ -708,23 +705,15 @@
       .loginBox{background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.18)}
       .logo{box-shadow: 0 18px 40px rgba(37, 99, 235, 0.20)}
 
-      .viewer-panel{
-        background: rgba(15,23,42,.78);
+      .custom-panel{
+        background: rgba(2,6,23,.20);
         border-color: rgba(148,163,184,.18);
       }
-      .viewer-bar{
-        background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35));
-        border-top-color: rgba(148,163,184,.18);
-      }
-      .viewer-btn{
-        border-color: rgba(148,163,184,.18);
-        background: rgba(148,163,184,.08);
-        color: var(--text);
-      }
-      .viewer-btn.primary{
-        border-color: rgba(37,99,235,.28);
-        background: rgba(37,99,235,.16);
-        color: #BFDBFE;
+      .pill{background: rgba(15,23,42,.65)}
+      .error-box{
+        color: #FCA5A5;
+        border-color: rgba(239,68,68,.22);
+        background: rgba(239,68,68,.10);
       }
     }
   </style>
@@ -736,7 +725,7 @@
     <h3>欢迎回来</h3>
     <input id="u_name" type="text" placeholder="账号" />
     <input id="u_pass" type="password" placeholder="密码" />
-    
+
     <div class="remember-box">
       <input type="checkbox" id="rememberMe">
       <label for="rememberMe">记住账号密码 </label>
@@ -767,7 +756,8 @@
         <label>生成模型</label>
         <select id="modelSelect">
           <option value="gemini-3-pro-image-preview">NanoBanana Pro</option>
-          <option value="gemini-2.5-flash-image-preview">NanoBanana</option>
+          <option value="gemini-2.5-flash-image">NanoBanana（Flash）</option>
+          <option value="__custom__">自定义...</option>
         </select>
       </div>
 
@@ -798,6 +788,31 @@
           <span>+ 上传图片 (Max 9)</span>
         </div>
       </div>
+
+      <!-- 新增：自定义模型面板（占满两列） -->
+      <div class="control-item" style="grid-column: 1 / -1;">
+        <div id="customPanel" class="custom-panel">
+          <div class="custom-row">
+            <div style="flex:1.2">
+              <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--muted); font-weight:800;">自定义模型ID</label>
+              <input id="customModelId" placeholder='例如：gemini-2.5-flash-image 或你服务端支持的模型ID' />
+            </div>
+            <div style="flex:1">
+              <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--muted); font-weight:800;">显示名称（可选）</label>
+              <input id="customModelName" placeholder="例如：我的模型A" />
+            </div>
+          </div>
+          <div class="custom-row" style="margin-top:10px;">
+            <button id="btnAddModel" class="small-btn" style="flex:0.5">添加到列表</button>
+            <button id="btnUseTempModel" class="small-btn" style="flex:0.5">仅本次使用</button>
+          </div>
+          <div class="hint">
+            说明：<b>添加到列表</b> 会保存到浏览器本地（localStorage），刷新仍可用。<br/>
+            能力判断：若模型ID包含 <code>flash</code> 将按 Flash 规则限制（例如参考图≤3、分辨率仅 1K）。
+          </div>
+          <div id="customList" class="pill-list"></div>
+        </div>
+      </div>
     </div>
 
     <div id="refGrid" class="ref-grid" style="display:none"></div>
@@ -808,6 +823,7 @@
     </div>
 
     <button class="btn" id="gen">开始生成图片</button>
+    <div id="errorBox" class="error-box"></div>
   </div>
 
   <div class="history-section">
@@ -816,17 +832,6 @@
       <span id="clearHistory">清空记录</span>
     </div>
     <div id="historyList"></div>
-  </div>
-</div>
-
-<div id="imgViewer" class="viewer" aria-hidden="true">
-  <div class="viewer-backdrop"></div>
-  <div class="viewer-panel" role="dialog" aria-modal="true">
-    <img id="viewerImg" class="viewer-img" alt="预览图">
-    <div class="viewer-bar">
-      <a id="viewerDownload" class="viewer-btn primary" download>下载</a>
-      <span id="viewerClose" class="viewer-btn">关闭</span>
-    </div>
   </div>
 </div>
 
@@ -840,82 +845,49 @@
           limit: 50
       }
   };
+  // 你对接的服务地址（保持原样）
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
   // =========================================
 
   let currentUser = null;
   let refImages = [];
+  let dbInstance = null;
+
   const $ = (id) => document.getElementById(id);
   const el = {
     model: $("modelSelect"),
     ratio: $("ratio"),
     res: $("res"),
     fileInput: $("fileInput"),
-    refGrid: $("refGrid"), prompt: $("prompt"), gen: $("gen"),
+    refGrid: $("refGrid"),
+    prompt: $("prompt"),
+    gen: $("gen"),
     historyList: $("historyList"),
-    loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
-    btnLogin: $("btnLogin"), loginMsg: $("loginMsg"),
-    rememberMe: $("rememberMe"), // 新增
+    loginLayer: $("loginLayer"),
+    u_name: $("u_name"),
+    u_pass: $("u_pass"),
+    btnLogin: $("btnLogin"),
+    loginMsg: $("loginMsg"),
+    rememberMe: $("rememberMe"),
     welcomeText: $("welcomeText"),
     logoutBtn: $("logoutBtn"),
-    clearHistory: $("clearHistory")
+    clearHistory: $("clearHistory"),
+
+    // 新增：自定义模型
+    customPanel: $("customPanel"),
+    customModelId: $("customModelId"),
+    customModelName: $("customModelName"),
+    btnAddModel: $("btnAddModel"),
+    btnUseTempModel: $("btnUseTempModel"),
+    customList: $("customList"),
+
+    // 新增：错误展示
+    errorBox: $("errorBox"),
   };
 
-  // ===== 图片预览弹窗（Lightbox）- 代码保留但不再通过点击触发，以防未来需要恢复 =====
-  const viewer = {
-    layer: document.getElementById("imgViewer"),
-    img: document.getElementById("viewerImg"),
-    close: document.getElementById("viewerClose"),
-    download: document.getElementById("viewerDownload"),
-    backdrop: document.querySelector("#imgViewer .viewer-backdrop"),
-  };
-
-  function openViewer(url, filename) {
-    viewer.img.src = url;
-    viewer.download.href = url;
-    viewer.download.download = filename || "image.png";
-    viewer.layer.style.display = "flex";
-    viewer.layer.setAttribute("aria-hidden", "false");
-    document.body.style.overflow = "hidden";
-  }
-
-  function closeViewer() {
-    viewer.layer.style.display = "none";
-    viewer.layer.setAttribute("aria-hidden", "true");
-    viewer.img.src = "";
-    document.body.style.overflow = "";
-  }
-
-  viewer.close.onclick = closeViewer;
-  viewer.backdrop.onclick = closeViewer;
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && viewer.layer.style.display === "flex") closeViewer();
-  });
-
-  // --- 模型切换时的分辨率限制逻辑 ---
-  el.model.onchange = () => {
-      const isFlash = el.model.value.includes("flash");
-      const opts = el.res.options;
-
-      if (isFlash) {
-          el.res.value = "1K";
-          opts[1].disabled = true;
-          opts[2].disabled = true;
-          opts[1].text = "高清 (2K) - 仅 Pro 可用";
-          opts[2].text = "超清 (4K) - 仅 Pro 可用";
-      } else {
-          opts[1].disabled = false;
-          opts[2].disabled = false;
-          opts[1].text = "高清 (2K)";
-          opts[2].text = "超清 (4K)";
-      }
-  };
-  el.model.onchange();
-
-  // --- IndexedDB ---
+  // ===== IndexedDB =====
   const DB_NAME = "AI_Art_Light";
   const STORE_NAME = "imgs";
-  let dbInstance = null;
 
   function initDB() {
     const request = indexedDB.open(DB_NAME, 1);
@@ -965,12 +937,11 @@
   function renderItem(item, replaceElem) {
     const url = URL.createObjectURL(item.blob);
 
-    // 修改：将 span 按钮改为 a 标签，并添加 target="_blank"
     const html = `
       <img src="${url}" class="gen-img" />
       <div class="hist-meta">
         <div class="meta-info">
-            <span class="meta-title">${item.meta}</span>
+            <span class="meta-title">${escapeHtml(item.meta)}</span>
             <span class="meta-res">读取分辨率...</span>
         </div>
         <div class="actions-group">
@@ -985,7 +956,6 @@
         const img = container.querySelector(".gen-img");
         const resSpan = container.querySelector(".meta-res");
         const delBtn = container.querySelector(".del-btn");
-        const openBtn = container.querySelector(".open-btn");
 
         const updateRes = () => {
              resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
@@ -994,12 +964,7 @@
         if (img.complete) updateRes();
         else img.onload = updateRes;
 
-        // 修改：点击图片本身不再调用 openViewer，而是直接在新标签页打开
         img.onclick = () => window.open(url, '_blank');
-
-        // 注意：openBtn 已经是 a 标签且有 target="_blank"，浏览器原生处理即可，
-        // 这里不需要再绑定 onclick 事件，保留代码简洁性。
-
         delBtn.onclick = () => deleteItem(item.id, container);
     };
 
@@ -1015,8 +980,167 @@
     }
   }
 
-  // --- Logic ---
-  // 1. 初始化时检查本地缓存
+  // ===== 工具：安全输出 =====
+  function escapeHtml(str) {
+    return String(str || "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
+
+  function showError(msg) {
+    el.errorBox.style.display = "block";
+    el.errorBox.textContent = msg;
+  }
+
+  function clearError() {
+    el.errorBox.style.display = "none";
+    el.errorBox.textContent = "";
+  }
+
+  // ===== 自定义模型：保存/加载 =====
+  const LS_CUSTOM_MODELS = "ai_art_custom_models_v1";
+
+  function loadCustomModels() {
+    try {
+      const raw = localStorage.getItem(LS_CUSTOM_MODELS);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveCustomModels(list) {
+    localStorage.setItem(LS_CUSTOM_MODELS, JSON.stringify(list || []));
+  }
+
+  function refreshModelSelect() {
+    const selected = el.model.value;
+
+    // 保留内置项
+    const builtins = [
+      { id: "gemini-3-pro-image-preview", name: "NanoBanana Pro" },
+      { id: "gemini-2.5-flash-image", name: "NanoBanana（Flash）" },
+    ];
+
+    // 先清空
+    el.model.innerHTML = "";
+
+    // 内置
+    builtins.forEach(m => {
+      const opt = document.createElement("option");
+      opt.value = m.id;
+      opt.textContent = m.name;
+      el.model.appendChild(opt);
+    });
+
+    // 自定义列表
+    const customs = loadCustomModels();
+    if (customs.length) {
+      const sep = document.createElement("option");
+      sep.disabled = true;
+      sep.textContent = "──────── 自定义模型 ────────";
+      el.model.appendChild(sep);
+
+      customs.forEach(m => {
+        const opt = document.createElement("option");
+        opt.value = m.id;
+        opt.textContent = m.name ? `${m.name} (${m.id})` : m.id;
+        el.model.appendChild(opt);
+      });
+    }
+
+    // 自定义入口
+    const optCustom = document.createElement("option");
+    optCustom.value = "__custom__";
+    optCustom.textContent = "自定义...";
+    el.model.appendChild(optCustom);
+
+    // 尝试恢复选择
+    const allValues = Array.from(el.model.options).map(o => o.value);
+    if (allValues.includes(selected)) el.model.value = selected;
+    else el.model.value = builtins[0].id;
+  }
+
+  function refreshCustomPills() {
+    const customs = loadCustomModels();
+    el.customList.innerHTML = customs.map(m => `
+      <div class="pill" title="${escapeHtml(m.id)}">
+        <b>${escapeHtml(m.name || "未命名")}</b>
+        <span>${escapeHtml(m.id)}</span>
+        <span class="x" data-id="${escapeHtml(m.id)}">×</span>
+      </div>
+    `).join("");
+
+    // 绑定删除
+    el.customList.querySelectorAll(".x").forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.getAttribute("data-id");
+        let list = loadCustomModels();
+        list = list.filter(x => x.id !== id);
+        saveCustomModels(list);
+        refreshModelSelect();
+        refreshCustomPills();
+      };
+    });
+  }
+
+  function normalizeModelId(id) {
+    return String(id || "").trim();
+  }
+
+  function isFlashModel(modelId) {
+    return String(modelId || "").toLowerCase().includes("flash");
+  }
+
+  function applyResLimitByModel(modelId) {
+    const flash = isFlashModel(modelId);
+    const opts = el.res.options;
+
+    if (flash) {
+      el.res.value = "1K";
+      opts[1].disabled = true;
+      opts[2].disabled = true;
+      opts[1].text = "高清 (2K) - Flash 限制";
+      opts[2].text = "超清 (4K) - Flash 限制";
+    } else {
+      opts[1].disabled = false;
+      opts[2].disabled = false;
+      opts[1].text = "高清 (2K)";
+      opts[2].text = "超清 (4K)";
+    }
+  }
+
+  function getSelectedModelId() {
+    if (el.model.value === "__custom__") {
+      return normalizeModelId(el.customModelId.value);
+    }
+    return el.model.value;
+  }
+
+  function getSelectedModelName(modelId) {
+    // 如果是 select 里的项，直接用 text；如果是 __custom__，用输入的 name
+    if (el.model.value === "__custom__") {
+      const n = String(el.customModelName.value || "").trim();
+      return n || "自定义模型";
+    }
+    const opt = el.model.options[el.model.selectedIndex];
+    return opt ? opt.textContent : "模型";
+  }
+
+  function toggleCustomPanel() {
+    const on = el.model.value === "__custom__";
+    el.customPanel.style.display = on ? "block" : "none";
+
+    // 选择变化时也更新分辨率限制
+    const modelId = getSelectedModelId();
+    if (modelId) applyResLimitByModel(modelId);
+  }
+
+  // ===== 逻辑：登录记住密码 =====
   const LS_USER = "ai_art_user";
   const LS_PASS = "ai_art_pass";
   const savedUser = localStorage.getItem(LS_USER);
@@ -1038,7 +1162,6 @@
       if (USERS_DB[u] && USERS_DB[u].pwd === p) {
           currentUser = u;
 
-          // 2. 登录成功，处理记住密码逻辑
           if (el.rememberMe.checked) {
             localStorage.setItem(LS_USER, u);
             localStorage.setItem(LS_PASS, p);
@@ -1050,17 +1173,74 @@
           el.loginLayer.style.display = "none";
           updateUserInfo();
           initDB();
+
+          // 初始化模型列表
+          refreshModelSelect();
+          refreshCustomPills();
+          toggleCustomPanel();
+          applyResLimitByModel(getSelectedModelId());
+
       } else {
           el.loginMsg.textContent = "账号或密码错误";
       }
   };
 
   el.logoutBtn.onclick = () => location.reload();
+  el.clearHistory.onclick = clearAllDB;
 
+  // ===== 模型选择变化 =====
+  el.model.onchange = () => {
+    toggleCustomPanel();
+    const modelId = getSelectedModelId();
+    if (modelId) applyResLimitByModel(modelId);
+  };
+
+  // ===== 自定义模型按钮 =====
+  el.btnAddModel.onclick = () => {
+    clearError();
+    const id = normalizeModelId(el.customModelId.value);
+    const name = String(el.customModelName.value || "").trim();
+
+    if (!id) return showError("请输入自定义模型ID。");
+    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
+
+    let list = loadCustomModels();
+    if (list.some(x => x.id === id)) return showError("该模型ID已存在于列表。");
+
+    list.push({ id, name: name || "自定义模型" });
+    saveCustomModels(list);
+
+    refreshModelSelect();
+    refreshCustomPills();
+
+    // 选中新添加的模型
+    el.model.value = id;
+    toggleCustomPanel();
+    applyResLimitByModel(id);
+  };
+
+  el.btnUseTempModel.onclick = () => {
+    clearError();
+    const id = normalizeModelId(el.customModelId.value);
+    if (!id) return showError("请输入自定义模型ID。");
+    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
+
+    // 不保存，只用于本次：select 仍在 __custom__
+    applyResLimitByModel(id);
+    showError("已设置“仅本次使用”的模型ID。点击生成即可。");
+    setTimeout(clearError, 1800);
+  };
+
+  // ===== 参考图上传 =====
   el.fileInput.onchange = async () => {
+    clearError();
     const files = Array.from(el.fileInput.files);
     if (!files.length) return;
-    if (refImages.length + files.length > 9) return alert("最多9张");
+
+    if (refImages.length + files.length > 9) {
+      el.fileInput.value = "";
+      return showError("最多只能上传 9 张参考图。");
+    }
 
     for (const f of files) {
         const reader = new FileReader();
@@ -1086,15 +1266,60 @@
   }
   window.removeRef = (i) => { refImages.splice(i, 1); renderRef(); };
 
-  el.clearHistory.onclick = clearAllDB;
+  // ===== 解析返回：尽量从 candidates 中找到图片 =====
+  function extractImageFromResponse(json) {
+    const candidates = json?.candidates || [];
+    for (const c of candidates) {
+      const parts = c?.content?.parts || [];
+      for (const p of parts) {
+        if (p?.inlineData?.data) return p.inlineData; // { mimeType, data }
+      }
+    }
+    return null;
+  }
 
+  function extractTextFromResponse(json) {
+    const candidates = json?.candidates || [];
+    for (const c of candidates) {
+      const parts = c?.content?.parts || [];
+      for (const p of parts) {
+        if (typeof p?.text === "string" && p.text.trim()) return p.text.trim();
+      }
+    }
+    return "";
+  }
+
+  function getFinishReason(json) {
+    const fr = json?.candidates?.[0]?.finishReason;
+    return fr ? String(fr) : "";
+  }
+
+  function base64ToBlob(b64, mimeType) {
+    const binary = atob(b64);
+    const array = new Uint8Array(binary.length);
+    for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
+    return new Blob([array], {type: mimeType || "image/png"});
+  }
+
+  // ===== 生成 =====
   el.gen.onclick = async () => {
+    clearError();
     if (!currentUser) return;
-    const prompt = el.prompt.value.trim();
-    if (!prompt) return alert("请输入提示词");
 
-    const used = parseInt(localStorage.getItem("used_" + currentUser) || "0");
-    if (used >= USERS_DB[currentUser].limit) return alert("额度已用完");
+    const prompt = el.prompt.value.trim();
+    if (!prompt) return showError("请输入提示词。");
+
+    const used = parseInt(localStorage.getItem("used_" + currentUser) || "0", 10);
+    if (used >= USERS_DB[currentUser].limit) return showError("额度已用完。");
+
+    const modelId = getSelectedModelId();
+    if (!modelId) return showError("请选择或输入有效的模型ID。");
+
+    // Flash 限制参考图（经验上更稳定）
+    const flash = isFlashModel(modelId);
+    if (flash && refImages.length > 3) {
+      return showError("当前模型像 Flash 类型：建议参考图不超过 3 张（已检测到超过 3 张）。请减少参考图或换 Pro 模型。");
+    }
 
     // 1. Loading 占位
     const loadingCard = document.createElement("div");
@@ -1110,42 +1335,72 @@
     el.gen.disabled = true;
     el.gen.textContent = "生成中...";
 
+    // parts：文本 + 参考图
     const parts = [{ text: prompt }];
     refImages.forEach(img => parts.push({ inlineData: { mimeType: img.mime, data: img.b64 } }));
 
-    const currentModelId = el.model.value;
-    const finalUrl = `${BASE_URL}${currentModelId}:generateContent`;
+    const finalUrl = `${BASE_URL}${modelId}:generateContent`;
 
     try {
         const resp = await fetch(finalUrl, {
             method: "POST",
-            headers: { "Content-Type": "application/json", "Authorization": "Bearer " + USERS_DB[currentUser].key },
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer " + USERS_DB[currentUser].key
+            },
             body: JSON.stringify({
                 contents: [{ parts }],
-                generationConfig: { imageConfig: { aspectRatio: el.ratio.value, imageSize: el.res.value } }
+                generationConfig: {
+                  responseModalities: ["IMAGE"], // 关键：明确要求返回图片
+                  candidateCount: 1,
+                  imageConfig: {
+                    aspectRatio: el.ratio.value,
+                    imageSize: el.res.value
+                  }
+                }
             })
         });
 
-        const json = await resp.json();
-
-        let imgData = null;
-        if (json.candidates) {
-            for (let p of json.candidates[0].content.parts) {
-                if (p.inlineData) { imgData = p.inlineData; break; }
-            }
+        let json = null;
+        try {
+          json = await resp.json();
+        } catch {
+          // 非 JSON
+          const text = await resp.text().catch(() => "");
+          throw new Error(`接口返回非 JSON。HTTP ${resp.status}. ${text ? "返回内容：" + text.slice(0, 300) : ""}`);
         }
 
-        if (!imgData) throw new Error("生成失败，请调整提示词重试");
+        // HTTP 错误：展示真实原因
+        if (!resp.ok) {
+          const msg = json?.error?.message || JSON.stringify(json);
+          throw new Error(`HTTP ${resp.status}：${msg}`);
+        }
 
-        const binary = atob(imgData.data);
-        const array = new Uint8Array(binary.length);
-        for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
-        const blob = new Blob([array], {type: imgData.mimeType});
+        // 成功：尝试取图
+        const imgData = extractImageFromResponse(json);
 
-        const modelName = el.model.options[el.model.selectedIndex].text;
-        const meta = `${modelName} · ${el.ratio.value}`;
+        if (!imgData) {
+          // 没有图片：可能是只回了文字、被安全策略拦截、或模型不支持
+          const txt = extractTextFromResponse(json);
+          const fr = getFinishReason(json);
+          const hint = [
+            "未返回图片。",
+            fr ? `finishReason=${fr}` : "",
+            txt ? `模型返回文字：${txt}` : "",
+            "建议：",
+            "1) 确认模型ID支持图片输出；",
+            "2) 缩短提示词、减少参考图；",
+            "3) 若是 Flash，参考图≤3 且分辨率 1K 更稳定；",
+          ].filter(Boolean).join("\n");
+          throw new Error(hint);
+        }
 
-        // 2. 替换为真图
+        const blob = base64ToBlob(imgData.data, imgData.mimeType);
+
+        const modelName = getSelectedModelName(modelId);
+        const meta = `${modelName} · ${el.ratio.value} · ${el.res.value}`;
+
+        // 替换为真图
         const item = { id: Date.now(), blob: blob, meta: meta };
         renderItem(item, loadingCard);
 
@@ -1155,12 +1410,15 @@
 
     } catch (e) {
         loadingCard.remove();
-        alert(e.message);
+        const msg = (e && e.message) ? e.message : String(e);
+        showError(msg);
+        console.error("Generate error:", e);
     } finally {
         el.gen.disabled = false;
         el.gen.textContent = "开始生成图片";
     }
   };
+
 })();
 </script>
 </body>
