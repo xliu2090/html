@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>任务 3：物理引擎弹球模拟器</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Poppins", "Segoe UI", "PingFang SC", "Helvetica Neue", Arial, sans-serif;
+      --bg: #0b1020;
+      --panel: rgba(16, 24, 40, 0.85);
+      --panel-border: rgba(148, 163, 184, 0.2);
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #8b5cf6;
+      --accent-strong: #6d28d9;
+      --success: #22c55e;
+      --warning: #f59e0b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1e293b 0%, #0b1020 50%, #060a14 100%);
+      color: var(--text);
+    }
+
+    header {
+      padding: 28px clamp(20px, 5vw, 48px) 12px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(22px, 3vw, 30px);
+      letter-spacing: 0.4px;
+    }
+
+    p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      max-width: 920px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(280px, 320px) 1fr;
+      gap: 20px;
+      padding: 20px clamp(20px, 5vw, 48px) 36px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 18px;
+      padding: 18px;
+      border: 1px solid var(--panel-border);
+      box-shadow: 0 20px 50px rgba(15, 23, 42, 0.35);
+      backdrop-filter: blur(18px);
+    }
+
+    .panel h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel h2 span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(139, 92, 246, 0.15);
+      color: #c4b5fd;
+      font-size: 12px;
+      padding: 2px 10px;
+      border-radius: 999px;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: var(--muted);
+    }
+
+    input[type="range"],
+    input[type="number"] {
+      width: 100%;
+      accent-color: var(--accent);
+      background: transparent;
+    }
+
+    input[type="number"] {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 10px;
+      color: var(--text);
+      padding: 8px 10px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 10px 14px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      font-size: 14px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 12px 20px rgba(139, 92, 246, 0.25);
+    }
+
+    button.secondary {
+      background: rgba(148, 163, 184, 0.15);
+      color: var(--text);
+      box-shadow: none;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button.secondary:hover {
+      background: rgba(148, 163, 184, 0.25);
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 2px 10px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.18);
+      color: #86efac;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .canvas-wrap {
+      background: rgba(15, 23, 42, 0.78);
+      border-radius: 20px;
+      padding: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08), 0 30px 60px rgba(8, 15, 35, 0.45);
+    }
+
+    canvas {
+      width: 100%;
+      height: 640px;
+      border-radius: 16px;
+      background: radial-gradient(circle at top left, #0f172a 0%, #0b1226 40%, #070b16 100%);
+      display: block;
+    }
+
+    .hint {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.6;
+      border-top: 1px solid rgba(148, 163, 184, 0.1);
+      padding-top: 12px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 6px;
+    }
+
+    .legend strong {
+      color: #f8fafc;
+    }
+
+    .status {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .status-card {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .status-card span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .status-card strong {
+      font-size: 16px;
+      color: #f8fafc;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+      canvas {
+        height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>任务 3：物理引擎弹球模拟器</h1>
+    <p>支持重力、摩擦、弹性碰撞的 2D 弹球环境，可拖拽设置初始位置与速度并添加矩形障碍物。</p>
+  </header>
+  <main class="layout">
+    <section class="panel">
+      <h2>参数面板 <span>Physics</span></h2>
+      <div class="control-group">
+        <label>重力系数 <span id="gravityValue" class="badge"></span></label>
+        <input id="gravity" type="range" min="0" max="1200" step="10" value="600" />
+      </div>
+      <div class="control-group">
+        <label>弹性系数 <span id="restitutionValue" class="badge"></span></label>
+        <input id="restitution" type="range" min="0.2" max="1" step="0.02" value="0.9" />
+      </div>
+      <div class="control-group">
+        <label>摩擦系数 <span id="frictionValue" class="badge"></span></label>
+        <input id="friction" type="range" min="0" max="0.2" step="0.005" value="0.02" />
+      </div>
+      <div class="control-group row">
+        <div>
+          <label>障碍宽度 (px)</label>
+          <input id="obstacleWidth" type="number" min="40" max="300" value="140" />
+        </div>
+        <div>
+          <label>障碍高度 (px)</label>
+          <input id="obstacleHeight" type="number" min="20" max="200" value="40" />
+        </div>
+      </div>
+      <div class="stack">
+        <button id="addBall">添加球体</button>
+        <button id="add20Balls" class="secondary">添加 20 个球</button>
+        <button id="addObstacle" class="secondary">点击画布放置矩形障碍</button>
+        <button id="reset" class="secondary">重置场景</button>
+      </div>
+      <div class="status">
+        <div class="status-card">
+          <span>当前球体数量</span>
+          <strong id="ballCount">0</strong>
+        </div>
+        <div class="status-card">
+          <span>矩形障碍数量</span>
+          <strong id="obstacleCount">0</strong>
+        </div>
+      </div>
+      <div class="hint">
+        <div class="legend">
+          <div>拖拽球体：调整初始位置。</div>
+          <div>按住 <strong>Shift</strong> 拖拽球体：显示速度向量并设置发射速度。</div>
+          <div>点击“放置矩形障碍”后再点击画布添加障碍物。</div>
+        </div>
+      </div>
+    </section>
+    <section class="canvas-wrap">
+      <canvas id="simCanvas" width="960" height="640"></canvas>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById("simCanvas");
+    const ctx = canvas.getContext("2d");
+
+    const gravityInput = document.getElementById("gravity");
+    const restitutionInput = document.getElementById("restitution");
+    const frictionInput = document.getElementById("friction");
+    const gravityValue = document.getElementById("gravityValue");
+    const restitutionValue = document.getElementById("restitutionValue");
+    const frictionValue = document.getElementById("frictionValue");
+
+    const obstacleWidthInput = document.getElementById("obstacleWidth");
+    const obstacleHeightInput = document.getElementById("obstacleHeight");
+    const addBallBtn = document.getElementById("addBall");
+    const add20Btn = document.getElementById("add20Balls");
+    const addObstacleBtn = document.getElementById("addObstacle");
+    const resetBtn = document.getElementById("reset");
+    const ballCount = document.getElementById("ballCount");
+    const obstacleCount = document.getElementById("obstacleCount");
+
+    const state = {
+      balls: [],
+      obstacles: [],
+      placingObstacle: false,
+      draggingBall: null,
+      dragOffset: { x: 0, y: 0 },
+      velocityVector: null,
+      lastTime: performance.now(),
+      accumulator: 0,
+    };
+
+    const palette = ["#4fd1c5", "#63b3ed", "#f6ad55", "#fc8181", "#9f7aea", "#68d391"];
+
+    function updateLabels() {
+      gravityValue.textContent = `${gravityInput.value} px/s²`;
+      restitutionValue.textContent = Number(restitutionInput.value).toFixed(2);
+      frictionValue.textContent = Number(frictionInput.value).toFixed(3);
+      ballCount.textContent = state.balls.length;
+      obstacleCount.textContent = state.obstacles.length;
+    }
+
+    updateLabels();
+    gravityInput.addEventListener("input", updateLabels);
+    restitutionInput.addEventListener("input", updateLabels);
+    frictionInput.addEventListener("input", updateLabels);
+
+    function createBall() {
+      const radius = 12 + Math.random() * 12;
+      const margin = radius + 10;
+      const ball = {
+        x: margin + Math.random() * (canvas.width - 2 * margin),
+        y: margin + Math.random() * (canvas.height * 0.4),
+        vx: (Math.random() - 0.5) * 200,
+        vy: (Math.random() - 0.5) * 200,
+        radius,
+        mass: Math.PI * radius * radius,
+        color: palette[Math.floor(Math.random() * palette.length)],
+      };
+      state.balls.push(ball);
+      updateLabels();
+    }
+
+    function addObstacleAt(x, y) {
+      const width = Number(obstacleWidthInput.value) || 120;
+      const height = Number(obstacleHeightInput.value) || 40;
+      state.obstacles.push({ x: x - width / 2, y: y - height / 2, width, height });
+      updateLabels();
+    }
+
+    function resetScene() {
+      state.balls = [];
+      state.obstacles = [
+        { x: canvas.width * 0.2, y: canvas.height * 0.62, width: 180, height: 30 },
+        { x: canvas.width * 0.6, y: canvas.height * 0.35, width: 200, height: 30 },
+      ];
+      for (let i = 0; i < 8; i += 1) {
+        createBall();
+      }
+      updateLabels();
+    }
+
+    addBallBtn.addEventListener("click", () => createBall());
+    add20Btn.addEventListener("click", () => {
+      for (let i = 0; i < 20; i += 1) {
+        createBall();
+      }
+    });
+    addObstacleBtn.addEventListener("click", () => {
+      state.placingObstacle = !state.placingObstacle;
+      addObstacleBtn.textContent = state.placingObstacle
+        ? "点击画布放置中..."
+        : "点击画布放置矩形障碍";
+    });
+    resetBtn.addEventListener("click", resetScene);
+
+    function clamp(value, min, max) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function getMousePosition(event) {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+        y: ((event.clientY - rect.top) / rect.height) * canvas.height,
+      };
+    }
+
+    function findBallAt(x, y) {
+      return state.balls.findLast((ball) => {
+        const dx = x - ball.x;
+        const dy = y - ball.y;
+        return Math.hypot(dx, dy) <= ball.radius + 4;
+      });
+    }
+
+    canvas.addEventListener("mousedown", (event) => {
+      const { x, y } = getMousePosition(event);
+      if (state.placingObstacle) {
+        addObstacleAt(x, y);
+        state.placingObstacle = false;
+        addObstacleBtn.textContent = "点击画布放置矩形障碍";
+        return;
+      }
+      const targetBall = findBallAt(x, y);
+      if (targetBall) {
+        state.draggingBall = targetBall;
+        state.dragOffset = { x: x - targetBall.x, y: y - targetBall.y };
+        targetBall.vx = 0;
+        targetBall.vy = 0;
+      }
+    });
+
+    canvas.addEventListener("mousemove", (event) => {
+      const { x, y } = getMousePosition(event);
+      if (!state.draggingBall) return;
+      if (event.shiftKey) {
+        state.velocityVector = { x, y };
+      } else {
+        state.draggingBall.x = clamp(x - state.dragOffset.x, state.draggingBall.radius, canvas.width - state.draggingBall.radius);
+        state.draggingBall.y = clamp(y - state.dragOffset.y, state.draggingBall.radius, canvas.height - state.draggingBall.radius);
+        state.velocityVector = null;
+      }
+    });
+
+    window.addEventListener("mouseup", (event) => {
+      if (!state.draggingBall) return;
+      if (event.shiftKey && state.velocityVector) {
+        const dx = state.velocityVector.x - state.draggingBall.x;
+        const dy = state.velocityVector.y - state.draggingBall.y;
+        const scale = 3.5;
+        state.draggingBall.vx = dx * scale;
+        state.draggingBall.vy = dy * scale;
+      }
+      state.draggingBall = null;
+      state.velocityVector = null;
+    });
+
+    function resolveWallCollision(ball, restitution, friction) {
+      const minBounce = 8;
+      if (ball.x - ball.radius < 0) {
+        ball.x = ball.radius;
+        ball.vx = Math.abs(ball.vx) * restitution;
+      }
+      if (ball.x + ball.radius > canvas.width) {
+        ball.x = canvas.width - ball.radius;
+        ball.vx = -Math.abs(ball.vx) * restitution;
+      }
+      if (ball.y - ball.radius < 0) {
+        ball.y = ball.radius;
+        ball.vy = Math.abs(ball.vy) * restitution;
+      }
+      if (ball.y + ball.radius > canvas.height) {
+        ball.y = canvas.height - ball.radius;
+        ball.vy = -Math.abs(ball.vy) * restitution;
+        if (Math.abs(ball.vy) < minBounce) {
+          ball.vy = 0;
+          ball.vx *= (1 - friction * 2);
+        }
+      }
+    }
+
+    function resolveCircleCollision(ballA, ballB, restitution) {
+      const dx = ballB.x - ballA.x;
+      const dy = ballB.y - ballA.y;
+      const dist = Math.hypot(dx, dy);
+      const minDist = ballA.radius + ballB.radius;
+      if (dist === 0 || dist >= minDist) return;
+
+      const nx = dx / dist;
+      const ny = dy / dist;
+      const overlap = minDist - dist;
+      const totalMass = ballA.mass + ballB.mass;
+      ballA.x -= (overlap * (ballB.mass / totalMass)) * nx;
+      ballA.y -= (overlap * (ballB.mass / totalMass)) * ny;
+      ballB.x += (overlap * (ballA.mass / totalMass)) * nx;
+      ballB.y += (overlap * (ballA.mass / totalMass)) * ny;
+
+      const rvx = ballB.vx - ballA.vx;
+      const rvy = ballB.vy - ballA.vy;
+      const velAlongNormal = rvx * nx + rvy * ny;
+      if (velAlongNormal > 0) return;
+
+      const impulse = (-(1 + restitution) * velAlongNormal) / (1 / ballA.mass + 1 / ballB.mass);
+      const impulseX = impulse * nx;
+      const impulseY = impulse * ny;
+
+      ballA.vx -= impulseX / ballA.mass;
+      ballA.vy -= impulseY / ballA.mass;
+      ballB.vx += impulseX / ballB.mass;
+      ballB.vy += impulseY / ballB.mass;
+    }
+
+    function resolveObstacleCollision(ball, obstacle, restitution) {
+      const closestX = clamp(ball.x, obstacle.x, obstacle.x + obstacle.width);
+      const closestY = clamp(ball.y, obstacle.y, obstacle.y + obstacle.height);
+      const dx = ball.x - closestX;
+      const dy = ball.y - closestY;
+      const dist = Math.hypot(dx, dy);
+      if (dist >= ball.radius || dist === 0) return;
+
+      const overlap = ball.radius - dist;
+      const nx = dx / dist;
+      const ny = dy / dist;
+      ball.x += nx * overlap;
+      ball.y += ny * overlap;
+
+      const velAlongNormal = ball.vx * nx + ball.vy * ny;
+      if (velAlongNormal > 0) return;
+      ball.vx -= (1 + restitution) * velAlongNormal * nx;
+      ball.vy -= (1 + restitution) * velAlongNormal * ny;
+    }
+
+    function stepSimulation(dt) {
+      const gravity = Number(gravityInput.value);
+      const restitution = Number(restitutionInput.value);
+      const friction = Number(frictionInput.value);
+      const damping = Math.max(0, 1 - friction * dt);
+      const sleepThreshold = 4;
+
+      for (const ball of state.balls) {
+        if (ball === state.draggingBall) continue;
+        ball.vy += gravity * dt;
+        ball.vx *= damping;
+        ball.vy *= damping;
+        if (Math.hypot(ball.vx, ball.vy) < sleepThreshold) {
+          ball.vx = 0;
+          ball.vy = 0;
+        }
+        ball.x += ball.vx * dt;
+        ball.y += ball.vy * dt;
+        resolveWallCollision(ball, restitution, friction);
+
+        for (const obstacle of state.obstacles) {
+          resolveObstacleCollision(ball, obstacle, restitution);
+        }
+      }
+
+      for (let i = 0; i < state.balls.length; i += 1) {
+        for (let j = i + 1; j < state.balls.length; j += 1) {
+          resolveCircleCollision(state.balls[i], state.balls[j], restitution);
+        }
+      }
+    }
+
+    function drawScene() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      gradient.addColorStop(0, "#10162b");
+      gradient.addColorStop(0.5, "#0b1226");
+      gradient.addColorStop(1, "#060b16");
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "rgba(51, 65, 85, 0.8)";
+      for (const obstacle of state.obstacles) {
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+      }
+
+      for (const ball of state.balls) {
+        ctx.beginPath();
+        ctx.fillStyle = ball.color;
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "rgba(255,255,255,0.2)";
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+
+      if (state.draggingBall && state.velocityVector) {
+        ctx.beginPath();
+        ctx.moveTo(state.draggingBall.x, state.draggingBall.y);
+        ctx.lineTo(state.velocityVector.x, state.velocityVector.y);
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(state.velocityVector.x, state.velocityVector.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "#facc15";
+        ctx.fill();
+      }
+    }
+
+    function tick(now) {
+      const maxFrame = 0.05;
+      const delta = Math.min(maxFrame, (now - state.lastTime) / 1000);
+      state.lastTime = now;
+      state.accumulator += delta;
+      const step = 1 / 120;
+      const maxSteps = 10;
+      let steps = 0;
+      while (state.accumulator >= step && steps < maxSteps) {
+        stepSimulation(step);
+        state.accumulator -= step;
+        steps += 1;
+      }
+      drawScene();
+      requestAnimationFrame(tick);
+    }
+
+    resetScene();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
