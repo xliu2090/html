@@ -170,6 +170,15 @@
       gap: 6px;
       font-weight: 600;
     }
+    .model-selector select {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: inherit;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 4px 0;
+    }
     .topbar .icon-btn {
       border: none;
       background: transparent;
@@ -248,13 +257,16 @@
     }
     .context-toggle input { width: 14px; height: 14px; }
     .thinking-block {
-      background: var(--thinking-bg);
-      border-left: 3px solid #888;
-      padding: 8px 12px;
+      background: linear-gradient(135deg, #f5f3ff 0%, #ede9fe 100%);
+      border-left: 3px solid #8b5cf6;
+      padding: 10px 12px;
       margin: 8px 0;
-      font-style: italic;
       color: var(--thinking-text);
-      border-radius: 0 8px 8px 0;
+      border-radius: 8px;
+    }
+    [data-theme="dark"] .thinking-block {
+      background: linear-gradient(135deg, rgba(110, 90, 180, 0.2), rgba(70, 60, 120, 0.25));
+      border-left-color: #a78bfa;
     }
     .thinking-header {
       cursor: pointer;
@@ -263,7 +275,9 @@
       gap: 6px;
       font-size: 13px;
       user-select: none;
+      color: #6d28d9;
     }
+    [data-theme="dark"] .thinking-header { color: #c4b5fd; }
     .thinking-header::after {
       content: '▾';
       transition: transform 0.2s;
@@ -272,13 +286,17 @@
       transform: rotate(-90deg);
     }
     .thinking-content {
-      max-height: 500px;
+      max-height: 0;
       overflow: hidden;
-      transition: max-height 0.2s ease;
-      margin-top: 6px;
+      transition: max-height 0.3s ease;
+      margin-top: 0;
       white-space: pre-wrap;
+      color: inherit;
     }
-    .thinking-block.collapsed .thinking-content { max-height: 0; margin-top: 0; }
+    .thinking-block.expanded .thinking-content {
+      max-height: 2000px;
+      margin-top: 6px;
+    }
     .quickbar {
       display: flex;
       gap: 6px;
@@ -528,8 +546,7 @@
       <div class="topbar">
         <button class="drawer-toggle" id="drawerToggle">☰</button>
         <div class="model-selector">
-          <span id="currentModel">GPT-4o-mini</span>
-          <span>▾</span>
+          <select id="modelSelect" aria-label="模型选择"></select>
         </div>
         <button class="icon-btn" id="statsBtn">📊</button>
         <button class="icon-btn" id="settingsBtn">⚙️</button>
@@ -694,7 +711,7 @@
     const statsContent = document.getElementById('statsContent');
     const tokenSummary = document.getElementById('tokenSummary');
     const costSummary = document.getElementById('costSummary');
-    const currentModel = document.getElementById('currentModel');
+    const modelSelect = document.getElementById('modelSelect');
     const newConversationBtn = document.getElementById('newConversationBtn');
     const searchInput = document.getElementById('searchInput');
     const dateFilter = document.getElementById('dateFilter');
@@ -730,6 +747,22 @@
     const thinkingPatterns = [
       /<thinking>([\s\S]*?)<\/thinking>/gi,
       /<thought>([\s\S]*?)<\/thought>/gi,
+    ];
+    const modelPresets = [
+      { label: 'OpenAI · GPT-4o', value: 'gpt-4o' },
+      { label: 'OpenAI · GPT-4o-mini', value: 'gpt-4o-mini' },
+      { label: 'OpenAI · o1', value: 'o1' },
+      { label: 'OpenAI · o3', value: 'o3' },
+      { label: 'Claude · claude-3-opus', value: 'claude-3-opus' },
+      { label: 'Claude · claude-3-5-sonnet', value: 'claude-3-5-sonnet' },
+      { label: 'Claude · claude-4-opus', value: 'claude-4-opus' },
+      { label: 'Gemini · gemini-1.5-pro', value: 'gemini-1.5-pro' },
+      { label: 'DeepSeek · deepseek-reasoner', value: 'deepseek-reasoner' },
+      { label: '通义千问 · qwen2.5', value: 'qwen2.5' },
+      { label: 'Moonshot · moonshot-v1', value: 'moonshot-v1' },
+      { label: '智谱 · glm-4', value: 'glm-4' },
+      { label: '零一万物 · yi-34b', value: 'yi-34b' },
+      { label: '自定义模型', value: '__custom__' },
     ];
 
     let state = loadState();
@@ -914,14 +947,29 @@
 
         if (finalThinking && thinkingMode !== 'hidden') {
           const thinkBlock = document.createElement('div');
-          const collapsed = thinkingMode === 'collapse';
-          thinkBlock.className = `thinking-block ${collapsed ? 'collapsed' : ''}`;
+          const shouldCollapse = thinkingMode === 'collapse';
+          if (message.thinkingCollapsed === undefined) {
+            message.thinkingCollapsed = shouldCollapse && !message.streaming;
+          }
+          const forceExpanded = message.streaming;
+          const isCollapsed = forceExpanded ? false : message.thinkingCollapsed;
+          thinkBlock.className = `thinking-block ${isCollapsed ? 'collapsed' : 'expanded'}`;
+          const wordCount = finalThinking.length.toLocaleString();
+          const headerText = isCollapsed
+            ? `💭 思考过程（${wordCount}字）`
+            : '💭 思考过程（点击收起）';
           thinkBlock.innerHTML = `
-            <div class="thinking-header">💭 思考过程（点击展开）</div>
+            <div class="thinking-header">${headerText}</div>
             <div class="thinking-content">${finalThinking.replace(/\n/g, '<br />')}</div>
           `;
           thinkBlock.querySelector('.thinking-header').onclick = () => {
-            thinkBlock.classList.toggle('collapsed');
+            const nextCollapsed = !thinkBlock.classList.contains('collapsed');
+            message.thinkingCollapsed = nextCollapsed;
+            thinkBlock.classList.toggle('collapsed', nextCollapsed);
+            thinkBlock.classList.toggle('expanded', !nextCollapsed);
+            const nextHeader = nextCollapsed ? `💭 思考过程（${wordCount}字）` : '💭 思考过程（点击收起）';
+            thinkBlock.querySelector('.thinking-header').textContent = nextHeader;
+            saveState();
           };
           bubble.appendChild(thinkBlock);
         }
@@ -1015,6 +1063,7 @@
 
     function render() {
       applySettings();
+      renderModelOptions();
       renderFolders();
       renderConversationList();
       renderMessages();
@@ -1030,13 +1079,29 @@
     }
 
     function applySettings() {
-      currentModel.textContent = state.settings.model;
       document.documentElement.style.setProperty('--font-size', `${state.settings.fontSize}px`);
       document.documentElement.style.setProperty('--message-width', `${state.settings.bubbleWidth}%`);
       const theme = state.settings.themeMode;
       document.body.dataset.theme = theme === 'system' ? '' : theme;
       if (theme === 'system') {
         document.body.dataset.theme = '';
+      }
+    }
+
+    function renderModelOptions() {
+      modelSelect.innerHTML = '';
+      modelPresets.forEach(option => {
+        const item = document.createElement('option');
+        item.value = option.value;
+        item.textContent = option.label;
+        modelSelect.appendChild(item);
+      });
+      const customModel = state.settings.model;
+      const presetMatch = modelPresets.find(preset => preset.value === customModel);
+      if (presetMatch) {
+        modelSelect.value = customModel;
+      } else {
+        modelSelect.value = '__custom__';
       }
     }
 
@@ -1075,6 +1140,7 @@
       state.settings.maxContext = Number(document.getElementById('maxContext').value) || 12;
       saveState();
       applySettings();
+      renderModelOptions();
       renderMessages();
       settingsModal.classList.remove('show');
     }
@@ -1278,6 +1344,9 @@
         }
 
         aiMessage.streaming = false;
+        if (state.settings.thinkingMode === 'collapse') {
+          aiMessage.thinkingCollapsed = true;
+        }
         updateUsageStats(aiMessage.content);
         saveState();
         renderMessages();
@@ -1288,6 +1357,7 @@
       } catch (error) {
         aiMessage.content = `⚠️ ${error.message}`;
         aiMessage.streaming = false;
+        aiMessage.thinkingCollapsed = true;
         renderMessages();
       } finally {
         setSendingState(false);
@@ -1525,6 +1595,18 @@
     micBtn.addEventListener('mouseup', () => recognition && recognition.stop());
     micBtn.addEventListener('touchstart', () => recognition && recognition.start());
     micBtn.addEventListener('touchend', () => recognition && recognition.stop());
+
+    modelSelect.onchange = () => {
+      const value = modelSelect.value;
+      if (value === '__custom__') {
+        openSettings();
+        return;
+      }
+      state.settings.model = value;
+      saveState();
+      renderModelOptions();
+      updateTokenPreview();
+    };
 
     settingsBtn.onclick = openSettings;
     settingsCancel.onclick = () => settingsModal.classList.remove('show');
