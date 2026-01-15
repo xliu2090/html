@@ -192,6 +192,15 @@ transform: translateY(-1px);
 display:flex;
 gap:8px;
 flex: 0 0 auto;
+opacity: 0;
+pointer-events: none;
+transform: translateY(-2px);
+transition: opacity .15s ease, transform .15s ease;
+}
+.bubble.showActions .bubbleActions{
+opacity: 1;
+pointer-events: auto;
+transform: translateY(0);
 }
 .actionBtn{
 width:34px;
@@ -410,7 +419,7 @@ white-space: nowrap;
 flex: 0 0 auto;
 display:flex;
 justify-content:center;
-padding: 0 12px 12px;
+padding: 0 12px max(16px, env(safe-area-inset-bottom));
 }
 .composerCard{
 width:100%;
@@ -419,7 +428,7 @@ background: var(--panel);
 border-radius: var(--radius-xl);
 border: 1px solid rgba(0,0,0,.08);
 box-shadow: var(--shadow-soft);
-padding: 12px 14px 14px;
+padding: 14px 14px 16px;
 }
 .prompt{
 width:100%;
@@ -438,12 +447,17 @@ align-items:center;
 justify-content:space-between;
 gap: 10px;
 padding-top: 6px;
+flex-wrap: wrap;
 }
 .composerLeft, .composerRight{
 display:flex;
 align-items:center;
 gap: 10px;
 min-width: 0;
+}
+.composerRight{
+flex: 1 1 auto;
+justify-content:flex-end;
 }
 
 .miniBtn{
@@ -465,7 +479,12 @@ border-color: rgba(217,138,112,.55);
 }
 .miniBtn:disabled{ opacity:.55; cursor:not-allowed; }
 
-.modelSelect{ position:relative; min-width: 0; }
+.modelSelect{
+position:relative;
+min-width: 0;
+flex: 1 1 auto;
+max-width: clamp(180px, 48vw, 320px);
+}
 .modelBtn{
 height:44px;
 padding: 0 12px;
@@ -481,8 +500,9 @@ color: rgba(0,0,0,.72);
 font-weight: 900;
 white-space: nowrap;
 transition: opacity .15s ease;
-max-width: 300px;   /* 防止把发送按钮顶飞 */
+max-width: 100%;
 min-width: 0;
+width: 100%;
 }
 .modelBtn:disabled{ opacity:.55; cursor:not-allowed; }
 #modelText{
@@ -820,10 +840,32 @@ user-select:none;
 opacity:1;
 transform: translateX(-50%) translateY(-4px);
 }
+.scrollBottom{
+position:absolute;
+right: 18px;
+bottom: calc(88px + env(safe-area-inset-bottom));
+width:42px;
+height:42px;
+border-radius: 14px;
+border: 1px solid rgba(0,0,0,.10);
+background: rgba(255,255,255,.90);
+box-shadow: 0 10px 24px rgba(0,0,0,.12);
+display:grid;
+place-items:center;
+cursor:pointer;
+opacity:0;
+pointer-events:none;
+transition: opacity .18s ease, transform .18s ease;
+z-index: 140;
+}
+.scrollBottom.show{
+opacity:1;
+pointer-events:auto;
+transform: translateY(-4px);
+}
 
 @media (max-width: 420px){
 .empty{ font-size: 30px; }
-.composer{ padding-bottom: max(12px, env(safe-area-inset-bottom)); }
 :root{ --sidebar-title: 26px; }
 #modelText{ max-width: 180px; }
 .chip .name{ max-width: 160px; }
@@ -1020,7 +1062,12 @@ transform: translateX(-50%) translateY(-4px);
 </div>
 
   </div>      
-</footer>      <div class="toast" id="toast">已复制</div>    </div>    <script>      
+</footer>      <div class="toast" id="toast">已复制</div>      <button class="scrollBottom" id="scrollBottomBtn" aria-label="Scroll to bottom" title="Scroll to bottom">      
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">      
+    <path d="M12 5v14" stroke="rgba(0,0,0,.62)" stroke-width="2" stroke-linecap="round"/>      
+    <path d="M6 13l6 6 6-6" stroke="rgba(0,0,0,.62)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>      
+  </svg>      
+</button>    </div>    <script>      
 /***********************      
  * Config      
  ***********************/      
@@ -1205,6 +1252,7 @@ const filePicker = document.getElementById('filePicker');
 const attachBar = document.getElementById('attachBar');
 
 const toastEl = document.getElementById('toast');
+const scrollBottomBtn = document.getElementById('scrollBottomBtn');
 
 /***********************
 
@@ -1297,6 +1345,12 @@ clearTimeout(showToast._t);
 showToast._t = setTimeout(()=> toastEl.classList.remove("show"), 1200);
 }
 
+function hideAllBubbleActions(except){
+document.querySelectorAll(".bubble.showActions").forEach((b)=>{
+if (b !== except) b.classList.remove("showActions");
+});
+}
+
 async function copyToClipboard(text){
 const t = (text || "").toString();
 if (!t) return;
@@ -1334,6 +1388,12 @@ return (el.scrollHeight - el.scrollTop - el.clientHeight) < threshold;
 }
 function scrollToBottom(){
 chatwrap.scrollTop = chatwrap.scrollHeight;
+}
+
+function updateScrollButton(){
+if (!scrollBottomBtn) return;
+const near = isNearBottom(chatwrap, 80);
+scrollBottomBtn.classList.toggle("show", !near);
 }
 
 /***********************
@@ -1730,6 +1790,17 @@ backdrop.addEventListener('click', closeDrawer);
 newChatBtn.addEventListener('click', ()=>{
 createNewChat();
 closeDrawer();
+});
+
+document.addEventListener("click", (e)=>{
+if (e.target.closest(".bubble")) return;
+hideAllBubbleActions();
+});
+
+scrollBottomBtn.addEventListener("click", ()=>{
+scrollToBottom();
+updateScrollButton();
+promptEl?.focus?.();
 });
 
 /***********************
@@ -2324,6 +2395,14 @@ handleContinue(b);
 });
 }
 
+b.addEventListener("click", (e)=>{
+if (e.target.closest(".actionBtn") || e.target.closest(".editWrap")) return;
+const willShow = !b.classList.contains("showActions");
+hideAllBubbleActions(b);
+if (willShow) b.classList.add("showActions");
+else b.classList.remove("showActions");
+});
+
 chatwrap.appendChild(b);
 return { bubble: b, bodyEl: body };
 }
@@ -2406,6 +2485,7 @@ clearChatDOM();
 
 if (!chat || !chat.messages || chat.messages.length === 0) {
 showEmpty(true);
+updateScrollButton();
 return;
 }
 
@@ -2478,6 +2558,7 @@ allowContinue
 }
 
 if (wasNear) scrollToBottom();
+updateScrollButton();
 }
 
 /***********************
@@ -2942,8 +3023,8 @@ if (autoScrollAllowed) scrollToBottom();
 }
 
 chatwrap.addEventListener("scroll", ()=>{
-if (!isStreaming) return;
-autoScrollAllowed = isNearBottom(chatwrap, 40);
+if (isStreaming) autoScrollAllowed = isNearBottom(chatwrap, 40);
+updateScrollButton();
 }, { passive:true });
 
 async function send({ overrideUserText = "", excludeAssistantId = "" } = {}){
