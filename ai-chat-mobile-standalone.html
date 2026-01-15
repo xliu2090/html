@@ -17,6 +17,10 @@
       --bubble-ai: #f1f1f4;
       --thinking-bg: rgba(100, 100, 100, 0.1);
       --thinking-text: #666;
+      --thinking-surface-start: #f5f3ff;
+      --thinking-surface-end: #ede9fe;
+      --thinking-border: rgba(139, 92, 246, 0.35);
+      --thinking-accent: #8b5cf6;
       --radius: 8px;
       --shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
       --message-width: 85%;
@@ -32,6 +36,10 @@
       --bubble-ai: #22262d;
       --thinking-bg: rgba(255, 255, 255, 0.08);
       --thinking-text: #b6bcc6;
+      --thinking-surface-start: rgba(76, 29, 149, 0.2);
+      --thinking-surface-end: rgba(91, 33, 182, 0.2);
+      --thinking-border: rgba(167, 139, 250, 0.35);
+      --thinking-accent: #a78bfa;
       --shadow: 0 6px 18px rgba(0, 0, 0, 0.4);
     }
     [data-theme="minimal"] .topbar,
@@ -155,6 +163,7 @@
       border-bottom: 1px solid var(--border);
       background: var(--panel);
       gap: 8px;
+      position: relative;
     }
     .drawer-toggle {
       border: none;
@@ -176,6 +185,41 @@
       font-size: 18px;
       cursor: pointer;
       color: inherit;
+    }
+    .model-dropdown {
+      position: absolute;
+      top: 52px;
+      left: 12px;
+      right: 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      padding: 8px 0;
+      display: none;
+      max-height: 60vh;
+      overflow-y: auto;
+      z-index: 20;
+    }
+    .model-dropdown.show { display: block; }
+    .model-group {
+      padding: 6px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .model-option {
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      border-top: 1px dashed var(--border);
+    }
+    .model-option span {
+      font-size: 12px;
+      color: var(--muted);
     }
     .token-bar {
       padding: 6px 14px;
@@ -248,13 +292,13 @@
     }
     .context-toggle input { width: 14px; height: 14px; }
     .thinking-block {
-      background: var(--thinking-bg);
-      border-left: 3px solid #888;
-      padding: 8px 12px;
+      background: linear-gradient(135deg, var(--thinking-surface-start), var(--thinking-surface-end));
+      border-left: 3px solid var(--thinking-accent);
+      border-radius: 10px;
+      border: 1px dashed var(--thinking-border);
+      padding: 10px 12px;
       margin: 8px 0;
-      font-style: italic;
       color: var(--thinking-text);
-      border-radius: 0 8px 8px 0;
     }
     .thinking-header {
       cursor: pointer;
@@ -272,9 +316,9 @@
       transform: rotate(-90deg);
     }
     .thinking-content {
-      max-height: 500px;
+      max-height: 2000px;
       overflow: hidden;
-      transition: max-height 0.2s ease;
+      transition: max-height 0.3s ease;
       margin-top: 6px;
       white-space: pre-wrap;
     }
@@ -531,6 +575,7 @@
           <span id="currentModel">GPT-4o-mini</span>
           <span>▾</span>
         </div>
+        <div class="model-dropdown" id="modelDropdown"></div>
         <button class="icon-btn" id="statsBtn">📊</button>
         <button class="icon-btn" id="settingsBtn">⚙️</button>
       </div>
@@ -707,6 +752,8 @@
     const micBtn = document.getElementById('micBtn');
     const speechIndicator = document.getElementById('speechIndicator');
     const offlineBanner = document.getElementById('offlineBanner');
+    const modelDropdown = document.getElementById('modelDropdown');
+    const modelSelector = document.querySelector('.model-selector');
 
     const storageKey = 'aiChatData';
     const defaultSettings = {
@@ -730,6 +777,14 @@
     const thinkingPatterns = [
       /<thinking>([\s\S]*?)<\/thinking>/gi,
       /<thought>([\s\S]*?)<\/thought>/gi,
+    ];
+    const modelOptions = [
+      { group: 'OpenAI', models: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o3'] },
+      { group: 'Anthropic', models: ['claude-3-opus', 'claude-3.5-sonnet', 'claude-4-opus'] },
+      { group: 'Google', models: ['gemini-1.5-pro', 'gemini-2.0-flash'] },
+      { group: 'DeepSeek', models: ['deepseek-chat', 'deepseek-reasoner'] },
+      { group: '通义千问', models: ['qwen-turbo', 'qwen-plus', 'qwen-max'] },
+      { group: '国产模型', models: ['moonshot-v1', 'glm-4', 'yi-large'] },
     ];
 
     let state = loadState();
@@ -855,6 +910,46 @@
       return { thinking: thinking.trim(), content: mainContent.trim() };
     }
 
+    function renderModelDropdown() {
+      modelDropdown.innerHTML = '';
+      modelOptions.forEach(section => {
+        const group = document.createElement('div');
+        group.className = 'model-group';
+        group.textContent = section.group;
+        modelDropdown.appendChild(group);
+        section.models.forEach(model => {
+          const item = document.createElement('div');
+          item.className = 'model-option';
+          const isActive = model === state.settings.model;
+          item.innerHTML = `<strong>${model}</strong><span>${isActive ? '已选' : ''}</span>`;
+          item.onclick = () => {
+            state.settings.model = model;
+            currentModel.textContent = model;
+            document.getElementById('modelInput').value = model;
+            saveState();
+            renderModelDropdown();
+            modelDropdown.classList.remove('show');
+          };
+          modelDropdown.appendChild(item);
+        });
+      });
+    }
+
+    function getThinkingCharCount(text) {
+      if (!text) return 0;
+      const compact = text.replace(/\s+/g, '');
+      return Array.from(compact).length;
+    }
+
+    function buildThinkingHeader(text, collapsed) {
+      if (!text) return '💭 思考过程';
+      if (collapsed) {
+        const count = getThinkingCharCount(text);
+        return `💭 思考过程（${count.toLocaleString('zh-CN')}字）`;
+      }
+      return '💭 思考过程（点击收起）';
+    }
+
     function formatMarkdown(text) {
       if (!text) return '';
       let html = text
@@ -914,14 +1009,17 @@
 
         if (finalThinking && thinkingMode !== 'hidden') {
           const thinkBlock = document.createElement('div');
-          const collapsed = thinkingMode === 'collapse';
+          const collapsed = message.streaming ? false : (message.thinkingCollapsed ?? thinkingMode === 'collapse');
           thinkBlock.className = `thinking-block ${collapsed ? 'collapsed' : ''}`;
           thinkBlock.innerHTML = `
-            <div class="thinking-header">💭 思考过程（点击展开）</div>
+            <div class="thinking-header">${buildThinkingHeader(finalThinking, collapsed)}</div>
             <div class="thinking-content">${finalThinking.replace(/\n/g, '<br />')}</div>
           `;
           thinkBlock.querySelector('.thinking-header').onclick = () => {
             thinkBlock.classList.toggle('collapsed');
+            message.thinkingCollapsed = thinkBlock.classList.contains('collapsed');
+            thinkBlock.querySelector('.thinking-header').textContent = buildThinkingHeader(finalThinking, message.thinkingCollapsed);
+            saveState();
           };
           bubble.appendChild(thinkBlock);
         }
@@ -1020,6 +1118,7 @@
       renderMessages();
       updateTokenPreview();
       updateDraft();
+      renderModelDropdown();
     }
 
     function updateDraft() {
@@ -1075,6 +1174,7 @@
       state.settings.maxContext = Number(document.getElementById('maxContext').value) || 12;
       saveState();
       applySettings();
+      renderModelDropdown();
       renderMessages();
       settingsModal.classList.remove('show');
     }
@@ -1262,6 +1362,7 @@
                 const delta = json.choices?.[0]?.delta || {};
                 if (delta.reasoning_content) {
                   aiMessage.thinking = (aiMessage.thinking || '') + delta.reasoning_content;
+                  aiMessage.thinkingCollapsed = false;
                 }
                 const content = delta.content || '';
                 if (content) {
@@ -1278,6 +1379,9 @@
         }
 
         aiMessage.streaming = false;
+        if (aiMessage.thinking) {
+          aiMessage.thinkingCollapsed = true;
+        }
         updateUsageStats(aiMessage.content);
         saveState();
         renderMessages();
@@ -1470,6 +1574,10 @@
     newConversationBtn.onclick = createConversation;
     searchInput.oninput = renderConversationList;
     dateFilter.onchange = renderConversationList;
+    modelSelector.onclick = (event) => {
+      event.stopPropagation();
+      modelDropdown.classList.toggle('show');
+    };
 
     messagesEl.addEventListener('scroll', () => {
       const threshold = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
@@ -1540,6 +1648,9 @@
     document.addEventListener('click', (event) => {
       if (!messageMenu.contains(event.target)) {
         messageMenu.style.display = 'none';
+      }
+      if (!modelDropdown.contains(event.target) && !modelSelector.contains(event.target)) {
+        modelDropdown.classList.remove('show');
       }
     });
 
