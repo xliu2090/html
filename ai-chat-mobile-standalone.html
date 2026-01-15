@@ -339,6 +339,10 @@
       font-size: 16px;
       cursor: pointer;
     }
+    .input-row button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
     .input-row .icon-btn {
       background: transparent;
       color: var(--text);
@@ -733,6 +737,7 @@
     let autoScroll = true;
     let longPressTimer = null;
     let recognition = null;
+    let isSending = false;
 
     function loadState() {
       const raw = localStorage.getItem(storageKey);
@@ -1095,6 +1100,10 @@
     async function sendMessage() {
       const convo = getActiveConversation();
       if (!convo) return;
+      if (isSending) {
+        showToast('正在请求中，请稍候');
+        return;
+      }
       const text = messageInput.value.trim();
       const attachments = Array.from(attachmentPreview.querySelectorAll('img')).map(img => img.dataset.base64);
       if (!text && attachments.length === 0) return;
@@ -1145,6 +1154,43 @@
       return context;
     }
 
+    function getRetryAfterSeconds(response) {
+      const header = response.headers.get('retry-after');
+      if (!header) return 0;
+      const seconds = Number(header);
+      if (!Number.isNaN(seconds)) return Math.max(0, seconds);
+      const dateValue = Date.parse(header);
+      if (!Number.isNaN(dateValue)) {
+        return Math.max(0, Math.ceil((dateValue - Date.now()) / 1000));
+      }
+      return 0;
+    }
+
+    function setSendingState(value) {
+      isSending = value;
+      sendBtn.disabled = value;
+      sendBtn.textContent = value ? '…' : '➤';
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async function fetchWithRetry(url, options, retries = 1) {
+      let attempt = 0;
+      while (attempt <= retries) {
+        const response = await fetch(url, options);
+        if (response.status !== 429 || attempt === retries) {
+          return response;
+        }
+        const retryAfter = getRetryAfterSeconds(response) || Math.min(2 ** attempt, 10);
+        showToast(`请求过快，${retryAfter}秒后重试`);
+        await sleep(retryAfter * 1000);
+        attempt += 1;
+      }
+      return fetch(url, options);
+    }
+
     async function requestCompletion(convo, userMessage) {
       const aiMessage = buildMessage('ai', '', { streaming: true });
       convo.messages.push(aiMessage);
@@ -1169,6 +1215,7 @@
 
       const controller = new AbortController();
       streamingController = controller;
+      setSendingState(true);
 
       const indicator = document.createElement('div');
       indicator.className = 'thinking-indicator';
@@ -1177,7 +1224,7 @@
       scrollToBottom();
 
       try {
-        const response = await fetch(state.settings.apiEndpoint, {
+        const response = await fetchWithRetry(state.settings.apiEndpoint, {
           method: 'POST',
           headers,
           body: JSON.stringify(body),
@@ -1185,7 +1232,9 @@
         });
 
         if (!response.ok || !response.body) {
-          throw new Error(`API错误 ${response.status}`);
+          const errorText = await response.text();
+          const detail = errorText ? `：${errorText.slice(0, 180)}` : '';
+          throw new Error(`API错误 ${response.status}${detail}`);
         }
 
         const reader = response.body.getReader();
@@ -1240,6 +1289,9 @@
         aiMessage.content = `⚠️ ${error.message}`;
         aiMessage.streaming = false;
         renderMessages();
+      } finally {
+        setSendingState(false);
+        streamingController = null;
       }
     }
 
