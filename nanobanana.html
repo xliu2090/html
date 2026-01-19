@@ -481,6 +481,72 @@
     }
     .del-btn:active{transform: translateY(0px); filter: brightness(.98)}
 
+    .details-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(15,23,42,.16);
+      background: rgba(15,23,42,.04);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 800;
+      cursor:pointer;
+      transition: transform .08s ease, background .2s ease, border-color .2s ease;
+      user-select:none;
+      white-space: nowrap;
+    }
+    .details-btn:hover{
+      background: rgba(15,23,42,.08);
+      border-color: rgba(15,23,42,.24);
+      transform: translateY(-1px);
+    }
+    .details-btn:active{transform: translateY(0px)}
+
+    .hist-details{
+      display:none;
+      padding: 12px 14px 16px;
+      border-top: 1px solid var(--line);
+      background: rgba(248,250,252,.8);
+      gap: 12px;
+      flex-direction: column;
+    }
+    .hist-details.show{display:flex;}
+    .detail-label{
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--muted);
+      letter-spacing: .2px;
+    }
+    .detail-text{
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .hist-ref-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+      gap: 8px;
+    }
+    .hist-ref-grid img{
+      width:100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #fff;
+      cursor: pointer;
+      transition: transform .12s ease, box-shadow .2s ease;
+    }
+    .hist-ref-grid img:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 10px 18px rgba(2,6,23,.08);
+    }
+
     /* ===== Loading ===== */
     .loading-placeholder{
       display:flex;
@@ -776,6 +842,7 @@
         <select id="ratio">
           <option value="1:1">1:1 (正方形)</option>
           <option value="16:9" selected>16:9 (横屏)</option>
+          <option value="21:9">21:9 (超宽屏)</option>
           <option value="9:16">9:16 (竖屏)</option>
           <option value="4:3">4:3</option>
           <option value="3:4">3:4</option>
@@ -929,10 +996,17 @@
     };
   }
 
-  function saveToDB(blob, meta) {
+  function saveToDB(blob, meta, prompt, refs) {
     if (!dbInstance) return;
     const tx = dbInstance.transaction([STORE_NAME], "readwrite");
-    const item = { id: Date.now(), blob: blob, meta: meta, date: new Date().toLocaleString() };
+    const item = {
+      id: Date.now(),
+      blob: blob,
+      meta: meta,
+      prompt: prompt,
+      refs: refs,
+      date: new Date().toLocaleString()
+    };
     tx.objectStore(STORE_NAME).add(item);
   }
 
@@ -962,8 +1036,58 @@
     };
   }
 
+  function escapeHTML(text) {
+    return text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function buildDetails(promptText, refs) {
+    const safePrompt = promptText ? escapeHTML(promptText) : "未提供提示词";
+    const refBlock = refs && refs.length
+      ? `<div class="hist-ref-grid">
+          ${refs.map((ref) => `<img src="${ref}" alt="参考图">`).join("")}
+        </div>`
+      : `<div class="detail-text">未提供参考图</div>`;
+    return `
+      <div class="hist-details">
+        <div>
+          <div class="detail-label">Prompt</div>
+          <div class="detail-text">${safePrompt}</div>
+        </div>
+        <div>
+          <div class="detail-label">参考图</div>
+          ${refBlock}
+        </div>
+      </div>
+    `;
+  }
+
+  function bindDetails(container, itemId) {
+    const toggleBtn = container.querySelector(".toggle-details");
+    const details = container.querySelector(".hist-details");
+    const detailImgs = container.querySelectorAll(".hist-ref-grid img");
+
+    if (toggleBtn && details) {
+      toggleBtn.onclick = () => {
+        const isOpen = details.classList.toggle("show");
+        toggleBtn.textContent = isOpen ? "收起 Prompt/参考图" : "查看 Prompt/参考图";
+      };
+    }
+
+    detailImgs.forEach((detailImg, idx) => {
+      detailImg.onclick = () => openViewer(detailImg.src, `ref_${itemId}_${idx + 1}.png`);
+    });
+  }
+
   function renderItem(item, replaceElem) {
     const url = URL.createObjectURL(item.blob);
+    const promptText = item.prompt || "";
+    const refs = Array.isArray(item.refs) ? item.refs : [];
+    const detailsHtml = buildDetails(promptText, refs);
 
     // 修改：将 span 按钮改为 a 标签，并添加 target="_blank"
     const html = `
@@ -974,11 +1098,13 @@
             <span class="meta-res">读取分辨率...</span>
         </div>
         <div class="actions-group">
+            <span class="details-btn toggle-details">查看 Prompt/参考图</span>
             <a href="${url}" target="_blank" class="link-btn open-btn">打开</a>
             <a href="${url}" download="img_${item.id}.png" class="link-btn">下载</a>
             <span class="del-btn">删除</span>
         </div>
       </div>
+      ${detailsHtml}
     `;
 
     const attachLogic = (container) => {
@@ -999,6 +1125,8 @@
 
         // 注意：openBtn 已经是 a 标签且有 target="_blank"，浏览器原生处理即可，
         // 这里不需要再绑定 onclick 事件，保留代码简洁性。
+
+        bindDetails(container, item.id);
 
         delBtn.onclick = () => deleteItem(item.id, container);
     };
@@ -1076,15 +1204,26 @@
   };
 
   function renderRef() {
-      el.refGrid.style.display = refImages.length ? "grid" : "none";
-      el.refGrid.innerHTML = refImages.map((img, i) => `
-        <div class="ref-item">
-            <img src="${img.url}">
-            <div class="ref-del" onclick="removeRef(${i})">×</div>
-        </div>
-      `).join('');
+    el.refGrid.style.display = refImages.length ? "grid" : "none";
+    el.refGrid.innerHTML = "";
+    refImages.forEach((img, i) => {
+      const item = document.createElement("div");
+      item.className = "ref-item";
+      item.innerHTML = `
+        <img src="${img.url}" alt="参考图">
+        <div class="ref-del" title="删除">×</div>
+      `;
+      const imgEl = item.querySelector("img");
+      const delBtn = item.querySelector(".ref-del");
+      imgEl.onclick = () => openViewer(img.url, `ref_upload_${i + 1}.png`);
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        refImages.splice(i, 1);
+        renderRef();
+      };
+      el.refGrid.appendChild(item);
+    });
   }
-  window.removeRef = (i) => { refImages.splice(i, 1); renderRef(); };
 
   el.clearHistory.onclick = clearAllDB;
 
@@ -1092,9 +1231,12 @@
     if (!currentUser) return;
     const prompt = el.prompt.value.trim();
     if (!prompt) return alert("请输入提示词");
+    el.prompt.value = "";
 
     const used = parseInt(localStorage.getItem("used_" + currentUser) || "0");
     if (used >= USERS_DB[currentUser].limit) return alert("额度已用完");
+
+    const refsSnapshot = refImages.map((img) => img.url);
 
     // 1. Loading 占位
     const loadingCard = document.createElement("div");
@@ -1104,8 +1246,19 @@
             <div class="spinner"></div>
             <div>绘制中...</div>
         </div>
+        <div class="hist-meta">
+          <div class="meta-info">
+              <span class="meta-title">生成中...</span>
+              <span class="meta-res">等待完成</span>
+          </div>
+          <div class="actions-group">
+              <span class="details-btn toggle-details">查看 Prompt/参考图</span>
+          </div>
+        </div>
+        ${buildDetails(prompt, refsSnapshot)}
     `;
     el.historyList.prepend(loadingCard);
+    bindDetails(loadingCard, `loading_${Date.now()}`);
 
     el.gen.disabled = true;
     el.gen.textContent = "生成中...";
@@ -1146,10 +1299,10 @@
         const meta = `${modelName} · ${el.ratio.value}`;
 
         // 2. 替换为真图
-        const item = { id: Date.now(), blob: blob, meta: meta };
+        const item = { id: Date.now(), blob: blob, meta: meta, prompt: prompt, refs: refsSnapshot };
         renderItem(item, loadingCard);
 
-        saveToDB(blob, meta);
+        saveToDB(blob, meta, prompt, refsSnapshot);
         localStorage.setItem("used_" + currentUser, used + 1);
         updateUserInfo();
 
