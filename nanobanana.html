@@ -255,13 +255,6 @@
       transform: translateY(0px) scale(0.99);
       opacity: .95;
     }
-    .btn:disabled{
-      background: linear-gradient(180deg, #CBD5E1, #94A3B8);
-      box-shadow: none;
-      cursor: not-allowed;
-      transform: none;
-      opacity: 1;
-    }
 
     .upload-box{
       position:relative;
@@ -558,6 +551,8 @@
       text-align:center;
       padding: 0 18px;
       line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     #loginLayer{
@@ -855,7 +850,7 @@
         <label>参考图片 (可选)</label>
         <div class="upload-box">
           <input id="fileInput" type="file" accept="image/*" multiple style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;" />
-          <span>+ 上传图片 (Max 9)</span>
+          <span>+ 上传图片（无限制，注意手机内存）</span>
         </div>
       </div>
 
@@ -877,7 +872,7 @@
           </div>
           <div class="hint">
             说明：<b>添加到列表</b> 会保存到浏览器本地（localStorage），刷新仍可用。<br/>
-            能力判断：若模型ID包含 <code>flash</code> 将按 Flash 规则限制（例如参考图≤3、分辨率仅 1K）。
+            能力判断：若模型ID包含 <code>flash</code> 将按 Flash 规则限制（例如参考图≤3、分辨率仅 1K）——这里不再强制限制，只做提示。
           </div>
           <div id="customList" class="pill-list"></div>
         </div>
@@ -925,8 +920,8 @@
   const USERS_DB = {
       "xliu2090": {
           pwd: "123456kk",
-          key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt",
-          limit: 500
+          key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt"
+          // ✅ 去掉 limit / used 逻辑：不做任何数量限制
       }
   };
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
@@ -936,15 +931,14 @@
   let refImages = []; // { mime, blob, url }
   let dbInstance = null;
 
-  // DB ready promise（避免手机上“登录后马上点生成”导致没持久化）
   let dbReadyResolve, dbReadyReject;
   const dbReady = new Promise((res, rej) => { dbReadyResolve = res; dbReadyReject = rej; });
 
-  // 多任务：任务管理（内存）
+  // 多任务：任务管理
   let inFlight = 0;
   const tasks = new Map(); // taskId -> { controller, card }
 
-  // Wake Lock（尽量减少屏幕熄灭导致挂起；不保证后台继续，但能提升稳定性）
+  // Wake Lock（提升前台稳定性；后台仍可能被系统挂起，但任务会保存、回来可恢复）
   let wakeLock = null;
 
   const $ = (id) => document.getElementById(id);
@@ -1004,7 +998,6 @@
       dbInstance = e.target.result;
       dbReadyResolve(true);
       loadHistory();
-      // 登录后会再调用 resumePendingTasks()
     };
     request.onerror = (e) => {
       dbReadyReject(e);
@@ -1090,7 +1083,7 @@
     });
   }
 
-  // ===== 工具：安全输出 =====
+  // ===== 工具 =====
   function escapeHtml(str) {
     return String(str || "")
       .replaceAll("&", "&amp;")
@@ -1247,21 +1240,12 @@
   }
 
   function applyResLimitByModel(modelId) {
-    const flash = isFlashModel(modelId);
+    // ✅ 不再强制限制，只提示文字恢复原样（仍保持 UI 文案）
     const opts = el.res.options;
-
-    if (flash) {
-      el.res.value = "1K";
-      opts[1].disabled = true;
-      opts[2].disabled = true;
-      opts[1].text = "高清 (2K) - Flash 限制";
-      opts[2].text = "超清 (4K) - Flash 限制";
-    } else {
-      opts[1].disabled = false;
-      opts[2].disabled = false;
-      opts[1].text = "高清 (2K)";
-      opts[2].text = "超清 (4K)";
-    }
+    opts[1].disabled = false;
+    opts[2].disabled = false;
+    opts[1].text = "高清 (2K)";
+    opts[2].text = "超清 (4K)";
   }
 
   function getSelectedModelId() {
@@ -1287,8 +1271,9 @@
     if (modelId) applyResLimitByModel(modelId);
   }
 
-  // ===== 改进点1：自动保存/恢复上次参数（按账号）=====
-  const LS_SETTINGS_PREFIX = "ai_art_last_settings_v2_";
+  // ===== 自动保存/恢复上次参数（按账号）=====
+  // ✅ 不保存 prompt
+  const LS_SETTINGS_PREFIX = "ai_art_last_settings_v3_";
   function getSettingsKey() {
     return currentUser ? (LS_SETTINGS_PREFIX + currentUser) : null;
   }
@@ -1310,7 +1295,6 @@
       modelSelectValue: el.model.value || "",
       ratio: el.ratio.value || "16:9",
       res: el.res.value || "4K",
-      prompt: el.prompt.value || "",
       customModelId: el.customModelId.value || "",
       customModelName: el.customModelName.value || "",
       savedAt: Date.now()
@@ -1350,7 +1334,6 @@
 
     if (data.ratio) el.ratio.value = data.ratio;
     if (data.res) el.res.value = data.res;
-    if (typeof data.prompt === "string") el.prompt.value = data.prompt;
 
     toggleCustomPanel();
 
@@ -1360,7 +1343,7 @@
     saveSettingsDebounced(10);
   }
 
-  // ===== 改进点2：多任务并行（任务栏 + 取消）=====
+  // ===== 多任务并行（任务栏 + 取消）=====
   function updateTaskBar() {
     if (!currentUser) {
       el.taskBar.style.display = "none";
@@ -1386,9 +1369,7 @@
   }
   el.cancelAll.onclick = cancelAllTasks;
 
-  // ===== 改进点3（手机后台不丢任务）：任务持久化 + 自动恢复 =====
-  // 原因：手机浏览器进入后台/锁屏可能会暂停网络或中止 JS。
-  // 方案：每个任务在发起前写入 IndexedDB(tasks)，页面恢复/重开后自动“重试生成”，做到“不丢失”。
+  // ===== 后台不丢任务：任务持久化 + 自动恢复 =====
   async function resumePendingTasks() {
     if (!currentUser) return;
     try { await dbReady; } catch {}
@@ -1396,16 +1377,13 @@
     const pending = await getAllTasksByUser(currentUser);
     if (!pending.length) return;
 
-    // 避免重复恢复：已在内存 tasks 中的跳过
     for (const rec of pending) {
       if (!rec || !rec.taskId) continue;
       if (tasks.has(rec.taskId)) continue;
 
-      // 渲染恢复中的卡片
       const card = createLoadingCard(rec.taskId, true);
       el.historyList.prepend(card);
 
-      // 真正执行（会自动成功后删除 tasks 记录）
       runTaskFromRecord(rec, card, true).catch(() => {});
     }
   }
@@ -1422,7 +1400,6 @@
   document.addEventListener("visibilitychange", () => {
     updateBgHint();
     if (document.visibilityState === "visible") {
-      // 回到前台：自动恢复未完成任务
       resumePendingTasks();
     }
     updateWakeLock();
@@ -1435,7 +1412,6 @@
 
   // ===== Wake Lock（可选增强）=====
   async function updateWakeLock() {
-    // 仅在前台、有任务时尝试；后台/无任务释放
     const can = ("wakeLock" in navigator);
     if (!can) return;
 
@@ -1446,7 +1422,7 @@
           wakeLock.addEventListener("release", () => { wakeLock = null; });
         }
       } catch {
-        // 用户/系统不允许，忽略
+        // ignore
       }
     } else {
       try {
@@ -1469,26 +1445,10 @@
     el.rememberMe.checked = true;
   }
 
-  function getUsedCount() {
-    if (!currentUser) return 0;
-    return parseInt(localStorage.getItem("used_" + currentUser) || "0", 10);
-  }
-
-  function incUsedCount() {
-    if (!currentUser) return 0;
-    const key = "used_" + currentUser;
-    const n = parseInt(localStorage.getItem(key) || "0", 10);
-    const next = n + 1;
-    localStorage.setItem(key, String(next));
-    return next;
-  }
-
   function updateUserInfo() {
     if (!currentUser) return;
-    const used = getUsedCount();
-    const limit = USERS_DB[currentUser]?.limit ?? 0;
-    const remain = Math.max(0, limit - used - inFlight);
-    el.welcomeText.textContent = `${currentUser} · 已用 ${used}/${limit} · 可用 ${remain}`;
+    // ✅ 不再显示 used/limit
+    el.welcomeText.textContent = `${currentUser} · 多任务进行中 ${inFlight}`;
   }
 
   el.btnLogin.onclick = () => {
@@ -1510,16 +1470,13 @@
           updateTaskBar();
           updateBgHint();
 
-          // 初始化模型列表
           refreshModelSelect();
           refreshCustomPills();
           toggleCustomPanel();
           applyResLimitByModel(getSelectedModelId());
 
-          // 打开 DB（历史 + 任务恢复依赖 DB）
           initDB();
 
-          // 等 DB 就绪后：加载历史 + 恢复设置 + 恢复未完成任务
           dbReady.then(() => {
             loadHistory();
             loadSettings();
@@ -1544,7 +1501,8 @@
 
     el.customModelId.addEventListener("input", () => saveSettingsDebounced(350));
     el.customModelName.addEventListener("input", () => saveSettingsDebounced(350));
-    el.prompt.addEventListener("input", () => saveSettingsDebounced(450));
+
+    // ✅ 不保存 prompt，因此不绑定 prompt 的 input 进 settings
   }
   bindAutoSave();
 
@@ -1597,16 +1555,11 @@
     setTimeout(clearError, 1800);
   };
 
-  // ===== 参考图上传（保存 blob，便于任务持久化/恢复）=====
+  // ===== 参考图上传（无限制；注意移动端内存）=====
   el.fileInput.onchange = async () => {
     clearError();
     const files = Array.from(el.fileInput.files);
     if (!files.length) return;
-
-    if (refImages.length + files.length > 9) {
-      el.fileInput.value = "";
-      return showError("最多只能上传 9 张参考图。");
-    }
 
     for (const f of files) {
       const url = URL.createObjectURL(f);
@@ -1683,7 +1636,7 @@
     });
   }
 
-  // ===== Loading 卡片（每任务可取消；可显示“恢复中”）=====
+  // ===== Loading 卡片 =====
   function createLoadingCard(taskId, isResume=false) {
     const loadingCard = document.createElement("div");
     loadingCard.className = "hist-card";
@@ -1696,7 +1649,8 @@
           <button class="tiny-btn tiny-danger" data-cancel="1">取消</button>
         </div>
         <div class="sub-note">
-          手机进入后台/锁屏可能会暂停网络。任务已保存，回来后会自动继续（必要时自动重试），不会丢失。
+手机进入后台/锁屏可能会暂停网络。
+任务已保存：回来后会自动继续（必要时自动重试），不会丢失。
         </div>
       </div>
     `;
@@ -1723,22 +1677,12 @@
     setTimeout(clearError, 900);
   }
 
-  // ===== 执行任务（从任务记录）=====
-  async function runTaskFromRecord(rec, card, isResume=false) {
+  // ===== 执行任务 =====
+  async function runTaskFromRecord(rec, card) {
     if (!currentUser) return;
     clearError();
 
-    // 防止重复运行
     if (tasks.has(rec.taskId)) return;
-
-    // 额度检查：恢复也要算并发，但不扣 used（成功后再扣）
-    const used = getUsedCount();
-    const limit = USERS_DB[currentUser].limit;
-    if ((used + inFlight) >= limit) {
-      // 不删除任务记录，让用户腾出额度后可自动恢复/手动恢复
-      showError("额度已用完（包含进行中的任务）。请取消任务或更换账号。");
-      return;
-    }
 
     const controller = new AbortController();
     tasks.set(rec.taskId, { controller, card });
@@ -1747,7 +1691,6 @@
 
     bindCancelButton(rec.taskId, card);
 
-    // 组装 parts（把 blob 转 base64）
     const parts = [{ text: rec.prompt }];
     const refs = Array.isArray(rec.refs) ? rec.refs : [];
     for (const r of refs) {
@@ -1766,7 +1709,6 @@
       }
     };
 
-    // 尝试 keepalive（页面被系统回收/跳转时更稳；但大 body 可能不支持，失败则自动降级）
     const fetchOnce = async (useKeepAlive) => {
       return fetch(finalUrl, {
         method: "POST",
@@ -1783,10 +1725,8 @@
     try {
       let resp;
       try {
-        // 仅在“无参考图”时启用 keepalive，避免大 body 触发限制
         resp = await fetchOnce(refs.length === 0);
       } catch (e) {
-        // 兜底：不用 keepalive 再试一次
         resp = await fetchOnce(false);
       }
 
@@ -1811,11 +1751,7 @@
           "未返回图片。",
           fr ? `finishReason=${fr}` : "",
           txt ? `模型返回文字：${txt}` : "",
-          "建议：",
-          "1) 确认模型ID支持图片输出；",
-          "2) 缩短提示词、减少参考图；",
-          "3) 若是 Flash，参考图≤3 且分辨率 1K 更稳定；",
-          "4) 手机上切后台可能会中断网络：回来后会自动重试；",
+          "提示：手机切后台可能会中断网络；任务已保存，回来会自动恢复/可点“立即重试”。"
         ].filter(Boolean).join("\n");
         throw new Error(hint);
       }
@@ -1827,18 +1763,12 @@
       renderItem(item, card);
       saveToDB(blob, meta);
 
-      incUsedCount();
-      updateUserInfo();
-
-      // 成功：删除任务记录（不再需要恢复）
       await delTask(rec.taskId).catch(()=>{});
 
     } catch (e) {
       if (e && (e.name === "AbortError" || String(e).includes("AbortError"))) {
-        // 取消：任务记录已在 cancelOneTask 中删除
+        // cancelled
       } else {
-        // 失败：保留任务记录，等用户回来/刷新自动恢复（或手动再点生成也行）
-        // 这里把卡片替换成“失败提示 + 继续保留”
         const msg = (e && e.message) ? e.message : String(e);
 
         card.innerHTML = `
@@ -1857,17 +1787,14 @@
 
         if (cancelBtn) cancelBtn.onclick = () => cancelOneTask(rec.taskId, card);
         if (retryBtn) retryBtn.onclick = async () => {
-          // 重试：重新渲染“恢复中”样式，再跑一次
           const newCard = createLoadingCard(rec.taskId, true);
           card.replaceWith(newCard);
-          // 释放旧 task（若有）
           tasks.delete(rec.taskId);
           inFlight = Math.max(0, inFlight - 1);
           updateTaskBar();
-          runTaskFromRecord(rec, newCard, true).catch(()=>{});
+          runTaskFromRecord(rec, newCard).catch(()=>{});
         };
 
-        // 失败时提示（可选）
         showError("任务失败但已保存：回到前台/刷新会自动继续（必要时重试）。");
         setTimeout(clearError, 1800);
       }
@@ -1878,7 +1805,7 @@
     }
   }
 
-  // ===== 发起新任务：先持久化任务记录，再执行（确保后台/重载不丢）=====
+  // ===== 发起新任务：先持久化任务记录，再执行 =====
   async function startNewTask() {
     clearError();
     if (!currentUser) return;
@@ -1888,30 +1815,28 @@
 
     saveSettingsDebounced(10);
 
-    // 等 DB 就绪（没有 DB 就无法“后台不丢任务”）
     try { await dbReady; } catch {}
-
-    const used = getUsedCount();
-    const limit = USERS_DB[currentUser].limit;
-    if ((used + inFlight) >= limit) return showError("额度已用完（包含进行中的任务）。");
 
     const modelId = getSelectedModelId();
     if (!modelId) return showError("请选择或输入有效的模型ID。");
 
-    const flash = isFlashModel(modelId);
-    if (flash && refImages.length > 3) {
-      return showError("当前模型像 Flash 类型：建议参考图不超过 3 张（已检测到超过 3 张）。请减少参考图或换 Pro 模型。");
+    // ✅ 不再限制任何数量（包括 flash 参考图）
+    if (isFlashModel(modelId) && refImages.length > 3) {
+      // 仅提示，不限制
+      showError("提示：当前模型像 Flash 类型，参考图过多/高分辨率可能不稳定。已继续提交任务。");
+      setTimeout(clearError, 1600);
     }
 
-    // 参数快照
     const ratioSnap = el.ratio.value;
     const resSnap = el.res.value;
     const modelNameSnap = getSelectedModelName(modelId);
 
-    // refs 快照（保存 blob，便于持久化与恢复）
+    // 任务记录需要 prompt 才能恢复生成（否则无法继续生成）
+    // ✅ 你要求“不保存 prompt”：这里理解为“不保存到参数设置（localStorage）”，但任务恢复必须带 prompt。
+    // 如果你坚持“任务也不保存 prompt”，那后台恢复就无法继续生成（只能提示用户重新输入）。
+    // 这里做折中：任务只在 IndexedDB 临时保存（完成后自动删除），不进 localStorage，也不进历史 meta。
     const refsSnap = refImages.map(x => ({ mime: x.mime, blob: x.blob }));
 
-    // 创建任务记录（写入 IndexedDB tasks）
     const taskId = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
     const taskRecord = {
       taskId,
@@ -1921,32 +1846,198 @@
       modelName: modelNameSnap,
       ratio: ratioSnap,
       res: resSnap,
-      prompt,
+      prompt,            // ✅ 仅用于任务恢复（完成后会删除）
       refs: refsSnap,
     };
 
     await putTask(taskRecord).catch(()=>{});
 
-    // Loading 卡片
     const card = createLoadingCard(taskId, false);
     el.historyList.prepend(card);
     bindCancelButton(taskId, card);
 
-    // 执行
-    runTaskFromRecord(taskRecord, card, false).catch(()=>{});
+    runTaskFromRecord(taskRecord, card).catch(()=>{});
   }
 
   // ===== 生成按钮：支持并行（不禁用按钮）=====
   el.gen.onclick = startNewTask;
 
-  // ===== 渲染引用图后，建议也存一下参数（可选）=====
-  // （这里不保存引用图到设置，因为引用图通常很大；任务本身会保存引用图到 DB）
-  // =====
+  // ===== 恢复未完成任务 =====
+  async function resumePendingTasks() {
+    if (!currentUser) return;
+    try { await dbReady; } catch {}
 
-  // ===== 参考：清空引用图 =====
-  // 你如果需要“清空参考图”按钮我也可以加（目前用×删除）
+    const pending = await getAllTasksByUser(currentUser);
+    if (!pending.length) return;
 
-  // ===== 提示：初始化 UI 状态 =====
+    for (const rec of pending) {
+      if (!rec || !rec.taskId) continue;
+      if (tasks.has(rec.taskId)) continue;
+
+      // 如果任务里没有 prompt，就无法恢复；这里兜底提示并保留任务
+      if (!rec.prompt) {
+        const card = document.createElement("div");
+        card.className = "hist-card";
+        card.innerHTML = `
+          <div class="loading-placeholder" style="gap:10px;">
+            <div style="font-weight:900; color: var(--danger);">无法恢复任务（缺少 Prompt）</div>
+            <div class="sub-note">你设置了“不保存 prompt”。因此后台恢复无法继续生成。请手动重新输入提示词后再生成。</div>
+            <div style="display:flex; gap:10px;">
+              <button class="tiny-btn tiny-danger" data-cancel="1">删除该任务</button>
+            </div>
+          </div>
+        `;
+        const cancelBtn = card.querySelector('[data-cancel="1"]');
+        if (cancelBtn) cancelBtn.onclick = () => cancelOneTask(rec.taskId, card);
+        el.historyList.prepend(card);
+        continue;
+      }
+
+      const c = createLoadingCard(rec.taskId, true);
+      el.historyList.prepend(c);
+      runTaskFromRecord(rec, c).catch(() => {});
+    }
+  }
+
+  function updateBgHint() {
+    if (!currentUser) return;
+    if (document.visibilityState === "hidden") {
+      el.bgHint.textContent = "· 已后台：回来会自动恢复";
+    } else {
+      el.bgHint.textContent = "· 后台会自动恢复";
+    }
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    updateBgHint();
+    if (document.visibilityState === "visible") {
+      resumePendingTasks();
+    }
+    updateWakeLock();
+  });
+  window.addEventListener("pageshow", () => {
+    updateBgHint();
+    resumePendingTasks();
+    updateWakeLock();
+  });
+
+  // ===== 登录 =====
+  el.btnLogin.onclick = () => {
+      const u = el.u_name.value.trim();
+      const p = el.u_pass.value.trim();
+      if (USERS_DB[u] && USERS_DB[u].pwd === p) {
+          currentUser = u;
+
+          if (el.rememberMe.checked) {
+            localStorage.setItem(LS_USER, u);
+            localStorage.setItem(LS_PASS, p);
+          } else {
+            localStorage.removeItem(LS_USER);
+            localStorage.removeItem(LS_PASS);
+          }
+
+          el.loginLayer.style.display = "none";
+          updateUserInfo();
+          updateTaskBar();
+          updateBgHint();
+
+          refreshModelSelect();
+          refreshCustomPills();
+          toggleCustomPanel();
+          applyResLimitByModel(getSelectedModelId());
+
+          initDB();
+
+          dbReady.then(() => {
+            loadHistory();
+            loadSettings();        // ✅ 不含 prompt
+            saveSettingsDebounced(10);
+            resumePendingTasks();
+          }).catch(()=>{});
+
+      } else {
+          el.loginMsg.textContent = "账号或密码错误";
+      }
+  };
+
+  el.logoutBtn.onclick = () => location.reload();
+  el.clearHistory.onclick = clearAllDB;
+
+  // ===== 自动保存：绑定变更事件（不含 prompt）=====
+  function bindAutoSave() {
+    const onQuick = () => saveSettingsDebounced(10);
+    el.model.addEventListener("change", onQuick);
+    el.ratio.addEventListener("change", onQuick);
+    el.res.addEventListener("change", onQuick);
+
+    el.customModelId.addEventListener("input", () => saveSettingsDebounced(350));
+    el.customModelName.addEventListener("input", () => saveSettingsDebounced(350));
+  }
+  bindAutoSave();
+
+  el.model.onchange = () => {
+    toggleCustomPanel();
+    const modelId = getSelectedModelId();
+    if (modelId) applyResLimitByModel(modelId);
+    saveSettingsDebounced(10);
+  };
+
+  // ===== 自定义模型按钮 =====
+  el.btnAddModel.onclick = () => {
+    clearError();
+    const id = normalizeModelId(el.customModelId.value);
+    const name = String(el.customModelName.value || "").trim();
+
+    if (!id) return showError("请输入自定义模型ID。");
+    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
+
+    let list = loadCustomModels();
+    if (list.some(x => x.id === id)) return showError("该模型ID已存在于列表。");
+
+    list.push({ id, name: name || "自定义模型" });
+    saveCustomModels(list);
+
+    refreshModelSelect();
+    refreshCustomPills();
+
+    el.model.value = id;
+    toggleCustomPanel();
+    applyResLimitByModel(id);
+
+    saveSettingsDebounced(10);
+  };
+
+  el.btnUseTempModel.onclick = () => {
+    clearError();
+    const id = normalizeModelId(el.customModelId.value);
+    if (!id) return showError("请输入自定义模型ID。");
+    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
+
+    el.model.value = "__custom__";
+    toggleCustomPanel();
+    applyResLimitByModel(id);
+
+    saveSettingsDebounced(10);
+
+    showError("已设置“仅本次使用”的模型ID。点击生成即可。");
+    setTimeout(clearError, 1800);
+  };
+
+  // ===== 取消全部 =====
+  el.cancelAll.onclick = () => {
+    for (const [taskId, t] of tasks.entries()) {
+      try { t.controller.abort(); } catch {}
+      try { t.card.remove(); } catch {}
+      tasks.delete(taskId);
+      delTask(taskId).catch(()=>{});
+    }
+    inFlight = 0;
+    updateTaskBar();
+    showError("已取消全部进行中的任务。");
+    setTimeout(clearError, 1200);
+  };
+
+  // ===== 初始化显示 =====
   updateBgHint();
 
 })();
