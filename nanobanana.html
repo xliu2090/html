@@ -301,7 +301,7 @@
       transform: translateY(-1px);
       box-shadow: 0 14px 26px rgba(2,6,23,.08);
     }
-    .ref-item img{width:100%; height:100%; object-fit: cover; display:block;}
+    .ref-item img{width:100%; height:100%; object-fit: cover; display:block; cursor:pointer;}
     .ref-del{
       position:absolute;
       top: 6px;
@@ -370,15 +370,70 @@
       to   { opacity:1; transform: translateY(0); }
     }
 
-    .hist-card img{
+    .hist-card img.main-img{
       width:100%;
       display:block;
       background: #F8FAFC;
       min-height: 220px;
       object-fit: contain;
+      cursor:pointer;
     }
 
-    .gen-img{ cursor: pointer; }
+    /* 折叠区 */
+    .hist-details{
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--line);
+      background: rgba(248,250,252,.70);
+      display:none;
+    }
+    .hist-card[data-expanded="1"] .hist-details{ display:block; }
+
+    .prompt-label{
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 900;
+      letter-spacing: .2px;
+      margin-bottom: 6px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 10px;
+    }
+    .prompt-text{
+      margin:0;
+      font-size: 12.5px;
+      color: var(--text);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .ref-mini-grid{
+      display:grid;
+      grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .ref-mini{
+      aspect-ratio: 1;
+      border-radius: 10px;
+      overflow:hidden;
+      border: 1px solid var(--line);
+      background: #F1F5F9;
+      box-shadow: 0 8px 16px rgba(2,6,23,.06);
+      cursor:pointer;
+      transition: transform .12s ease, box-shadow .2s ease;
+    }
+    .ref-mini:hover{
+      transform: translateY(-1px);
+      box-shadow: 0 12px 22px rgba(2,6,23,.08);
+    }
+    .ref-mini img{
+      width:100%;
+      height:100%;
+      object-fit: cover;
+      display:block;
+    }
 
     .hist-meta{
       padding: 12px 14px;
@@ -406,7 +461,7 @@
       letter-spacing: .2px;
     }
 
-    .actions-group{display:flex; gap: 10px; align-items:center; flex-shrink:0;}
+    .actions-group{display:flex; gap: 10px; align-items:center; flex-shrink:0; flex-wrap:wrap;}
 
     .link-btn{
       display:inline-flex;
@@ -432,6 +487,17 @@
       transform: translateY(-1px);
     }
     .link-btn:active{transform: translateY(0px); filter: brightness(.98)}
+
+    .toggle-btn{
+      border-color: rgba(100,116,139,.22);
+      background: rgba(100,116,139,.08);
+      color: var(--muted);
+      font-weight: 900;
+    }
+    .toggle-btn:hover{
+      background: rgba(100,116,139,.12);
+      border-color: rgba(100,116,139,.30);
+    }
 
     .del-btn{
       display:inline-flex;
@@ -462,12 +528,14 @@
       flex-direction:column;
       align-items:center;
       justify-content:center;
-      height: 320px;
+      padding: 18px 14px;
+      min-height: 260px;
       background:
         radial-gradient(500px 250px at 40% 0%, rgba(37,99,235,.08), transparent 65%),
         linear-gradient(180deg, #F8FAFC, #F1F5F9);
       color: var(--muted);
       gap: 12px;
+      text-align:center;
     }
     .spinner{
       width: 44px;
@@ -481,7 +549,7 @@
     }
     @keyframes spin{100%{transform:rotate(360deg)}}
 
-    /* 任务栏（多任务 + 后台恢复） */
+    /* 任务栏 */
     .task-bar{
       display:flex;
       justify-content:space-between;
@@ -543,6 +611,8 @@
       align-items:center;
       gap: 10px;
       font-weight: 800;
+      flex-wrap: wrap;
+      justify-content:center;
     }
     .sub-note{
       font-size: 12px;
@@ -704,7 +774,6 @@
       margin-top: 6px;
     }
 
-    /* 错误展示 */
     .error-box{
       margin-top: 12px;
       padding: 10px 12px;
@@ -751,6 +820,7 @@
 
       .card{background: rgba(15,23,42,.62)}
       .hist-card{background: rgba(15,23,42,.62)}
+      .hist-details{background: rgba(2,6,23,.18)}
       .hist-meta{background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35))}
       .upload-box{background: rgba(2,6,23,.25)}
       input,select,textarea{color: var(--text)}
@@ -763,7 +833,6 @@
       #loginLayer{background: rgba(2,6,23,.55)}
       .loginBox{background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.18)}
       .logo{box-shadow: 0 18px 40px rgba(37, 99, 235, 0.20)}
-
       .custom-panel{
         background: rgba(2,6,23,.20);
         border-color: rgba(148,163,184,.18);
@@ -780,6 +849,11 @@
       }
       .tiny-btn{background: rgba(15,23,42,.5); border-color: rgba(148,163,184,.18); color: var(--muted);}
       .tiny-btn:hover{background: rgba(15,23,42,.75)}
+      .toggle-btn{
+        border-color: rgba(148,163,184,.18);
+        background: rgba(148,163,184,.10);
+        color: var(--muted);
+      }
     }
   </style>
 </head>
@@ -831,6 +905,7 @@
         <select id="ratio">
           <option value="1:1">1:1 (正方形)</option>
           <option value="16:9" selected>16:9 (横屏)</option>
+          <option value="21:9">21:9 (超宽屏)</option>
           <option value="9:16">9:16 (竖屏)</option>
           <option value="4:3">4:3</option>
           <option value="3:4">3:4</option>
@@ -921,7 +996,6 @@
       "xliu2090": {
           pwd: "123456kk",
           key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt"
-          // ✅ 去掉 limit / used 逻辑：不做任何数量限制
       }
   };
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
@@ -931,14 +1005,9 @@
   let refImages = []; // { mime, blob, url }
   let dbInstance = null;
 
-  let dbReadyResolve, dbReadyReject;
-  const dbReady = new Promise((res, rej) => { dbReadyResolve = res; dbReadyReject = rej; });
-
   // 多任务：任务管理
   let inFlight = 0;
   const tasks = new Map(); // taskId -> { controller, card }
-
-  // Wake Lock（提升前台稳定性；后台仍可能被系统挂起，但任务会保存、回来可恢复）
   let wakeLock = null;
 
   const $ = (id) => document.getElementById(id);
@@ -960,16 +1029,13 @@
     welcomeText: $("welcomeText"),
     logoutBtn: $("logoutBtn"),
     clearHistory: $("clearHistory"),
-
     customPanel: $("customPanel"),
     customModelId: $("customModelId"),
     customModelName: $("customModelName"),
     btnAddModel: $("btnAddModel"),
     btnUseTempModel: $("btnUseTempModel"),
     customList: $("customList"),
-
     errorBox: $("errorBox"),
-
     taskBar: $("taskBar"),
     taskCount: $("taskCount"),
     autoSaveHint: $("autoSaveHint"),
@@ -978,11 +1044,13 @@
   };
 
   // ===== IndexedDB =====
-  // v2：增加 tasks store，用于“后台/重载自动恢复任务”
   const DB_NAME = "AI_Art_Light";
   const DB_VER = 2;
   const STORE_IMGS = "imgs";
   const STORE_TASKS = "tasks";
+
+  let dbReadyResolve, dbReadyReject;
+  const dbReady = new Promise((res, rej) => { dbReadyResolve = res; dbReadyReject = rej; });
 
   function initDB() {
     const request = indexedDB.open(DB_NAME, DB_VER);
@@ -999,9 +1067,9 @@
       dbReadyResolve(true);
       loadHistory();
     };
-    request.onerror = (e) => {
-      dbReadyReject(e);
-      showError("IndexedDB 初始化失败，后台恢复功能不可用。");
+    request.onerror = () => {
+      dbReadyReject(request.error);
+      showError("IndexedDB 初始化失败，历史/后台恢复功能不可用。");
     };
   }
 
@@ -1010,10 +1078,18 @@
     return dbInstance.transaction([storeName], mode).objectStore(storeName);
   }
 
-  function saveToDB(blob, meta) {
+  function saveToDB(blob, record) {
+    // record: { meta, prompt, refs, date? }
     if (!dbInstance) return;
     const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
-    const item = { id: Date.now(), blob: blob, meta: meta, date: new Date().toLocaleString() };
+    const item = {
+      id: Date.now(),
+      blob,
+      meta: record?.meta || "",
+      prompt: record?.prompt || "",
+      refs: Array.isArray(record?.refs) ? record.refs : [],
+      date: record?.date || new Date().toLocaleString()
+    };
     tx.objectStore(STORE_IMGS).add(item);
   }
 
@@ -1021,15 +1097,22 @@
     if (!dbInstance) return;
     const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
     tx.objectStore(STORE_IMGS).delete(id);
-    tx.oncomplete = () => dom.remove();
+    tx.oncomplete = () => {
+      cleanupCardUrls(dom);
+      dom.remove();
+    };
   }
 
   function clearAllDB() {
     if(!confirm("确认清空所有历史图片？")) return;
     if (!dbInstance) return;
+
+    const cards = Array.from(el.historyList.querySelectorAll(".hist-card"));
+    cards.forEach(c => cleanupCardUrls(c));
+
     const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
     tx.objectStore(STORE_IMGS).clear();
-    tx.oncomplete = () => el.historyList.innerHTML = "";
+    tx.oncomplete = () => { el.historyList.innerHTML = ""; };
   }
 
   function loadHistory() {
@@ -1038,8 +1121,8 @@
     const tx = dbInstance.transaction([STORE_IMGS], "readonly");
     const req = tx.objectStore(STORE_IMGS).getAll();
     req.onsuccess = () => {
-      const items = req.result.sort((a, b) => b.id - a.id);
-      items.forEach(item => renderItem(item, null));
+      const items = (req.result || []).sort((a, b) => b.id - a.id);
+      items.forEach(item => renderHistoryItem(item, null));
     };
   }
 
@@ -1103,69 +1186,236 @@
     el.errorBox.textContent = "";
   }
 
-  function renderItem(item, replaceElem) {
-    const url = URL.createObjectURL(item.blob);
-
-    const html = `
-      <img src="${url}" class="gen-img" />
-      <div class="hist-meta">
-        <div class="meta-info">
-            <span class="meta-title">${escapeHtml(item.meta)}</span>
-            <span class="meta-res">读取分辨率...</span>
-        </div>
-        <div class="actions-group">
-            <a href="${url}" target="_blank" class="link-btn open-btn">打开</a>
-            <a href="${url}" download="img_${item.id}.png" class="link-btn">下载</a>
-            <span class="del-btn">删除</span>
-        </div>
-      </div>
-    `;
-
-    const attachLogic = (container) => {
-        const img = container.querySelector(".gen-img");
-        const resSpan = container.querySelector(".meta-res");
-        const delBtn = container.querySelector(".del-btn");
-
-        const updateRes = () => {
-             resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`;
-        };
-
-        if (img.complete) updateRes();
-        else img.onload = updateRes;
-
-        img.onclick = () => window.open(url, '_blank');
-        delBtn.onclick = () => deleteItem(item.id, container);
-    };
-
-    if (replaceElem) {
-        replaceElem.innerHTML = html;
-        attachLogic(replaceElem);
-    } else {
-        const div = document.createElement("div");
-        div.className = "hist-card";
-        div.innerHTML = html;
-        attachLogic(div);
-        el.historyList.appendChild(div);
+  function openImageInNewTab(src) {
+    try {
+      window.open(src, "_blank", "noopener");
+    } catch {
+      // fallback
+      const a = document.createElement("a");
+      a.href = src;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.click();
     }
   }
 
+  // ===== URL 管理（避免长时间占用内存）=====
+  function registerUrl(card, url) {
+    if (!card) return;
+    if (!card._objectUrls) card._objectUrls = [];
+    card._objectUrls.push(url);
+  }
+  function cleanupCardUrls(card) {
+    try {
+      const arr = card?._objectUrls || [];
+      arr.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
+      if (card) card._objectUrls = [];
+    } catch {}
+  }
+
+  // ===== refs 懒加载（展开时才生成缩略图）=====
+  function ensureRefsRendered(card, refs, targetEl) {
+    if (!targetEl) return;
+    if (targetEl.dataset.rendered === "1") return;
+    targetEl.dataset.rendered = "1";
+
+    if (!Array.isArray(refs) || refs.length === 0) {
+      targetEl.innerHTML = "";
+      return;
+    }
+
+    const grid = document.createElement("div");
+    grid.className = "ref-mini-grid";
+
+    refs.forEach((r, idx) => {
+      const u = URL.createObjectURL(r.blob);
+      registerUrl(card, u);
+
+      const box = document.createElement("div");
+      box.className = "ref-mini";
+      box.title = "点击单独打开";
+
+      const im = document.createElement("img");
+      im.src = u;
+      im.alt = "ref_" + idx;
+
+      box.appendChild(im);
+      box.onclick = () => openImageInNewTab(u);
+
+      grid.appendChild(box);
+    });
+
+    targetEl.appendChild(grid);
+  }
+
+  function setCardExpanded(card, expanded, toggleBtn, refs, refsHolder) {
+    card.dataset.expanded = expanded ? "1" : "0";
+    if (toggleBtn) toggleBtn.textContent = expanded ? "收起" : "查看Prompt/参考图";
+    if (expanded) ensureRefsRendered(card, refs, refsHolder);
+  }
+
+  // ===== History 卡片（成品图点击：单独打开；Prompt/参考图默认折叠）=====
+  function renderHistoryItem(item, replaceElem) {
+    const container = replaceElem || document.createElement("div");
+    container.className = "hist-card";
+    container.dataset.expanded = "0";
+
+    // 若复用旧卡片，先清理旧 URL
+    cleanupCardUrls(container);
+
+    const mainUrl = URL.createObjectURL(item.blob);
+    registerUrl(container, mainUrl);
+
+    const metaLine = item.meta || "生成结果";
+    const promptText = item.prompt ? String(item.prompt) : "(无 Prompt)";
+    const refs = Array.isArray(item.refs) ? item.refs : [];
+    const dateText = item.date || "";
+
+    container.innerHTML = `
+      <img src="${mainUrl}" class="main-img" alt="generated" />
+      <div class="hist-meta">
+        <div class="meta-info">
+          <span class="meta-title">${escapeHtml(metaLine)}</span>
+          <span class="meta-res">读取分辨率...</span>
+        </div>
+        <div class="actions-group">
+          <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
+          <a href="${mainUrl}" target="_blank" rel="noopener" class="link-btn">打开</a>
+          <a href="${mainUrl}" download="img_${item.id || Date.now()}.png" class="link-btn">下载</a>
+          <span class="del-btn" data-del="1">删除</span>
+        </div>
+      </div>
+      <div class="hist-details">
+        <div class="prompt-label">
+          <span>Prompt</span>
+          <span style="font-weight:800; color: var(--muted); font-size:11px;">${escapeHtml(dateText)}</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(promptText)}</p>
+        <div class="refs-holder" data-rendered="0"></div>
+      </div>
+    `;
+
+    // 分辨率
+    const img = container.querySelector("img.main-img");
+    const resSpan = container.querySelector(".meta-res");
+    const toggleBtn = container.querySelector('[data-toggle="1"]');
+    const delBtn = container.querySelector('[data-del="1"]');
+    const refsHolder = container.querySelector(".refs-holder");
+
+    const updateRes = () => { resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`; };
+    if (img.complete) updateRes(); else img.onload = updateRes;
+
+    // ✅ 成品图点击：单独打开（不卡）
+    img.onclick = () => openImageInNewTab(mainUrl);
+
+    // ✅ 默认折叠，点按钮展开
+    toggleBtn.onclick = () => {
+      const expanded = container.dataset.expanded === "1";
+      setCardExpanded(container, !expanded, toggleBtn, refs, refsHolder);
+    };
+
+    // 删除
+    delBtn.onclick = () => deleteItem(item.id, container);
+
+    if (!replaceElem) el.historyList.appendChild(container);
+  }
+
+  // ===== 任务卡（生成中/失败：也带折叠区；refs 懒加载）=====
+  function createTaskCard(rec, statusText, subText, showRetry) {
+    const card = document.createElement("div");
+    card.className = "hist-card";
+    card.dataset.taskId = String(rec.taskId);
+    card.dataset.expanded = "0";
+
+    cleanupCardUrls(card);
+
+    const promptText = rec.prompt ? String(rec.prompt) : "(无 Prompt)";
+    const refs = Array.isArray(rec.refs) ? rec.refs : [];
+
+    card.innerHTML = `
+      <div class="loading-placeholder">
+        <div class="spinner"></div>
+        <div class="loading-sub">
+          <span>${escapeHtml(statusText)}</span>
+          <button class="tiny-btn tiny-danger" data-cancel="1">取消</button>
+          ${showRetry ? `<button class="tiny-btn" data-retry="1">立即重试</button>` : ``}
+        </div>
+        <div class="sub-note">${escapeHtml(subText || "")}</div>
+      </div>
+
+      <div class="hist-meta">
+        <div class="meta-info">
+          <span class="meta-title">${escapeHtml(rec.modelName || "模型")} · ${escapeHtml(rec.ratio || "")} · ${escapeHtml(rec.res || "")}</span>
+          <span class="meta-res">${escapeHtml(showRetry ? "失败" : "进行中...")}</span>
+        </div>
+        <div class="actions-group">
+          <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
+          <span class="del-btn" data-cancel="2">删除任务</span>
+        </div>
+      </div>
+
+      <div class="hist-details">
+        <div class="prompt-label">
+          <span>Prompt</span>
+          <span style="font-weight:800; color: var(--muted); font-size:11px;">${showRetry ? "失败" : "任务中"}</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(promptText)}</p>
+        <div class="refs-holder" data-rendered="0"></div>
+      </div>
+    `;
+
+    const toggleBtn = card.querySelector('[data-toggle="1"]');
+    const refsHolder = card.querySelector(".refs-holder");
+
+    toggleBtn.onclick = () => {
+      const expanded = card.dataset.expanded === "1";
+      setCardExpanded(card, !expanded, toggleBtn, refs, refsHolder);
+    };
+
+    return card;
+  }
+
+  function cancelOneTask(taskId, card) {
+    const t = tasks.get(taskId);
+    if (t) { try { t.controller.abort(); } catch {} }
+
+    try { cleanupCardUrls(card); card.remove(); } catch {}
+    tasks.delete(taskId);
+    delTask(taskId).catch(()=>{});
+
+    inFlight = Math.max(0, inFlight - 1);
+    updateTaskBar();
+
+    showError("已取消该任务。");
+    setTimeout(clearError, 900);
+  }
+
+  function cancelAllTasks() {
+    for (const [taskId, t] of tasks.entries()) {
+      try { t.controller.abort(); } catch {}
+      try { cleanupCardUrls(t.card); t.card.remove(); } catch {}
+      tasks.delete(taskId);
+      delTask(taskId).catch(()=>{});
+    }
+    inFlight = 0;
+    updateTaskBar();
+    showError("已取消全部进行中的任务。");
+    setTimeout(clearError, 1200);
+  }
+  el.cancelAll.onclick = cancelAllTasks;
+
   // ===== 自定义模型：保存/加载 =====
   const LS_CUSTOM_MODELS = "ai_art_custom_models_v1";
-
   function loadCustomModels() {
     try {
       const raw = localStorage.getItem(LS_CUSTOM_MODELS);
       const arr = raw ? JSON.parse(raw) : [];
       return Array.isArray(arr) ? arr : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
-
   function saveCustomModels(list) {
     localStorage.setItem(LS_CUSTOM_MODELS, JSON.stringify(list || []));
   }
-
   function refreshModelSelect() {
     const selected = el.model.value;
 
@@ -1175,7 +1425,6 @@
     ];
 
     el.model.innerHTML = "";
-
     builtins.forEach(m => {
       const opt = document.createElement("option");
       opt.value = m.id;
@@ -1207,7 +1456,6 @@
     if (allValues.includes(selected)) el.model.value = selected;
     else el.model.value = builtins[0].id;
   }
-
   function refreshCustomPills() {
     const customs = loadCustomModels();
     el.customList.innerHTML = customs.map(m => `
@@ -1231,16 +1479,10 @@
     });
   }
 
-  function normalizeModelId(id) {
-    return String(id || "").trim();
-  }
-
-  function isFlashModel(modelId) {
-    return String(modelId || "").toLowerCase().includes("flash");
-  }
+  function normalizeModelId(id) { return String(id || "").trim(); }
+  function isFlashModel(modelId) { return String(modelId || "").toLowerCase().includes("flash"); }
 
   function applyResLimitByModel(modelId) {
-    // ✅ 不再强制限制，只提示文字恢复原样（仍保持 UI 文案）
     const opts = el.res.options;
     opts[1].disabled = false;
     opts[2].disabled = false;
@@ -1249,9 +1491,7 @@
   }
 
   function getSelectedModelId() {
-    if (el.model.value === "__custom__") {
-      return normalizeModelId(el.customModelId.value);
-    }
+    if (el.model.value === "__custom__") return normalizeModelId(el.customModelId.value);
     return el.model.value;
   }
 
@@ -1261,7 +1501,7 @@
       return n || "自定义模型";
     }
     const opt = el.model.options[el.model.selectedIndex];
-    return opt ? opt.textContent : "模型";
+    return opt ? opt.textContent : (modelId || "模型");
   }
 
   function toggleCustomPanel() {
@@ -1272,17 +1512,10 @@
   }
 
   // ===== 自动保存/恢复上次参数（按账号）=====
-  // ✅ 不保存 prompt
-  const LS_SETTINGS_PREFIX = "ai_art_last_settings_v3_";
-  function getSettingsKey() {
-    return currentUser ? (LS_SETTINGS_PREFIX + currentUser) : null;
-  }
-  function safeJsonParse(raw, fallback) {
-    try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
-  }
-  function getAllModelValues() {
-    return Array.from(el.model.options).map(o => o.value);
-  }
+  const LS_SETTINGS_PREFIX = "ai_art_last_settings_v4_";
+  function getSettingsKey() { return currentUser ? (LS_SETTINGS_PREFIX + currentUser) : null; }
+  function safeJsonParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
+  function getAllModelValues() { return Array.from(el.model.options).map(o => o.value); }
 
   function saveSettings() {
     if (!currentUser) return;
@@ -1336,226 +1569,13 @@
     if (data.res) el.res.value = data.res;
 
     toggleCustomPanel();
-
     const modelId = getSelectedModelId();
     if (modelId) applyResLimitByModel(modelId);
 
     saveSettingsDebounced(10);
   }
 
-  // ===== 多任务并行（任务栏 + 取消）=====
-  function updateTaskBar() {
-    if (!currentUser) {
-      el.taskBar.style.display = "none";
-      return;
-    }
-    el.taskBar.style.display = "flex";
-    el.taskCount.textContent = `进行中：${inFlight}`;
-    updateUserInfo();
-    updateWakeLock();
-  }
-
-  function cancelAllTasks() {
-    for (const [taskId, t] of tasks.entries()) {
-      try { t.controller.abort(); } catch {}
-      try { t.card.remove(); } catch {}
-      tasks.delete(taskId);
-      delTask(taskId).catch(()=>{});
-    }
-    inFlight = 0;
-    updateTaskBar();
-    showError("已取消全部进行中的任务。");
-    setTimeout(clearError, 1200);
-  }
-  el.cancelAll.onclick = cancelAllTasks;
-
-  // ===== 后台不丢任务：任务持久化 + 自动恢复 =====
-  async function resumePendingTasks() {
-    if (!currentUser) return;
-    try { await dbReady; } catch {}
-
-    const pending = await getAllTasksByUser(currentUser);
-    if (!pending.length) return;
-
-    for (const rec of pending) {
-      if (!rec || !rec.taskId) continue;
-      if (tasks.has(rec.taskId)) continue;
-
-      const card = createLoadingCard(rec.taskId, true);
-      el.historyList.prepend(card);
-
-      runTaskFromRecord(rec, card, true).catch(() => {});
-    }
-  }
-
-  function updateBgHint() {
-    if (!currentUser) return;
-    if (document.visibilityState === "hidden") {
-      el.bgHint.textContent = "· 已后台：回来会自动恢复";
-    } else {
-      el.bgHint.textContent = "· 后台会自动恢复";
-    }
-  }
-
-  document.addEventListener("visibilitychange", () => {
-    updateBgHint();
-    if (document.visibilityState === "visible") {
-      resumePendingTasks();
-    }
-    updateWakeLock();
-  });
-  window.addEventListener("pageshow", () => {
-    updateBgHint();
-    resumePendingTasks();
-    updateWakeLock();
-  });
-
-  // ===== Wake Lock（可选增强）=====
-  async function updateWakeLock() {
-    const can = ("wakeLock" in navigator);
-    if (!can) return;
-
-    if (document.visibilityState === "visible" && inFlight > 0) {
-      try {
-        if (!wakeLock) {
-          wakeLock = await navigator.wakeLock.request("screen");
-          wakeLock.addEventListener("release", () => { wakeLock = null; });
-        }
-      } catch {
-        // ignore
-      }
-    } else {
-      try {
-        if (wakeLock) {
-          await wakeLock.release();
-          wakeLock = null;
-        }
-      } catch {}
-    }
-  }
-
-  // ===== 登录记住密码 =====
-  const LS_USER = "ai_art_user";
-  const LS_PASS = "ai_art_pass";
-  const savedUser = localStorage.getItem(LS_USER);
-  const savedPass = localStorage.getItem(LS_PASS);
-  if (savedUser && savedPass) {
-    el.u_name.value = savedUser;
-    el.u_pass.value = savedPass;
-    el.rememberMe.checked = true;
-  }
-
-  function updateUserInfo() {
-    if (!currentUser) return;
-    // ✅ 不再显示 used/limit
-    el.welcomeText.textContent = `${currentUser} · 多任务进行中 ${inFlight}`;
-  }
-
-  el.btnLogin.onclick = () => {
-      const u = el.u_name.value.trim();
-      const p = el.u_pass.value.trim();
-      if (USERS_DB[u] && USERS_DB[u].pwd === p) {
-          currentUser = u;
-
-          if (el.rememberMe.checked) {
-            localStorage.setItem(LS_USER, u);
-            localStorage.setItem(LS_PASS, p);
-          } else {
-            localStorage.removeItem(LS_USER);
-            localStorage.removeItem(LS_PASS);
-          }
-
-          el.loginLayer.style.display = "none";
-          updateUserInfo();
-          updateTaskBar();
-          updateBgHint();
-
-          refreshModelSelect();
-          refreshCustomPills();
-          toggleCustomPanel();
-          applyResLimitByModel(getSelectedModelId());
-
-          initDB();
-
-          dbReady.then(() => {
-            loadHistory();
-            loadSettings();
-            saveSettingsDebounced(10);
-            resumePendingTasks();
-          }).catch(()=>{});
-
-      } else {
-          el.loginMsg.textContent = "账号或密码错误";
-      }
-  };
-
-  el.logoutBtn.onclick = () => location.reload();
-  el.clearHistory.onclick = clearAllDB;
-
-  // ===== 自动保存：绑定变更事件 =====
-  function bindAutoSave() {
-    const onQuick = () => saveSettingsDebounced(10);
-    el.model.addEventListener("change", onQuick);
-    el.ratio.addEventListener("change", onQuick);
-    el.res.addEventListener("change", onQuick);
-
-    el.customModelId.addEventListener("input", () => saveSettingsDebounced(350));
-    el.customModelName.addEventListener("input", () => saveSettingsDebounced(350));
-
-    // ✅ 不保存 prompt，因此不绑定 prompt 的 input 进 settings
-  }
-  bindAutoSave();
-
-  // ===== 模型选择变化 =====
-  el.model.onchange = () => {
-    toggleCustomPanel();
-    const modelId = getSelectedModelId();
-    if (modelId) applyResLimitByModel(modelId);
-    saveSettingsDebounced(10);
-  };
-
-  // ===== 自定义模型按钮 =====
-  el.btnAddModel.onclick = () => {
-    clearError();
-    const id = normalizeModelId(el.customModelId.value);
-    const name = String(el.customModelName.value || "").trim();
-
-    if (!id) return showError("请输入自定义模型ID。");
-    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
-
-    let list = loadCustomModels();
-    if (list.some(x => x.id === id)) return showError("该模型ID已存在于列表。");
-
-    list.push({ id, name: name || "自定义模型" });
-    saveCustomModels(list);
-
-    refreshModelSelect();
-    refreshCustomPills();
-
-    el.model.value = id;
-    toggleCustomPanel();
-    applyResLimitByModel(id);
-
-    saveSettingsDebounced(10);
-  };
-
-  el.btnUseTempModel.onclick = () => {
-    clearError();
-    const id = normalizeModelId(el.customModelId.value);
-    if (!id) return showError("请输入自定义模型ID。");
-    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
-
-    el.model.value = "__custom__";
-    toggleCustomPanel();
-    applyResLimitByModel(id);
-
-    saveSettingsDebounced(10);
-
-    showError("已设置“仅本次使用”的模型ID。点击生成即可。");
-    setTimeout(clearError, 1800);
-  };
-
-  // ===== 参考图上传（无限制；注意移动端内存）=====
+  // ===== 参考图上传（点击单独打开）=====
   el.fileInput.onchange = async () => {
     clearError();
     const files = Array.from(el.fileInput.files);
@@ -1565,24 +1585,39 @@
       const url = URL.createObjectURL(f);
       refImages.push({ mime: f.type || "image/png", blob: f, url });
     }
-    renderRef();
+    renderRefGrid();
     el.fileInput.value = "";
   };
 
-  function renderRef() {
-      el.refGrid.style.display = refImages.length ? "grid" : "none";
-      el.refGrid.innerHTML = refImages.map((img, i) => `
-        <div class="ref-item">
-            <img src="${img.url}">
-            <div class="ref-del" onclick="removeRef(${i})">×</div>
-        </div>
-      `).join('');
+  function renderRefGrid() {
+    el.refGrid.style.display = refImages.length ? "grid" : "none";
+    el.refGrid.innerHTML = "";
+
+    refImages.forEach((img, i) => {
+      const box = document.createElement("div");
+      box.className = "ref-item";
+
+      const im = document.createElement("img");
+      im.src = img.url;
+      im.alt = "ref";
+      im.title = "点击单独打开";
+      im.onclick = () => openImageInNewTab(img.url);
+
+      const del = document.createElement("div");
+      del.className = "ref-del";
+      del.textContent = "×";
+      del.onclick = (e) => {
+        e.stopPropagation();
+        try { URL.revokeObjectURL(refImages[i]?.url); } catch {}
+        refImages.splice(i, 1);
+        renderRefGrid();
+      };
+
+      box.appendChild(im);
+      box.appendChild(del);
+      el.refGrid.appendChild(box);
+    });
   }
-  window.removeRef = (i) => {
-    try { URL.revokeObjectURL(refImages[i]?.url); } catch {}
-    refImages.splice(i, 1);
-    renderRef();
-  };
 
   // ===== API 解析 =====
   function extractImageFromResponse(json) {
@@ -1595,7 +1630,6 @@
     }
     return null;
   }
-
   function extractTextFromResponse(json) {
     const candidates = json?.candidates || [];
     for (const c of candidates) {
@@ -1606,19 +1640,16 @@
     }
     return "";
   }
-
   function getFinishReason(json) {
     const fr = json?.candidates?.[0]?.finishReason;
     return fr ? String(fr) : "";
   }
-
   function base64ToBlob(b64, mimeType) {
     const binary = atob(b64);
     const array = new Uint8Array(binary.length);
     for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
     return new Blob([array], {type: mimeType || "image/png"});
   }
-
   function blobToBase64Data(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -1627,54 +1658,46 @@
           const dataUrl = String(reader.result || "");
           const b64 = dataUrl.split(",")[1] || "";
           resolve(b64);
-        } catch (e) {
-          reject(e);
-        }
+        } catch (e) { reject(e); }
       };
       reader.onerror = () => reject(reader.error);
       reader.readAsDataURL(blob);
     });
   }
 
-  // ===== Loading 卡片 =====
-  function createLoadingCard(taskId, isResume=false) {
-    const loadingCard = document.createElement("div");
-    loadingCard.className = "hist-card";
-    loadingCard.dataset.taskId = String(taskId);
-    loadingCard.innerHTML = `
-      <div class="loading-placeholder">
-        <div class="spinner"></div>
-        <div class="loading-sub">
-          <span>${isResume ? "恢复任务中..." : "绘制中..."}</span>
-          <button class="tiny-btn tiny-danger" data-cancel="1">取消</button>
-        </div>
-        <div class="sub-note">
-手机进入后台/锁屏可能会暂停网络。
-任务已保存：回来后会自动继续（必要时自动重试），不会丢失。
-        </div>
-      </div>
-    `;
-    return loadingCard;
+  // ===== 任务栏/后台提示/Wake Lock =====
+  function updateUserInfo() {
+    if (!currentUser) return;
+    el.welcomeText.textContent = `${currentUser} · 多任务进行中 ${inFlight}`;
   }
-
-  function bindCancelButton(taskId, card) {
-    const cancelBtn = card.querySelector('[data-cancel="1"]');
-    if (!cancelBtn) return;
-    cancelBtn.onclick = () => cancelOneTask(taskId, card);
+  function updateBgHint() {
+    if (!currentUser) return;
+    if (document.visibilityState === "hidden") el.bgHint.textContent = "· 已后台：回来会自动恢复";
+    else el.bgHint.textContent = "· 后台会自动恢复";
   }
+  function updateTaskBar() {
+    if (!currentUser) { el.taskBar.style.display = "none"; return; }
+    el.taskBar.style.display = "flex";
+    el.taskCount.textContent = `进行中：${inFlight}`;
+    updateUserInfo();
+    updateWakeLock();
+  }
+  async function updateWakeLock() {
+    const can = ("wakeLock" in navigator);
+    if (!can) return;
 
-  function cancelOneTask(taskId, card) {
-    const t = tasks.get(taskId);
-    if (t) {
-      try { t.controller.abort(); } catch {}
+    if (document.visibilityState === "visible" && inFlight > 0) {
+      try {
+        if (!wakeLock) {
+          wakeLock = await navigator.wakeLock.request("screen");
+          wakeLock.addEventListener("release", () => { wakeLock = null; });
+        }
+      } catch {}
+    } else {
+      try {
+        if (wakeLock) { await wakeLock.release(); wakeLock = null; }
+      } catch {}
     }
-    try { card.remove(); } catch {}
-    tasks.delete(taskId);
-    delTask(taskId).catch(()=>{});
-    inFlight = Math.max(0, inFlight - 1);
-    updateTaskBar();
-    showError("已取消该任务。");
-    setTimeout(clearError, 900);
   }
 
   // ===== 执行任务 =====
@@ -1686,10 +1709,14 @@
 
     const controller = new AbortController();
     tasks.set(rec.taskId, { controller, card });
+
     inFlight += 1;
     updateTaskBar();
 
-    bindCancelButton(rec.taskId, card);
+    const cancelBtn1 = card.querySelector('[data-cancel="1"]');
+    const cancelBtn2 = card.querySelector('[data-cancel="2"]');
+    if (cancelBtn1) cancelBtn1.onclick = () => cancelOneTask(rec.taskId, card);
+    if (cancelBtn2) cancelBtn2.onclick = () => cancelOneTask(rec.taskId, card);
 
     const parts = [{ text: rec.prompt }];
     const refs = Array.isArray(rec.refs) ? rec.refs : [];
@@ -1699,7 +1726,6 @@
     }
 
     const finalUrl = `${BASE_URL}${rec.modelId}:generateContent`;
-
     const payload = {
       contents: [{ parts }],
       generationConfig: {
@@ -1724,16 +1750,12 @@
 
     try {
       let resp;
-      try {
-        resp = await fetchOnce(refs.length === 0);
-      } catch (e) {
-        resp = await fetchOnce(false);
-      }
+      try { resp = await fetchOnce(refs.length === 0); }
+      catch { resp = await fetchOnce(false); }
 
       let json = null;
-      try {
-        json = await resp.json();
-      } catch {
+      try { json = await resp.json(); }
+      catch {
         const text = await resp.text().catch(() => "");
         throw new Error(`接口返回非 JSON。HTTP ${resp.status}. ${text ? "返回内容：" + text.slice(0, 300) : ""}`);
       }
@@ -1758,11 +1780,23 @@
 
       const blob = base64ToBlob(imgData.data, imgData.mimeType);
       const meta = `${rec.modelName} · ${rec.ratio} · ${rec.res}`;
+      const dateStr = new Date().toLocaleString();
 
-      const item = { id: Date.now(), blob, meta };
-      renderItem(item, card);
-      saveToDB(blob, meta);
+      // 替换为历史卡（默认折叠）
+      const item = {
+        id: Date.now(),
+        blob,
+        meta,
+        prompt: rec.prompt,
+        refs: rec.refs || [],
+        date: dateStr,
+      };
+      renderHistoryItem(item, card);
 
+      // 保存历史（含 prompt + refs）
+      saveToDB(blob, { meta, prompt: rec.prompt, refs: rec.refs || [], date: dateStr });
+
+      // 删除任务记录
       await delTask(rec.taskId).catch(()=>{});
 
     } catch (e) {
@@ -1771,27 +1805,21 @@
       } else {
         const msg = (e && e.message) ? e.message : String(e);
 
-        card.innerHTML = `
-          <div class="loading-placeholder" style="gap:10px;">
-            <div style="font-weight:900; color: var(--danger);">任务失败（已保留，可自动恢复）</div>
-            <div class="sub-note">${escapeHtml(msg)}</div>
-            <div style="display:flex; gap:10px;">
-              <button class="tiny-btn" data-retry="1">立即重试</button>
-              <button class="tiny-btn tiny-danger" data-cancel="1">取消任务</button>
-            </div>
-          </div>
-        `;
+        // 失败卡：可重试 + 折叠区
+        cleanupCardUrls(card);
+        const failCard = createTaskCard(rec, "任务失败（已保留，可自动恢复）", msg, true);
+        card.replaceWith(failCard);
+        card = failCard;
 
+        const cancelBtn1 = card.querySelector('[data-cancel="1"]');
+        const cancelBtn2 = card.querySelector('[data-cancel="2"]');
         const retryBtn = card.querySelector('[data-retry="1"]');
-        const cancelBtn = card.querySelector('[data-cancel="1"]');
 
-        if (cancelBtn) cancelBtn.onclick = () => cancelOneTask(rec.taskId, card);
-        if (retryBtn) retryBtn.onclick = async () => {
-          const newCard = createLoadingCard(rec.taskId, true);
+        if (cancelBtn1) cancelBtn1.onclick = () => cancelOneTask(rec.taskId, card);
+        if (cancelBtn2) cancelBtn2.onclick = () => cancelOneTask(rec.taskId, card);
+        if (retryBtn) retryBtn.onclick = () => {
+          const newCard = createTaskCard(rec, "恢复任务中...", "正在重试请求…", false);
           card.replaceWith(newCard);
-          tasks.delete(rec.taskId);
-          inFlight = Math.max(0, inFlight - 1);
-          updateTaskBar();
           runTaskFromRecord(rec, newCard).catch(()=>{});
         };
 
@@ -1805,7 +1833,7 @@
     }
   }
 
-  // ===== 发起新任务：先持久化任务记录，再执行 =====
+  // ===== 发起新任务 =====
   async function startNewTask() {
     clearError();
     if (!currentUser) return;
@@ -1814,15 +1842,12 @@
     if (!prompt) return showError("请输入提示词。");
 
     saveSettingsDebounced(10);
-
     try { await dbReady; } catch {}
 
     const modelId = getSelectedModelId();
     if (!modelId) return showError("请选择或输入有效的模型ID。");
 
-    // ✅ 不再限制任何数量（包括 flash 参考图）
     if (isFlashModel(modelId) && refImages.length > 3) {
-      // 仅提示，不限制
       showError("提示：当前模型像 Flash 类型，参考图过多/高分辨率可能不稳定。已继续提交任务。");
       setTimeout(clearError, 1600);
     }
@@ -1830,11 +1855,6 @@
     const ratioSnap = el.ratio.value;
     const resSnap = el.res.value;
     const modelNameSnap = getSelectedModelName(modelId);
-
-    // 任务记录需要 prompt 才能恢复生成（否则无法继续生成）
-    // ✅ 你要求“不保存 prompt”：这里理解为“不保存到参数设置（localStorage）”，但任务恢复必须带 prompt。
-    // 如果你坚持“任务也不保存 prompt”，那后台恢复就无法继续生成（只能提示用户重新输入）。
-    // 这里做折中：任务只在 IndexedDB 临时保存（完成后自动删除），不进 localStorage，也不进历史 meta。
     const refsSnap = refImages.map(x => ({ mime: x.mime, blob: x.blob }));
 
     const taskId = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
@@ -1846,20 +1866,25 @@
       modelName: modelNameSnap,
       ratio: ratioSnap,
       res: resSnap,
-      prompt,            // ✅ 仅用于任务恢复（完成后会删除）
-      refs: refsSnap,
+      prompt,
+      refs: refsSnap
     };
 
     await putTask(taskRecord).catch(()=>{});
 
-    const card = createLoadingCard(taskId, false);
+    const card = createTaskCard(
+      taskRecord,
+      "绘制中...",
+      "手机进入后台/锁屏可能会暂停网络。\n任务已保存：回来后会自动继续（必要时自动重试），不会丢失。",
+      false
+    );
     el.historyList.prepend(card);
-    bindCancelButton(taskId, card);
+
+    // ✅ 生成后清空 prompt
+    el.prompt.value = "";
 
     runTaskFromRecord(taskRecord, card).catch(()=>{});
   }
-
-  // ===== 生成按钮：支持并行（不禁用按钮）=====
   el.gen.onclick = startNewTask;
 
   // ===== 恢复未完成任务 =====
@@ -1874,45 +1899,15 @@
       if (!rec || !rec.taskId) continue;
       if (tasks.has(rec.taskId)) continue;
 
-      // 如果任务里没有 prompt，就无法恢复；这里兜底提示并保留任务
-      if (!rec.prompt) {
-        const card = document.createElement("div");
-        card.className = "hist-card";
-        card.innerHTML = `
-          <div class="loading-placeholder" style="gap:10px;">
-            <div style="font-weight:900; color: var(--danger);">无法恢复任务（缺少 Prompt）</div>
-            <div class="sub-note">你设置了“不保存 prompt”。因此后台恢复无法继续生成。请手动重新输入提示词后再生成。</div>
-            <div style="display:flex; gap:10px;">
-              <button class="tiny-btn tiny-danger" data-cancel="1">删除该任务</button>
-            </div>
-          </div>
-        `;
-        const cancelBtn = card.querySelector('[data-cancel="1"]');
-        if (cancelBtn) cancelBtn.onclick = () => cancelOneTask(rec.taskId, card);
-        el.historyList.prepend(card);
-        continue;
-      }
-
-      const c = createLoadingCard(rec.taskId, true);
-      el.historyList.prepend(c);
-      runTaskFromRecord(rec, c).catch(() => {});
-    }
-  }
-
-  function updateBgHint() {
-    if (!currentUser) return;
-    if (document.visibilityState === "hidden") {
-      el.bgHint.textContent = "· 已后台：回来会自动恢复";
-    } else {
-      el.bgHint.textContent = "· 后台会自动恢复";
+      const card = createTaskCard(rec, "恢复任务中...", "正在继续之前的请求…", false);
+      el.historyList.prepend(card);
+      runTaskFromRecord(rec, card).catch(() => {});
     }
   }
 
   document.addEventListener("visibilitychange", () => {
     updateBgHint();
-    if (document.visibilityState === "visible") {
-      resumePendingTasks();
-    }
+    if (document.visibilityState === "visible") resumePendingTasks();
     updateWakeLock();
   });
   window.addEventListener("pageshow", () => {
@@ -1921,49 +1916,63 @@
     updateWakeLock();
   });
 
-  // ===== 登录 =====
+  // ===== 登录记住密码 =====
+  const LS_USER = "ai_art_user";
+  const LS_PASS = "ai_art_pass";
+  const savedUser = localStorage.getItem(LS_USER);
+  const savedPass = localStorage.getItem(LS_PASS);
+  if (savedUser && savedPass) {
+    el.u_name.value = savedUser;
+    el.u_pass.value = savedPass;
+    el.rememberMe.checked = true;
+  }
+
   el.btnLogin.onclick = () => {
-      const u = el.u_name.value.trim();
-      const p = el.u_pass.value.trim();
-      if (USERS_DB[u] && USERS_DB[u].pwd === p) {
-          currentUser = u;
+    const u = el.u_name.value.trim();
+    const p = el.u_pass.value.trim();
 
-          if (el.rememberMe.checked) {
-            localStorage.setItem(LS_USER, u);
-            localStorage.setItem(LS_PASS, p);
-          } else {
-            localStorage.removeItem(LS_USER);
-            localStorage.removeItem(LS_PASS);
-          }
+    if (USERS_DB[u] && USERS_DB[u].pwd === p) {
+      currentUser = u;
 
-          el.loginLayer.style.display = "none";
-          updateUserInfo();
-          updateTaskBar();
-          updateBgHint();
-
-          refreshModelSelect();
-          refreshCustomPills();
-          toggleCustomPanel();
-          applyResLimitByModel(getSelectedModelId());
-
-          initDB();
-
-          dbReady.then(() => {
-            loadHistory();
-            loadSettings();        // ✅ 不含 prompt
-            saveSettingsDebounced(10);
-            resumePendingTasks();
-          }).catch(()=>{});
-
+      if (el.rememberMe.checked) {
+        localStorage.setItem(LS_USER, u);
+        localStorage.setItem(LS_PASS, p);
       } else {
-          el.loginMsg.textContent = "账号或密码错误";
+        localStorage.removeItem(LS_USER);
+        localStorage.removeItem(LS_PASS);
       }
+
+      el.loginLayer.style.display = "none";
+      el.loginMsg.textContent = "";
+
+      refreshModelSelect();
+      refreshCustomPills();
+      toggleCustomPanel();
+      applyResLimitByModel(getSelectedModelId());
+
+      updateUserInfo();
+      updateBgHint();
+      updateTaskBar();
+
+      initDB();
+
+      dbReady.then(() => {
+        loadHistory();
+        loadSettings();
+        saveSettingsDebounced(10);
+        resumePendingTasks();
+      }).catch(()=>{});
+
+    } else {
+      el.loginMsg.textContent = "账号或密码错误";
+    }
   };
 
+  // ===== 退出 / 清空历史 =====
   el.logoutBtn.onclick = () => location.reload();
   el.clearHistory.onclick = clearAllDB;
 
-  // ===== 自动保存：绑定变更事件（不含 prompt）=====
+  // ===== 自动保存：绑定变更事件 =====
   function bindAutoSave() {
     const onQuick = () => saveSettingsDebounced(10);
     el.model.addEventListener("change", onQuick);
@@ -2024,22 +2033,10 @@
   };
 
   // ===== 取消全部 =====
-  el.cancelAll.onclick = () => {
-    for (const [taskId, t] of tasks.entries()) {
-      try { t.controller.abort(); } catch {}
-      try { t.card.remove(); } catch {}
-      tasks.delete(taskId);
-      delTask(taskId).catch(()=>{});
-    }
-    inFlight = 0;
-    updateTaskBar();
-    showError("已取消全部进行中的任务。");
-    setTimeout(clearError, 1200);
-  };
+  el.cancelAll.onclick = cancelAllTasks;
 
   // ===== 初始化显示 =====
   updateBgHint();
-
 })();
 </script>
 </body>
