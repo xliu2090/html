@@ -1,432 +1,511 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>纸上贴贴 - 手账联机小游戏</title>
-    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Zeyada&family=Noto+Sans+SC:wght@400;500&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --paper-bg: #fdf6e3;
-            --pencil-gray: #5e503f;
-            --pencil-light: #a99985;
-            --warm-highlight: #e6ccb2;
-            --tape-color: #ddb892;
-            --shadow: rgba(94, 80, 63, 0.15);
-        }
-
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        body {
-            margin: 0;
-            padding: 20px;
-            background-color: #f0e6d2;
-            /* 纸张纹理模拟 */
-            background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100' height='100' filter='url(%23noise)' opacity='0.08'/%3E%3C/svg%3E");
-            font-family: 'Zeyada', 'Noto Sans SC', cursive;
-            color: var(--pencil-gray);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            overflow: hidden;
-        }
-
-        /* 手账本容器 */
-        .journal-book {
-            background: var(--paper-bg);
-            width: 100%;
-            max-width: 400px;
-            height: 90vh;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            /* 稍微旋转一点，看起来自然 */
-            transform: rotate(-1deg);
-        }
-
-        /* 顶部纸胶带装饰 */
-        .washi-tape {
-            position: absolute;
-            top: -10px;
-            left: 50%;
-            transform: translateX(-50%) rotate(2deg);
-            width: 120px;
-            height: 30px;
-            background-color: var(--tape-color);
-            opacity: 0.8;
-            border-left: 2px dashed rgba(255,255,255,0.4);
-            border-right: 2px dashed rgba(255,255,255,0.4);
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            z-index: 10;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 2.2rem;
-            margin: 15px 0;
-            font-weight: normal;
-            border-bottom: 2px solid var(--pencil-light);
-            padding-bottom: 10px;
-        }
-
-        /* 连接控制面板 */
-        .connection-panel {
-            background: rgba(255, 255, 255, 0.5);
-            padding: 15px;
-            border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px; /* 手绘边框效果 */
-            border: 2px solid var(--pencil-light);
-            margin-bottom: 20px;
-            font-family: 'Noto Sans SC', sans-serif;
-            font-size: 0.9rem;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 5px;
-            margin-top: 10px;
-        }
-
-        input {
-            border: none;
-            border-bottom: 2px dashed var(--pencil-light);
-            background: transparent;
-            padding: 5px;
-            width: 100%;
-            font-family: inherit;
-            color: var(--pencil-gray);
-            outline: none;
-        }
-
-        button {
-            background: var(--pencil-gray);
-            color: #fff;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-family: 'Zeyada', cursive;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: transform 0.1s;
-        }
-
-        button:active {
-            transform: scale(0.95);
-        }
-
-        button.copy-btn {
-            background: var(--tape-color);
-            font-size: 1rem;
-            padding: 4px 10px;
-        }
-
-        /* 游戏棋盘 */
-        .game-board {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            margin: auto 0;
-            padding: 10px;
-            display: none; /* 连接后显示 */
-        }
-
-        .cell {
-            aspect-ratio: 1;
-            background: #fff;
-            border: 2px solid var(--pencil-gray);
-            /* 随机一点的不规则圆角 */
-            border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 3rem;
-            cursor: pointer;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
-            transition: transform 0.2s;
-        }
-
-        .cell:active {
-            transform: scale(0.9);
-        }
-
-        .cell.taken {
-            pointer-events: none;
-        }
-
-        /* 状态栏 */
-        .status-bar {
-            text-align: center;
-            font-size: 1.5rem;
-            margin-top: 20px;
-            min-height: 40px;
-        }
-
-        .loading {
-            text-align: center;
-            color: var(--pencil-light);
-            font-size: 0.9rem;
-        }
-
-        /* 贴纸动画 */
-        @keyframes pop {
-            0% { transform: scale(0); opacity: 0; }
-            80% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(1); }
-        }
-        
-        .sticker-anim {
-            animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        #my-id-display {
-            font-weight: bold;
-            color: #a67c52;
-            letter-spacing: 1px;
-        }
-        
-        .hidden { display: none !important; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#111111" />
+  <title>Sora Mobile (OpenAI /v1/videos) - Custom Model</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,PingFang SC,"Helvetica Neue",Arial; }
+    .wrap{ max-width:980px; margin:0 auto; padding:16px; }
+    h1{ font-size:18px; margin:0 0 10px; }
+    .note{ font-size:13px; opacity:.85; line-height:1.45; }
+    .grid{ display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
+    @media (min-width: 860px){ .grid{ grid-template-columns:1fr 1fr; } }
+    .card{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:12px; background:rgba(127,127,127,.06); }
+    label{ display:block; font-size:13px; margin:10px 0 6px; opacity:.9; }
+    input, textarea, select{
+      width:100%; box-sizing:border-box; border:1px solid rgba(127,127,127,.35);
+      border-radius:10px; padding:10px; font-size:14px; background:transparent;
+    }
+    textarea{ min-height:92px; resize:vertical; }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btns{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    button{
+      border:1px solid rgba(127,127,127,.35); background:rgba(127,127,127,.10);
+      padding:10px 12px; border-radius:12px; font-size:14px; cursor:pointer;
+    }
+    button.primary{ background:#2563eb; border-color:#2563eb; color:#fff; }
+    button.danger{ background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.5); }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
+    .pill{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid rgba(127,127,127,.35); }
+    .log{ white-space:pre-wrap; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:1.35;
+      padding:10px; border-radius:12px; border:1px dashed rgba(127,127,127,.35); max-height:240px; overflow:auto; }
+    .tasks{ display:grid; gap:10px; margin-top:10px; }
+    .task{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:10px; background:rgba(127,127,127,.05); }
+    .taskHead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .mono{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; word-break:break-all; }
+    .meta{ font-size:12px; opacity:.85; margin-top:4px; }
+    .taskBtns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    video{ width:100%; border-radius:12px; margin-top:10px; background:#000; }
+    .small{ font-size:12px; opacity:.8; }
+    .inline{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .hr{ height:1px; background:rgba(127,127,127,.25); margin:10px 0; }
+  </style>
 </head>
 <body>
+<div class="wrap">
+  <h1>OpenAI Sora（/v1/videos）手机端 Demo（支持自定义模型）</h1>
+  <div class="note">
+    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：你切后台/刷新不会中断服务端生成；回来继续轮询即可。2<br>
+    ⚠️ 生产环境请别把 Key 放前端：OpenAI 明确要求不要在浏览器/APP 暴露 API Key。3
+  </div>
 
-    <div class="journal-book">
-        <div class="washi-tape"></div>
-        <h1>Paper Tic-Tac-Toe</h1>
+  <div class="grid">
+    <div class="card">
+      <div class="inline" style="justify-content:space-between;">
+        <div class="pill" id="pollPill">轮询：未启动</div>
+        <div class="pill" id="netPill">网络：--</div>
+      </div>
 
-        <div id="lobby" class="connection-panel">
-            <p>1. 你的房间号: <span id="my-id-display">生成中...</span> <button class="copy-btn" onclick="copyId()">复制</button></p>
-            
-            <div style="margin: 15px 0; border-top: 1px dashed var(--pencil-light);"></div>
-            
-            <p>2. 加入朋友的房间:</p>
-            <div class="input-group">
-                <input type="text" id="friend-id" placeholder="粘贴朋友的号码...">
-                <button onclick="connectToFriend()">连接</button>
-            </div>
-            <p class="loading" id="status-msg">等待连接...</p>
+      <label>Base URL（直连 OpenAI / 或填你的代理域名）</label>
+      <input id="baseUrl" type="text" value="https://api.openai.com" />
+
+      <label>OpenAI API Key（Bearer）</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+      <div class="inline" style="margin-top:8px;">
+        <label class="small"><input id="rememberKey" type="checkbox" /> 记住 Key（localStorage，慎用）</label>
+        <button id="btnNotif">开启完成通知</button>
+      </div>
+
+      <div class="hr"></div>
+
+      <label>Model（✅这里就是“自定义模型”，可手动输入）</label>
+      <input id="model" list="modelList" type="text" value="sora-2" placeholder="例如：sora-2 / sora-2-pro / 你的代理自定义模型名" />
+      <datalist id="modelList">
+        <option value="sora-2"></option>
+        <option value="sora-2-pro"></option>
+      </datalist>
+      <div class="small">
+        官方允许值通常是 <code>sora-2</code> / <code>sora-2-pro</code>（如果你走的是“中转/代理”，也可能允许更多自定义模型名）。4
+      </div>
+
+      <label>Prompt</label>
+      <textarea id="prompt" placeholder="例如：一只三花猫在舞台上弹钢琴，聚光灯，电影感"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Seconds（允许 4/8/12；也可手动输入）</label>
+          <input id="seconds" type="text" value="8" placeholder="4 或 8 或 12" />
         </div>
-
-        <div id="game-ui" class="hidden" style="width: 100%; flex: 1; display: flex; flex-direction: column;">
-            <div class="status-bar" id="game-status">
-                等待对方先手...
-            </div>
-
-            <div class="game-board" id="board" style="display: grid;">
-                <div class="cell" data-index="0"></div>
-                <div class="cell" data-index="1"></div>
-                <div class="cell" data-index="2"></div>
-                <div class="cell" data-index="3"></div>
-                <div class="cell" data-index="4"></div>
-                <div class="cell" data-index="5"></div>
-                <div class="cell" data-index="6"></div>
-                <div class="cell" data-index="7"></div>
-                <div class="cell" data-index="8"></div>
-            </div>
-            
-            <div style="text-align: center; margin-top: auto;">
-                <button onclick="resetGame()" id="restart-btn" class="hidden" style="margin-top: 10px;">再玩一局 ↺</button>
-            </div>
+        <div>
+          <label>Size（允许：720x1280 / 1280x720 / 1024x1792 / 1792x1024；也可手动输入）</label>
+          <input id="size" type="text" value="1280x720" placeholder="例如：1280x720" />
         </div>
+      </div>
+
+      <label>参考图片 input_reference（可选）</label>
+      <input id="refImage" type="file" accept="image/*" />
+
+      <div class="row">
+        <div>
+          <label>轮询间隔（秒，建议 10~20）</label>
+          <input id="pollSec" type="number" min="2" step="1" value="10" />
+        </div>
+        <div>
+          <label>Retrieve content 的 variant（可选）</label>
+          <input id="variant" type="text" placeholder="留空=默认 MP4；或填你需要的 asset variant" />
+        </div>
+      </div>
+
+      <label>高级：额外 FormData 字段（JSON，可选）</label>
+      <textarea id="extraJson" placeholder='例如：{"seed":123,"foo":"bar"}（OpenAI 未必支持，代理可能支持）'></textarea>
+
+      <div class="btns">
+        <button class="primary" id="btnCreate">提交生成</button>
+        <button id="btnStartPoll">开始/继续轮询</button>
+        <button class="danger" id="btnStopPoll">停止轮询</button>
+        <button id="btnAddExisting">添加已有 video_id</button>
+        <button class="danger" id="btnClear">清空任务</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <div class="small">日志</div>
+        <div class="log" id="log"></div>
+      </div>
     </div>
 
-    <script>
-        // --- 游戏配置 ---
-        const peer = new Peer(); // 初始化PeerJS
-        let conn = null;
-        let myTurn = false;
-        let mySymbol = '🌸'; // 默认贴纸
-        let opponentSymbol = '🧸';
-        let gameState = ['', '', '', '', '', '', '', '', ''];
-        let isGameActive = false;
+    <div class="card">
+      <div class="inline" style="justify-content:space-between;">
+        <div><b>任务列表</b>（自动保存到本地）</div>
+        <button id="btnRefresh">手动刷新一次</button>
+      </div>
+      <div class="small" style="margin-top:6px;">
+        注意：手机切后台后 JS 轮询可能被系统降频/暂停；但服务端生成仍会继续，你回来再查状态即可。5
+      </div>
+      <div class="tasks" id="tasks"></div>
+    </div>
+  </div>
+</div>
 
-        // --- 1. P2P 连接逻辑 ---
+<script>
+  const LS_TASKS = "sora_mobile_tasks_v2";
+  const LS_BASE  = "sora_mobile_baseUrl_v2";
+  const LS_KEY   = "sora_mobile_apiKey_v2";
 
-        // 获取自己的ID
-        peer.on('open', (id) => {
-            document.getElementById('my-id-display').innerText = id;
-            document.getElementById('status-msg').innerText = "就绪。发送号码给朋友，或输入朋友的号码。";
+  const $ = (id) => document.getElementById(id);
+  const logEl = $("log"), tasksEl = $("tasks");
+  const pollPill = $("pollPill"), netPill = $("netPill");
+  let pollTimer = null;
+
+  function nowStr(){ return new Date().toLocaleString(); }
+  function log(msg){ logEl.textContent = `[${nowStr()}] ${msg}\n` + logEl.textContent; }
+
+  function normalizeBaseUrl(u){ return (u||"").trim().replace(/\/+$/,"") || "https://api.openai.com"; }
+  function authHeaders(apiKey, extraHeaders = {}){
+    return { "Authorization":"Bearer " + apiKey, "Accept":"application/json", ...extraHeaders };
+  }
+
+  function loadTasks(){ try{ return JSON.parse(localStorage.getItem(LS_TASKS) || "[]"); }catch{ return []; } }
+  function saveTasks(ts){ localStorage.setItem(LS_TASKS, JSON.stringify(ts)); }
+
+  function isTerminal(status){
+    const s = String(status||"").toLowerCase();
+    return ["completed","succeeded","success","failed","error","canceled","cancelled"].includes(s);
+  }
+
+  function setNetworkPill(){ netPill.textContent = "网络：" + (navigator.onLine ? "在线" : "离线"); }
+
+  function escapeHtml(str){
+    return String(str ?? "").replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
+    }[c]));
+  }
+  function escapeAttr(str){ return escapeHtml(str).replace(/\s+/g," "); }
+
+  function addTask(t){
+    const tasks = loadTasks();
+    const idx = tasks.findIndex(x => x.id === t.id);
+    if (idx >= 0) tasks.splice(idx, 1);
+    tasks.unshift(t);
+    saveTasks(tasks);
+    renderTasks();
+  }
+  function patchTask(id, patch){
+    const tasks = loadTasks();
+    const i = tasks.findIndex(x => x.id === id);
+    if (i === -1) return;
+    tasks[i] = { ...tasks[i], ...patch, updatedAt: nowStr() };
+    saveTasks(tasks);
+    renderTasks();
+  }
+  function delTask(id){
+    saveTasks(loadTasks().filter(x => x.id !== id));
+    renderTasks();
+    log("删除任务：" + id);
+  }
+  function clearTasks(){
+    saveTasks([]);
+    renderTasks();
+    log("已清空全部任务");
+  }
+
+  async function fetchWithTimeout(url, options={}, timeoutMs=60000){
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try{ return await fetch(url, { ...options, signal: ctrl.signal }); }
+    finally{ clearTimeout(t); }
+  }
+
+  function parseExtraJson(){
+    const s = $("extraJson").value.trim();
+    if (!s) return null;
+    try { return JSON.parse(s); }
+    catch { throw new Error("高级 JSON 解析失败，请检查格式"); }
+  }
+
+  // POST /v1/videos (multipart/form-data)
+  async function createVideo({ baseUrl, apiKey, model, prompt, seconds, size, refFile, extraObj }){
+    const url = normalizeBaseUrl(baseUrl) + "/v1/videos";
+    const fd = new FormData();
+    fd.append("prompt", prompt);
+    if (model) fd.append("model", model);
+    if (seconds) fd.append("seconds", String(seconds));
+    if (size) fd.append("size", String(size));
+    if (refFile) fd.append("input_reference", refFile);
+
+    // 允许代理扩展字段；OpenAI 可能忽略/报错（看你网关）
+    if (extraObj && typeof extraObj === "object") {
+      for (const [k, v] of Object.entries(extraObj)) {
+        if (v === undefined) continue;
+        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") fd.append(k, String(v));
+        else fd.append(k, JSON.stringify(v));
+      }
+    }
+
+    const res = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(apiKey), body: fd }, 120000);
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = { raw:text }; }
+    if (!res.ok) throw new Error(`创建失败 HTTP ${res.status}: ` + (data?.error?.message || data.raw || text));
+    return data;
+  }
+
+  // GET /v1/videos/{id}
+  async function retrieveVideo({ baseUrl, apiKey, id }){
+    const url = normalizeBaseUrl(baseUrl) + "/v1/videos/" + encodeURIComponent(id);
+    const res = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(apiKey) }, 60000);
+    const text = await res.text();
+    let data; try{ data = JSON.parse(text); }catch{ data = { raw:text }; }
+    if (!res.ok) throw new Error(`查询失败 HTTP ${res.status}: ` + (data?.error?.message || data.raw || text));
+    return data;
+  }
+
+  // GET /v1/videos/{id}/content?variant=...
+  async function downloadContent({ baseUrl, apiKey, id, variant }){
+    let url = normalizeBaseUrl(baseUrl) + "/v1/videos/" + encodeURIComponent(id) + "/content";
+    if (variant) url += "?variant=" + encodeURIComponent(variant);
+
+    const res = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(apiKey) }, 180000);
+    if (!res.ok){
+      const t = await res.text().catch(()=> "");
+      throw new Error(`下载失败 HTTP ${res.status}: ${t}`);
+    }
+    const blob = await res.blob();
+    const localUrl = URL.createObjectURL(blob);
+    return { blob, localUrl, contentType: blob.type || res.headers.get("content-type") || "video/mp4" };
+  }
+
+  function renderTasks(){
+    const tasks = loadTasks();
+    if (!tasks.length){
+      tasksEl.innerHTML = `<div class="small">暂无任务。提交生成或“添加已有 video_id”后会出现在这里。</div>`;
+      return;
+    }
+    tasksEl.innerHTML = tasks.map(t => {
+      const status = t.status || "--";
+      const progress = (t.progress ?? "") !== "" ? ` · progress=${t.progress}` : "";
+      const preview = t.previewUrl ? `
+        <video controls playsinline src="${t.previewUrl}"></video>
+        <div class="meta">preview：<span class="mono">${escapeHtml(t.previewUrl)}</span></div>
+      ` : "";
+      const err = t.lastError ? `<div class="meta" style="color:#ef4444;">error：${escapeHtml(String(t.lastError)).slice(0,180)}</div>` : "";
+      return `
+        <div class="task">
+          <div class="taskHead">
+            <div style="flex:1;min-width:0;">
+              <div class="mono">${escapeHtml(t.id)}</div>
+              <div class="meta">model=${escapeHtml(t.model||"")} · status=${escapeHtml(status)}${progress}</div>
+              <div class="meta">updated：${escapeHtml(t.updatedAt||t.createdAt||"")}</div>
+              ${err}
+            </div>
+            <div class="pill">${escapeHtml(status)}</div>
+          </div>
+          <div class="taskBtns">
+            <button data-act="query" data-id="${escapeAttr(t.id)}">查询</button>
+            <button data-act="download" data-id="${escapeAttr(t.id)}">下载/预览</button>
+            <button data-act="save" data-id="${escapeAttr(t.id)}" ${t.previewUrl ? "" : "disabled"}>保存文件</button>
+            <button data-act="open" data-id="${escapeAttr(t.id)}" ${t.previewUrl ? "" : "disabled"}>打开预览</button>
+            <button class="danger" data-act="del" data-id="${escapeAttr(t.id)}">删除</button>
+          </div>
+          ${preview}
+        </div>
+      `;
+    }).join("");
+
+    tasksEl.querySelectorAll("button[data-act]").forEach(btn => {
+      btn.addEventListener("click", async () => {
+        const act = btn.getAttribute("data-act");
+        const id = btn.getAttribute("data-id");
+        if (!id) return;
+        if (act === "del") return delTask(id);
+        if (act === "open") return openPreview(id);
+        if (act === "save") return savePreview(id);
+        if (act === "query") return queryOne(id);
+        if (act === "download") return downloadOne(id);
+      });
+    });
+  }
+
+  function openPreview(id){
+    const t = loadTasks().find(x => x.id === id);
+    if (!t?.previewUrl) return;
+    const html = `
+      <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>Video Preview</title>
+      <style>body{margin:0;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto} .w{padding:12px}</style>
+      <div class="w">
+        <div style="opacity:.8;font-size:12px;margin-bottom:10px;">${escapeHtml(id)}</div>
+        <video controls playsinline style="width:100%;max-height:85vh" src="${escapeHtml(t.previewUrl)}"></video>
+      </div>
+    `;
+    const w = window.open();
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function savePreview(id){
+    const t = loadTasks().find(x => x.id === id);
+    if (!t?.previewUrl) return;
+    const a = document.createElement("a");
+    a.href = t.previewUrl;
+    a.download = `${id}.mp4`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    log("已触发下载（不同手机浏览器下载行为可能不同）");
+  }
+
+  function getPollMs(){
+    const sec = Number($("pollSec").value || 10);
+    return Math.max(2000, sec * 1000);
+  }
+  function setPollPill(running){
+    pollPill.textContent = running ? `轮询：运行中（${Math.round(getPollMs()/1000)}s）` : "轮询：未启动";
+  }
+
+  function startPolling(){
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(pollAllOnce, getPollMs());
+    setPollPill(true);
+    log("开始轮询（后台可能被系统降频/暂停）");
+  }
+  function stopPolling(){
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+    setPollPill(false);
+    log("已停止轮询");
+  }
+  document.addEventListener("visibilitychange", () => { if (pollTimer) startPolling(); });
+
+  async function pollAllOnce(){
+    const apiKey = $("apiKey").value.trim();
+    const baseUrl = $("baseUrl").value.trim();
+    if (!apiKey) return;
+
+    const pending = loadTasks().filter(t => !isTerminal(t.status));
+    for (const t of pending){
+      try{
+        const data = await retrieveVideo({ baseUrl, apiKey, id: t.id });
+        patchTask(t.id, {
+          status: data.status || t.status,
+          progress: data.progress ?? t.progress,
+          lastQueryRaw: data,
+          lastError: null
         });
-
-        // 被动连接 (作为房主)
-        peer.on('connection', (c) => {
-            conn = c;
-            setupConnection("host");
-        });
-
-        // 主动连接 (作为客端)
-        function connectToFriend() {
-            const friendId = document.getElementById('friend-id').value.trim();
-            if (!friendId) return alert("请输入朋友的号码");
-            
-            document.getElementById('status-msg').innerText = "正在呼叫...";
-            conn = peer.connect(friendId);
-            
-            conn.on('open', () => {
-                setupConnection("guest");
-            });
+        if (String(data.status||"").toLowerCase() === "completed") {
+          await tryNotify(`Sora 完成：${t.id}`);
         }
+      }catch(e){
+        patchTask(t.id, { lastError: String(e) });
+        log("轮询失败：" + t.id + " / " + String(e).slice(0,160));
+      }
+    }
+  }
 
-        // 通用连接设置
-        function setupConnection(role) {
-            document.getElementById('lobby').classList.add('hidden');
-            document.getElementById('game-ui').classList.remove('hidden');
-            
-            // 数据监听
-            conn.on('data', (data) => {
-                handleData(data);
-            });
+  async function queryOne(id){
+    const apiKey = $("apiKey").value.trim();
+    const baseUrl = $("baseUrl").value.trim();
+    if (!apiKey) return log("请先填写 API Key");
 
-            // 掉线处理
-            conn.on('close', () => {
-                alert("对方已断开连接");
-                location.reload();
-            });
+    log("查询任务：" + id);
+    try{
+      const data = await retrieveVideo({ baseUrl, apiKey, id });
+      patchTask(id, { status: data.status, progress: data.progress, lastQueryRaw: data, lastError: null });
+      log("查询成功：" + id + " status=" + (data.status||"--"));
+    }catch(e){
+      patchTask(id, { lastError: String(e) });
+      log("查询失败：" + String(e));
+    }
+  }
 
-            // 初始化游戏状态
-            isGameActive = true;
-            if (role === "host") {
-                mySymbol = '🌸';
-                opponentSymbol = '🧸';
-                myTurn = true; // 房主先手
-                updateStatus("轮到你贴贴纸了 (🌸)");
-            } else {
-                mySymbol = '🧸';
-                opponentSymbol = '🌸';
-                myTurn = false;
-                updateStatus("等待对方贴贴纸 (🌸)...");
-            }
-            renderBoard();
-        }
+  async function downloadOne(id){
+    const apiKey = $("apiKey").value.trim();
+    const baseUrl = $("baseUrl").value.trim();
+    const variant = $("variant").value.trim();
+    if (!apiKey) return log("请先填写 API Key");
 
-        // --- 2. 游戏逻辑 ---
+    log("下载/预览：" + id + (variant ? ` (variant=${variant})` : ""));
+    try{
+      const r = await downloadContent({ baseUrl, apiKey, id, variant });
+      patchTask(id, { previewUrl: r.localUrl, contentType: r.contentType, lastError: null });
+      log("已获取视频内容，可直接预览/保存");
+      await tryNotify(`已可预览：${id}`);
+    }catch(e){
+      patchTask(id, { lastError: String(e) });
+      log("下载失败：" + String(e));
+    }
+  }
 
-        const cells = document.querySelectorAll('.cell');
-        cells.forEach(cell => {
-            cell.addEventListener('click', () => handleCellClick(cell));
-        });
+  async function tryNotify(text){
+    if (!("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    try{ new Notification(text); }catch{}
+  }
 
-        function handleCellClick(cell) {
-            const index = cell.getAttribute('data-index');
+  $("btnNotif").addEventListener("click", async () => {
+    if (!("Notification" in window)) return log("该浏览器不支持 Notification");
+    const p = await Notification.requestPermission();
+    log("通知权限：" + p);
+  });
 
-            if (!isGameActive || !myTurn || gameState[index] !== '') return;
+  function persistSettings(){
+    localStorage.setItem(LS_BASE, normalizeBaseUrl($("baseUrl").value));
+    if ($("rememberKey").checked) localStorage.setItem(LS_KEY, $("apiKey").value.trim());
+    else localStorage.removeItem(LS_KEY);
+  }
 
-            // 1. 更新本地
-            makeMove(index, mySymbol);
-            myTurn = false;
-            updateStatus(`等待对方 (${opponentSymbol})...`);
+  $("btnCreate").addEventListener("click", async () => {
+    const baseUrl = $("baseUrl").value.trim();
+    const apiKey = $("apiKey").value.trim();
+    const model = $("model").value.trim();
+    const prompt = $("prompt").value.trim();
+    const seconds = $("seconds").value.trim();
+    const size = $("size").value.trim();
+    const refFile = $("refImage").files?.[0] || null;
 
-            // 2. 发送给对方
-            if(conn) {
-                conn.send({ type: 'move', index: index });
-            }
+    if (!apiKey) return log("请先填写 API Key");
+    if (!prompt) return log("请先填写 prompt");
+    persistSettings();
 
-            checkResult();
-        }
+    let extraObj = null;
+    try { extraObj = parseExtraJson(); } catch(e){ return log(String(e)); }
 
-        function handleData(data) {
-            if (data.type === 'move') {
-                makeMove(data.index, opponentSymbol);
-                myTurn = true;
-                updateStatus(`轮到你贴贴纸了 (${mySymbol})`);
-                checkResult();
-            } else if (data.type === 'restart') {
-                resetBoardLocal();
-            }
-        }
+    log("提交生成中…");
+    try{
+      const data = await createVideo({ baseUrl, apiKey, model, prompt, seconds, size, refFile, extraObj });
+      if (!data.id) return log("创建返回未包含 id：" + JSON.stringify(data).slice(0,500));
 
-        function makeMove(index, symbol) {
-            gameState[index] = symbol;
-            const cell = document.querySelector(`.cell[data-index='${index}']`);
-            cell.innerHTML = `<span class="sticker-anim">${symbol}</span>`;
-            cell.classList.add('taken');
-        }
+      addTask({
+        id: data.id,
+        model: data.model || model,
+        prompt,
+        status: data.status || "queued",
+        progress: data.progress ?? 0,
+        createdAt: nowStr(),
+        lastCreateRaw: data
+      });
 
-        function updateStatus(msg) {
-            document.getElementById('game-status').innerText = msg;
-        }
+      log("创建成功：id=" + data.id + "（服务端开始生成）");
+      if (!pollTimer) startPolling();
+    }catch(e){
+      log(String(e));
+    }
+  });
 
-        // --- 3. 胜负判定 ---
-        const winningConditions = [
-            [0, 1, 2], [3, 4, 5], [6, 7, 8],
-            [0, 3, 6], [1, 4, 7], [2, 5, 8],
-            [0, 4, 8], [2, 4, 6]
-        ];
+  $("btnAddExisting").addEventListener("click", () => {
+    const id = prompt("输入已有 video_id（例如 video_xxx）：");
+    if (!id) return;
+    addTask({ id: id.trim(), model: "(unknown)", prompt: "", status: "unknown", createdAt: nowStr() });
+    log("已添加已有任务：" + id.trim());
+  });
 
-        function checkResult() {
-            let roundWon = false;
-            let winner = null;
+  $("btnStartPoll").addEventListener("click", () => { persistSettings(); startPolling(); });
+  $("btnStopPoll").addEventListener("click", stopPolling);
+  $("btnClear").addEventListener("click", clearTasks);
+  $("btnRefresh").addEventListener("click", pollAllOnce);
 
-            for (let i = 0; i <= 7; i++) {
-                const winCondition = winningConditions[i];
-                let a = gameState[winCondition[0]];
-                let b = gameState[winCondition[1]];
-                let c = gameState[winCondition[2]];
-                if (a === '' || b === '' || c === '') continue;
-                if (a === b && b === c) {
-                    roundWon = true;
-                    winner = a;
-                    break;
-                }
-            }
+  window.addEventListener("online", setNetworkPill);
+  window.addEventListener("offline", setNetworkPill);
 
-            if (roundWon) {
-                endGame(winner === mySymbol ? "你赢了！🎉" : "对方赢了！👏");
-                return;
-            }
-
-            if (!gameState.includes("")) {
-                endGame("平局！☕");
-                return;
-            }
-        }
-
-        function endGame(message) {
-            isGameActive = false;
-            updateStatus(message);
-            document.getElementById('restart-btn').classList.remove('hidden');
-        }
-
-        // --- 4. 重置游戏 ---
-        function resetGame() {
-            if(conn) conn.send({ type: 'restart' });
-            resetBoardLocal();
-        }
-
-        function resetBoardLocal() {
-            gameState = ['', '', '', '', '', '', '', '', ''];
-            isGameActive = true;
-            document.getElementById('restart-btn').classList.add('hidden');
-            cells.forEach(cell => {
-                cell.innerHTML = "";
-                cell.classList.remove('taken');
-            });
-            
-            // 简单规则：谁点重置，谁就后手（或者保持原样，这里简化为根据符号判断）
-            if (mySymbol === '🌸') {
-                myTurn = true;
-                updateStatus("新局开始：轮到你 (🌸)");
-            } else {
-                myTurn = false;
-                updateStatus("新局开始：等待对方 (🌸)");
-            }
-        }
-
-        // --- 辅助功能 ---
-        function copyId() {
-            const idText = document.getElementById('my-id-display').innerText;
-            navigator.clipboard.writeText(idText).then(() => {
-                alert("号码已复制！发给朋友吧。");
-            });
-        }
-    </script>
+  (function init(){
+    const base = localStorage.getItem(LS_BASE); if (base) $("baseUrl").value = base;
+    const key = localStorage.getItem(LS_KEY);
+    if (key){ $("apiKey").value = key; $("rememberKey").checked = true; }
+    setNetworkPill();
+    renderTasks();
+    log("就绪：Model 输入框可直接自定义。");
+  })();
+</script>
 </body>
 </html>
-
