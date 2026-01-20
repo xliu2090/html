@@ -1,9 +1,10 @@
+html
 <!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Claude Mobile UI (Stream + Thinking + IndexedDB + Upload + Search)</title>
+  <title>Claude Mobile UI (Improved V2)</title>
   <style>
     :root{
       --bg: #F7F4EE;
@@ -21,14 +22,17 @@
       --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
       --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
-      /* 可自定义字体大小（设置里改） */
+      /* 可自定义变量 */
       --bubble-font: 15px;
       --prompt-font: 18px;
       --sidebar-item: 15px;
       --sidebar-title: 28px;
       --sidebar-sub: 12px;
+      
+      /* ✅ 新增：气泡宽度变量 */
+      --bubble-max-width: 92%;
 
-      /* ✅ 修复 iOS 100vh：JS 会动态写入 */
+      /* ✅ 修复 iOS 100vh */
       --app-height: 100vh;
     }
     *{ box-sizing:border-box; }
@@ -67,7 +71,7 @@
       display:flex;
       align-items:center;
       gap:10px;
-      min-width: 100px;
+      min-width: 80px;
     }
     .brand{
       font-weight:850;
@@ -146,7 +150,7 @@
     /* Bubbles */
     .bubble{
       width: fit-content;
-      max-width: 92%;
+      max-width: var(--bubble-max-width); /* ✅ 使用变量控制宽度 */
       padding: 12px 14px;
       border-radius: 16px;
       margin: 8px 0;
@@ -157,6 +161,7 @@
       font-size: var(--bubble-font);
       line-height: 1.55;
       position: relative;
+      transition: max-width 0.2s ease;
     }
     .bubble.user{
       margin-left:auto;
@@ -407,7 +412,7 @@
       white-space: nowrap;
     }
 
-    /* ✅ Composer：底部 safe-area + 不被 home indicator 吃掉 */
+    /* Composer */
     .composer{
       flex: 0 0 auto;
       display:flex;
@@ -445,7 +450,12 @@
       display:flex;
       align-items:center;
       gap: 10px;
-      min-width: 0;
+    }
+    /* ✅ 修复2：Send 按钮防挤压 */
+    .composerRight {
+      flex: 1; /* 占据剩余空间 */
+      justify-content: flex-end; /* 靠右 */
+      min-width: 0; /* 允许子元素压缩 */
     }
 
     .miniBtn{
@@ -458,6 +468,7 @@
       cursor:pointer;
       transition: background .15s ease, transform .08s ease, border-color .15s ease, opacity .15s ease;
       user-select:none;
+      flex: 0 0 auto;
     }
     .miniBtn:hover{ background: var(--btn-hover); }
     .miniBtn:active{ transform: scale(.98); }
@@ -467,7 +478,13 @@
     }
     .miniBtn:disabled{ opacity:.55; cursor:not-allowed; }
 
-    .modelSelect{ position:relative; min-width: 0; }
+    /* ✅ 修复2：ModelSelect 压缩逻辑 */
+    .modelSelect{
+      position:relative;
+      min-width: 0;
+      flex: 0 1 auto; /* 允许压缩 */
+      max-width: 100%;
+    }
     .modelBtn{
       height:44px;
       padding: 0 12px;
@@ -483,17 +500,18 @@
       font-weight: 900;
       white-space: nowrap;
       transition: opacity .15s ease;
-      max-width: 300px;
+      width: 100%; /* 撑满容器 */
       min-width: 0;
     }
     .modelBtn:disabled{ opacity:.55; cursor:not-allowed; }
     #modelText{
       display:inline-block;
-      max-width: 220px;
       overflow:hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
       vertical-align: bottom;
+      flex: 1; /* 文本自适应 */
+      text-align: right; /* 可选：右对齐显得更整齐 */
     }
     .chev{ opacity:.6; flex: 0 0 auto; }
 
@@ -507,7 +525,7 @@
       background: rgba(217,138,112,.55);
       box-shadow: 0 8px 18px rgba(217,138,112,.25);
       transition: transform .08s ease, filter .15s ease, opacity .15s ease;
-      flex: 0 0 auto;
+      flex: 0 0 44px; /* ✅ 强制不压缩 */
     }
     .sendBtn:hover{ filter: saturate(1.1); }
     .sendBtn:active{ transform: scale(.98); }
@@ -823,19 +841,32 @@
       transform: translateX(-50%) translateY(-4px);
     }
 
-    /* ✅ 颜色选择控件更像按钮 */
+    /* ✅ 改进1：颜色选择输入框组 */
+    .colorGroup {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
     input[type="color"]{
-      height: 46px;
-      padding: 6px 8px;
-      border-radius: 14px;
+      height: 40px;
+      width: 50px;
+      padding: 2px 4px;
+      border-radius: 8px;
       border: 1px solid rgba(0,0,0,.14);
       background: #fff;
+      cursor: pointer;
+    }
+    /* 文本框用于手动输入 RGB/Hex */
+    input.colorText {
+        flex: 1;
+        padding: 10px;
+        font-family: var(--mono);
     }
 
     @media (max-width: 420px){
       .empty{ font-size: 30px; }
       :root{ --sidebar-title: 26px; }
-      #modelText{ max-width: 180px; }
+      #modelText{ max-width: 120px; }
       .chip .name{ max-width: 160px; }
       .attachCard .fn{ max-width: 210px; }
     }
@@ -883,7 +914,7 @@
     <div class="modalBackdrop" id="settingsModal">
       <div class="modal" role="dialog" aria-modal="true" aria-label="Settings">
         <h3>设置</h3>
-        <p>数据保存在本机（IndexedDB）。导出/导入不包含 Key；附件 Blob 不随导出文件走（可按需扩展）。</p>
+        <p>数据保存在本机（IndexedDB）。导出/导入不包含 Key。</p>
 
         <label for="keyInput">API Key</label>
         <input id="keyInput" placeholder="sk-..." autocomplete="off" />
@@ -904,25 +935,46 @@
           <input id="fontSizeRange" type="range" min="13" max="20" step="1" />
           <div class="val" id="fontSizeVal">15</div>
         </div>
+        
+        <!-- ✅ 改进4：气泡宽度 -->
+        <label>气泡/对话框最大宽度 (50% - 100%)</label>
+        <div class="rangeRow">
+            <input id="bubbleWidthRange" type="range" min="50" max="100" step="1" />
+            <div class="val" id="bubbleWidthVal">92%</div>
+        </div>
 
-        <!-- ✅ 新增：主题颜色 -->
-        <label>主题颜色</label>
+        <!-- ✅ 改进1：主题颜色 (Picker + Text) -->
+        <label>主题颜色 (Hex/RGB)</label>
         <div class="row2">
           <div>
-            <label for="bgColorInput">背景色</label>
-            <input id="bgColorInput" type="color" />
+            <label>背景色</label>
+            <div class="colorGroup">
+                <input id="bgColorInput" type="color" />
+                <input id="bgColorText" class="colorText" type="text" placeholder="#F7F4EE" />
+            </div>
           </div>
           <div>
-            <label for="textColorInput">文字颜色</label>
-            <input id="textColorInput" type="color" />
+            <label>文字颜色</label>
+            <div class="colorGroup">
+                <input id="textColorInput" type="color" />
+                <input id="textColorText" class="colorText" type="text" placeholder="#1f1f1f" />
+            </div>
           </div>
         </div>
 
-        <!-- ✅ 新增：流式自动滚动开关（默认关闭=不自动滚动） -->
+        <!-- ✅ 改进3：Thinking 默认折叠 -->
+        <div class="toggleRow">
+            <div>
+              <strong>思考过程默认折叠</strong><br/>
+              <small>开启后：新消息的 Thinking 区域默认收起</small>
+            </div>
+            <input type="checkbox" id="thinkingCollapsedToggle" />
+        </div>
+
         <div class="toggleRow">
           <div>
             <strong>流式时自动滚动</strong><br/>
-            <small>关闭后：生成过程中不会自动跳到底部</small>
+            <small>开启后：生成过程中自动跳到底部</small>
           </div>
           <input type="checkbox" id="streamScrollToggle" />
         </div>
@@ -1091,7 +1143,7 @@
     <div class="toast" id="toast">已复制</div>
   </div>
 
-<script>
+ <script>
 /***********************
  * ✅ 修复 iOS 底部显示不全：动态设置 app 高度（含键盘/地址栏变化）
  ***********************/
@@ -1117,20 +1169,20 @@ const VE_BASE_URL = "https://api.vectorengine.ai/v1";
 const VE_KEY_STORAGE = "ve_api_key";
 const SYS_PROMPT_STORAGE = "ve_system_prompt";
 
-const STORE_KEY = "ve_chats_store_v3";                 // legacy localStorage key (migrate -> IndexedDB)
+const STORE_KEY = "ve_chats_store_v3";
 const CUSTOM_MODELS_KEY = "ve_custom_models_v1";
 const MODEL_ALIASES_KEY = "ve_model_aliases_v1";
-const UI_STATE_KEY = "ve_ui_state_v5";                 // ✅ bump version (+ streamAutoScroll)
+const UI_STATE_KEY = "ve_ui_state_v6"; // Version bump
 const TRANSLATE_MODEL_STORAGE = "ve_translate_model";
 const DEFAULT_TRANSLATE_MODEL = "gemini-2.5-flash-lite";
 const SEARCH_MODEL_STORAGE = "ve_search_model";
 const DEFAULT_SEARCH_MODEL = "gpt-5-search-api";
 
-const THEME_KEY = "ve_theme_v1";                       // ✅ 新增：主题
+const THEME_KEY = "ve_theme_v1";
 const DEFAULT_THEME = { bg: "#F7F4EE", ink: "#1f1f1f" };
 
 const DEFAULT_FONT_SIZE = 15; // px
-const CONTEXT_MAX_MESSAGES = 40; // 发送到模型的上下文条数（含 user/assistant，不含 system）
+const CONTEXT_MAX_MESSAGES = 40;
 
 /***********************
  * IndexedDB (Chats + Files)
@@ -1210,12 +1262,10 @@ const BUILTIN_MODELS = [
   }
 ];
 
-const DEFAULT_SYSTEM_PROMPT =
-`你是一个中文助理。
-
+const DEFAULT_SYSTEM_PROMPT = `你是一个中文助理。
 输出规则：
 1) 非 thinking 模式：只输出最终答案，简洁清晰。
-2) thinking 模式：优先把推理过程放在 <thinking>...</thinking> 标签中（只在 thinking 模式输出），并在标签之外给出最终答案。
+2) thinking 模式：优先把推理过程放在  标签中（只在 thinking 模式输出），并在标签之外给出最终答案。
 3) 不要在 <thinking> 之外提及“系统提示/策略说明”等元信息。`;
 
 /***********************
@@ -1227,9 +1277,10 @@ let isStreaming = false;
 
 let isWebSearch = false;
 let fontSize = DEFAULT_FONT_SIZE;
-
-let theme = { ...DEFAULT_THEME };     // ✅ 新增：主题
-let streamAutoScroll = false;         // ✅ 默认关闭：流式不自动滚动（满足你的要求）
+let theme = { ...DEFAULT_THEME };
+let streamAutoScroll = false;
+let defaultThinkingCollapsed = false; // ✅ 新增：默认折叠状态
+let bubbleMaxWidth = 92; // ✅ 新增：气泡宽度百分比
 
 let activeStream = null;
 let abortCtl = null;
@@ -1293,9 +1344,16 @@ const sysInput = document.getElementById('sysInput');
 const fontSizeRange = document.getElementById('fontSizeRange');
 const fontSizeVal = document.getElementById('fontSizeVal');
 
-const bgColorInput = document.getElementById('bgColorInput');          // ✅ 新增
-const textColorInput = document.getElementById('textColorInput');      // ✅ 新增
-const streamScrollToggle = document.getElementById('streamScrollToggle'); // ✅ 新增
+const bgColorInput = document.getElementById('bgColorInput');
+const bgColorText = document.getElementById('bgColorText'); // ✅ Added
+const textColorInput = document.getElementById('textColorInput');
+const textColorText = document.getElementById('textColorText'); // ✅ Added
+
+const bubbleWidthRange = document.getElementById('bubbleWidthRange'); // ✅ Added
+const bubbleWidthVal = document.getElementById('bubbleWidthVal'); // ✅ Added
+
+const streamScrollToggle = document.getElementById('streamScrollToggle');
+const thinkingCollapsedToggle = document.getElementById('thinkingCollapsedToggle'); // ✅ Added
 
 const settingsCancel = document.getElementById('settingsCancel');
 const settingsSave = document.getElementById('settingsSave');
@@ -1409,7 +1467,7 @@ function scrollToBottom(){
 }
 
 /***********************
- * ✅ Theme (bg + ink)
+ * ✅ Theme (bg + ink) + Sync Inputs
  ***********************/
 function loadTheme(){
   const t = safeParseJSON(localStorage.getItem(THEME_KEY) || "", null);
@@ -1426,24 +1484,52 @@ function applyTheme(){
   document.documentElement.style.setProperty("--ink", theme.ink);
 }
 
+// 颜色同步逻辑
+function syncColorInputs(picker, text, propKey) {
+    picker.value = theme[propKey];
+    text.value = theme[propKey];
+
+    picker.addEventListener("input", (e) => {
+        text.value = e.target.value;
+    });
+
+    text.addEventListener("change", (e) => {
+        const val = e.target.value.trim();
+        // 简单校验 CSS 颜色
+        if (CSS.supports('color', val)) {
+            // 如果是 Hex，同步给 picker
+            if (/^#[0-9A-F]{6}$/i.test(val)) {
+                picker.value = val;
+            }
+        }
+    });
+}
+
 /***********************
- * Font size apply
+ * Font size & Bubble Width apply
  ***********************/
-function applyFontSize(){
+function applyStyleSettings(){
   const fs = Math.max(13, Math.min(20, Number(fontSize) || DEFAULT_FONT_SIZE));
   fontSize = fs;
-
   document.documentElement.style.setProperty("--bubble-font", fs + "px");
   document.documentElement.style.setProperty("--prompt-font", (fs + 3) + "px");
   document.documentElement.style.setProperty("--sidebar-item", fs + "px");
-
   fontSizeRange.value = String(fs);
   fontSizeVal.textContent = String(fs);
+
+  // ✅ 气泡宽度
+  let bw = Number(bubbleMaxWidth);
+  if (bw < 50) bw = 50; if (bw > 100) bw = 100;
+  bubbleMaxWidth = bw;
+  document.documentElement.style.setProperty("--bubble-max-width", bw + "%");
+  bubbleWidthRange.value = String(bw);
+  bubbleWidthVal.textContent = bw + "%";
+
   saveUIState();
 }
 
 /***********************
- * Markdown renderer (safe: escape HTML first)
+ * Markdown renderer (safe)
  ***********************/
 function escapeHtml(s){
   return (s ?? "").toString()
@@ -1462,24 +1548,20 @@ function safeLinkUrl(url){
 }
 function renderInline(md){
   let s = escapeHtml(md);
-
   s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url)=>{
     const safe = safeLinkUrl(url.trim());
     if (!safe) return `${text}`;
     return `<a href="${escapeHtml(safe)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
   });
-
   s = s.replace(/`([^`]+)`/g, (_, code)=> `<code>${escapeHtml(code)}</code>`);
   s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   s = s.replace(/(^|[^\*])\*([^*\n]+)\*([^\*]|$)/g, "$1<em>$2</em>$3");
   s = s.replace(/^\s*---\s*$/gm, "<hr/>");
-
   return s;
 }
 function renderMarkdown(md){
   const text = (md ?? "").toString().replace(/\r\n/g, "\n");
   if (!text.trim()) return "";
-
   const parts = text.split("```");
   let html = "";
   for (let i = 0; i < parts.length; i++){
@@ -1494,7 +1576,6 @@ function renderMarkdown(md){
       const lines = chunk.split("\n");
       let inUl = false, inOl = false, inBq = false;
       let para = [];
-
       const flushPara = ()=>{
         if (para.length){
           const p = renderInline(para.join("\n")).replace(/\n/g,"<br/>");
@@ -1509,18 +1590,12 @@ function renderMarkdown(md){
       const closeBq = ()=>{
         if (inBq){ html += `</blockquote>`; inBq = false; }
       };
-
       for (let ln of lines){
         const raw = ln;
         const trimmed = raw.trimEnd();
-
         if (!trimmed.trim()){
-          flushPara();
-          closeLists();
-          closeBq();
-          continue;
+          flushPara(); closeLists(); closeBq(); continue;
         }
-
         const hm = trimmed.match(/^(#{1,6})\s+(.*)$/);
         if (hm){
           flushPara(); closeLists(); closeBq();
@@ -1528,17 +1603,13 @@ function renderMarkdown(md){
           html += `<h${level}>${renderInline(hm[2])}</h${level}>`;
           continue;
         }
-
         const bqm = trimmed.match(/^>\s?(.*)$/);
         if (bqm){
           flushPara(); closeLists();
           if (!inBq){ html += `<blockquote>`; inBq = true; }
           html += `<p>${renderInline(bqm[1])}</p>`;
           continue;
-        } else {
-          closeBq();
-        }
-
+        } else { closeBq(); }
         const ulm = trimmed.match(/^[-*]\s+(.*)$/);
         if (ulm){
           flushPara();
@@ -1547,7 +1618,6 @@ function renderMarkdown(md){
           html += `<li>${renderInline(ulm[1])}</li>`;
           continue;
         }
-
         const olm = trimmed.match(/^\d+\.\s+(.*)$/);
         if (olm){
           flushPara();
@@ -1556,21 +1626,17 @@ function renderMarkdown(md){
           html += `<li>${renderInline(olm[1])}</li>`;
           continue;
         }
-
         closeLists();
         para.push(raw);
       }
-
-      flushPara();
-      closeLists();
-      closeBq();
+      flushPara(); closeLists(); closeBq();
     }
   }
   return html;
 }
 
 /***********************
- * Models: load/save/merge
+ * Models
  ***********************/
 function loadModels(){
   customModels = safeParseJSON(localStorage.getItem(CUSTOM_MODELS_KEY) || "[]", []);
@@ -1584,7 +1650,6 @@ function loadModels(){
       thinkingOnly: !!m.thinkingOnly,
       builtin: false
     }));
-
   modelAliases = safeParseJSON(localStorage.getItem(MODEL_ALIASES_KEY) || "{}", {});
   if (!modelAliases || typeof modelAliases !== "object") modelAliases = {};
 }
@@ -1627,7 +1692,6 @@ function currentModelId(){
 
 function applyModelCapabilities(){
   const m = getModelById(selectedModelId);
-
   if (!m) {
     isThinking = false;
     clockBtn.disabled = true;
@@ -1644,7 +1708,6 @@ function applyModelCapabilities(){
     clockBtn.disabled = true;
     clockBtn.classList.remove("active");
   }
-
   refreshModelText();
   saveUIState();
 }
@@ -1667,9 +1730,9 @@ function loadUIState(){
     if (typeof ui.isThinking === "boolean") isThinking = ui.isThinking;
     if (typeof ui.isWebSearch === "boolean") isWebSearch = ui.isWebSearch;
     if (typeof ui.fontSize === "number") fontSize = ui.fontSize;
-
-    // ✅ 新增
     if (typeof ui.streamAutoScroll === "boolean") streamAutoScroll = ui.streamAutoScroll;
+    if (typeof ui.defaultThinkingCollapsed === "boolean") defaultThinkingCollapsed = ui.defaultThinkingCollapsed;
+    if (typeof ui.bubbleMaxWidth === "number") bubbleMaxWidth = ui.bubbleMaxWidth;
   }
   if (!getModelById(selectedModelId)) {
     selectedModelId = BUILTIN_MODELS[0].id;
@@ -1682,7 +1745,9 @@ function saveUIState(){
     isThinking,
     isWebSearch,
     fontSize,
-    streamAutoScroll
+    streamAutoScroll,
+    defaultThinkingCollapsed,
+    bubbleMaxWidth
   }));
 }
 
@@ -1731,10 +1796,8 @@ async function loadStoreFromDB(){
   const chats = (await idbGetAll("chats")).map(normalizeChat);
   chats.sort((a,b)=> b.updatedAt - a.updatedAt);
   store.chats = chats;
-
   const active = (await idbGet("meta", "activeId"))?.value || "";
   store.activeId = active && store.chats.find(c => c.id === active) ? active : (store.chats[0]?.id || "");
-
   if (!store.activeId) {
     createNewChat();
   }
@@ -1809,10 +1872,7 @@ function closeDrawer(){ drawer.classList.remove('open'); backdrop.classList.remo
 menuBtn.addEventListener('click', openDrawer);
 drawerClose.addEventListener('click', closeDrawer);
 backdrop.addEventListener('click', closeDrawer);
-newChatBtn.addEventListener('click', ()=>{
-  createNewChat();
-  closeDrawer();
-});
+newChatBtn.addEventListener('click', ()=>{ createNewChat(); closeDrawer(); });
 
 /***********************
  * Swipe gestures
@@ -1820,13 +1880,11 @@ newChatBtn.addEventListener('click', ()=>{
 (function setupSwipe(){
   let sx = 0, sy = 0, st = 0;
   let tracking = false;
-
   function isInteractiveTarget(t){
     if (!t) return false;
     const tag = (t.tagName || "").toLowerCase();
-    return tag === "input" || tag === "textarea" || tag === "button" || t.closest?.(".dropdown") || t.closest?.(".modal") || t.closest?.("a");
+    return tag === "input" || tag === "textarea" || tag === "button" || t.closest?.(".dropdown") || t.closest?.(".modal") || t.closest?.("a") || t.type === "range";
   }
-
   appEl.addEventListener("touchstart", (e)=>{
     if (!e.touches || e.touches.length !== 1) return;
     const t = e.target;
@@ -1836,29 +1894,19 @@ newChatBtn.addEventListener('click', ()=>{
     sy = e.touches[0].clientY;
     st = Date.now();
   }, { passive:true });
-
   appEl.addEventListener("touchend", (e)=>{
     if (!tracking) return;
     tracking = false;
     if (!e.changedTouches || e.changedTouches.length !== 1) return;
-
     const dx = e.changedTouches[0].clientX - sx;
-    const dy = e.changedTouches[0].clientY - sy;
     const dt = Date.now() - st;
-
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
-
     if (adx < 70) return;
     if (adx < ady * 1.4) return;
     if (dt > 800) return;
-
     const drawerOpen = drawer.classList.contains("open");
-    if (!drawerOpen && dx < -70) {
-      openDrawer();
-    } else if (drawerOpen && dx > 70) {
-      closeDrawer();
-    }
+    if (!drawerOpen && dx < -70) { openDrawer(); } else if (drawerOpen && dx > 70) { closeDrawer(); }
   }, { passive:true });
 })();
 
@@ -1868,7 +1916,6 @@ newChatBtn.addEventListener('click', ()=>{
 function renderChatsList(){
   chatListEl.innerHTML = "";
   const chats = [...store.chats].sort((a,b)=> b.updatedAt - a.updatedAt);
-
   if (!chats.length) {
     const div = document.createElement("div");
     div.style.padding = "10px";
@@ -1878,45 +1925,34 @@ function renderChatsList(){
     chatListEl.appendChild(div);
     return;
   }
-
   for (const c of chats) {
     const item = document.createElement("div");
     item.className = "chatItem" + (c.id === store.activeId ? " active" : "");
     item.addEventListener("click", ()=> setActiveChat(c.id));
-
     const t = document.createElement("div");
     t.className = "chatTitle";
     t.textContent = c.title || "New chat";
-
     const meta = document.createElement("div");
     meta.className = "chatMeta";
-
     const left = document.createElement("span");
     left.textContent = `${c.messages?.length || 0} msgs`;
-
     const right = document.createElement("span");
     right.textContent = formatTime(c.updatedAt);
-
     meta.appendChild(left);
     meta.appendChild(right);
-
     item.appendChild(t);
     item.appendChild(meta);
     chatListEl.appendChild(item);
   }
 }
-
-function renderSidebar(){
-  renderChatsList();
-}
+function renderSidebar(){ renderChatsList(); }
 
 /***********************
- * Model manager render (in modal)
+ * Model manager/Dropdown
  ***********************/
 function renderModelManager(){
   modelManagerList.innerHTML = "";
   const models = getAllModels();
-
   for (const m of models){
     const row = document.createElement("div");
     row.style.display = "flex";
@@ -1937,15 +1973,12 @@ function renderModelManager(){
       renderModelDropdown();
       showToast("已切换模型");
     });
-
     const left = document.createElement("div");
     left.style.minWidth = "0";
-
     const name = document.createElement("div");
     name.style.fontWeight = "950";
     name.style.color = "rgba(0,0,0,.78)";
     name.textContent = getModelLabel(m) + (m.id === selectedModelId ? " ✓" : "");
-
     const id = document.createElement("div");
     id.style.fontSize = "12px";
     id.style.fontWeight = "850";
@@ -1954,86 +1987,58 @@ function renderModelManager(){
     id.style.overflow = "hidden";
     id.style.textOverflow = "ellipsis";
     id.textContent = m.id + (m.thinkingOnly ? "  (thinking-only)" : (m.thinkingId ? "" : "  (no thinking)"));
-
     left.appendChild(name);
     left.appendChild(id);
-
     const right = document.createElement("div");
     right.style.display = "flex";
     right.style.gap = "8px";
     right.style.flex = "0 0 auto";
-
     const mk = (title, svg) => {
       const b = document.createElement("button");
       b.className = "actionBtn";
       b.title = title;
       b.innerHTML = svg;
-      b.addEventListener("click", (e)=>{
-        e.stopPropagation();
-      });
+      b.addEventListener("click", (e)=>{ e.stopPropagation(); });
       return b;
     };
-
-    const editBtn = mk("Edit", `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/>
-        <path d="M13.5 6.5l4 4" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/>
-      </svg>
-    `);
+    const editBtn = mk("Edit", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/></svg>`);
     editBtn.addEventListener("click", ()=> openModelModalEdit(m));
     right.appendChild(editBtn);
-
     if (!m.builtin){
-      const delBtn = mk("Delete", `
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M6 7h12M9 7V5h6v2M8 7l1 14h6l1-14" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      `);
+      const delBtn = mk("Delete", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 7h12M9 7V5h6v2M8 7l1 14h6l1-14" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
       delBtn.addEventListener("click", ()=> openModelModalEdit(m));
       right.appendChild(delBtn);
     }
-
     row.appendChild(left);
     row.appendChild(right);
     modelManagerList.appendChild(row);
   }
 }
 
-/***********************
- * Dropdown render
- ***********************/
 function renderModelDropdown(){
   dropdown.innerHTML = "";
   const models = getAllModels();
-
   for (const m of models) {
     const item = document.createElement("div");
     item.className = "ddItem";
     item.dataset.modelId = m.id;
-
     const meta = document.createElement("div");
     meta.className = "meta";
-
     const name = document.createElement("div");
     name.className = "name";
     name.textContent = getModelLabel(m) + (m.id === selectedModelId ? " ✓" : "");
-
     const id = document.createElement("div");
     id.className = "id";
     id.textContent = m.id;
-
     meta.appendChild(name);
     meta.appendChild(id);
-
     const tag = document.createElement("div");
     tag.className = "tag";
     if (m.thinkingOnly) tag.textContent = "Thinking-only";
     else if (m.thinkingId) tag.textContent = "Base/Thinking";
     else tag.textContent = "Base only";
-
     item.appendChild(meta);
     item.appendChild(tag);
-
     item.addEventListener("click", ()=>{
       if (isStreaming) return;
       selectedModelId = m.id;
@@ -2042,14 +2047,11 @@ function renderModelDropdown(){
       applyModelCapabilities();
       renderModelDropdown();
     });
-
     dropdown.appendChild(item);
   }
-
   const div = document.createElement("div");
   div.className = "ddDivider";
   dropdown.appendChild(div);
-
   const manage = document.createElement("div");
   manage.className = "ddFooter";
   manage.innerHTML = `<span>模型管理…</span><span style="opacity:.55;">›</span>`;
@@ -2065,40 +2067,22 @@ function toggleDropdown(){
   const isOpen = dropdown.classList.toggle('open');
   modelBtn.setAttribute('aria-expanded', String(isOpen));
 }
-modelBtn.addEventListener('click', (e)=>{
-  e.stopPropagation();
-  toggleDropdown();
-});
-document.addEventListener('click', ()=>{
-  dropdown.classList.remove('open');
-  modelBtn.setAttribute('aria-expanded', 'false');
-});
+modelBtn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleDropdown(); });
+document.addEventListener('click', ()=>{ dropdown.classList.remove('open'); modelBtn.setAttribute('aria-expanded', 'false'); });
 
 /***********************
- * Clock toggle (thinking)
+ * Clock / Web / Attach
  ***********************/
 clockBtn.addEventListener('click', ()=>{
   if (isStreaming) return;
   const m = getModelById(selectedModelId);
   if (!m) return;
-
-  if (m.thinkingOnly) {
-    isThinking = true;
-    applyModelCapabilities();
-    return;
-  }
-  if (!modelSupportsThinkingToggle(m)) {
-    isThinking = false;
-    applyModelCapabilities();
-    return;
-  }
+  if (m.thinkingOnly) { isThinking = true; applyModelCapabilities(); return; }
+  if (!modelSupportsThinkingToggle(m)) { isThinking = false; applyModelCapabilities(); return; }
   isThinking = !isThinking;
   applyModelCapabilities();
 });
 
-/***********************
- * Web Search toggle
- ***********************/
 function applyWebSearchState(){
   webBtn.classList.toggle("active", !!isWebSearch);
   refreshModelText();
@@ -2119,17 +2103,12 @@ webBtn.addEventListener("click", (e)=>{
   applyWebSearchState();
 });
 
-/***********************
- * Attachments
- ***********************/
 function renderAttachBar(){
   attachBar.innerHTML = "";
   attachBar.classList.toggle("show", draftAttachments.length > 0);
-
   for (const a of draftAttachments){
     const chip = document.createElement("div");
     chip.className = "chip";
-
     if (a.isImage){
       const img = document.createElement("img");
       img.className = "thumb";
@@ -2146,18 +2125,12 @@ function renderAttachBar(){
       icon.style.display = "grid";
       icon.style.placeItems = "center";
       icon.style.background = "rgba(255,255,255,.55)";
-      icon.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
-          <path d="M14 3v4h4" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
-        </svg>`;
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="rgba(0,0,0,.6)" stroke-width="2"/><path d="M14 3v4h4" stroke="rgba(0,0,0,.6)" stroke-width="2"/></svg>`;
       chip.appendChild(icon);
     }
-
     const name = document.createElement("div");
     name.className = "name";
     name.textContent = a.name || "file";
-
     const x = document.createElement("div");
     x.className = "x";
     x.title = "Remove";
@@ -2167,80 +2140,47 @@ function renderAttachBar(){
       renderAttachBar();
       syncSendState();
     });
-
     chip.appendChild(name);
     chip.appendChild(x);
     attachBar.appendChild(chip);
   }
 }
-
-plusBtn.addEventListener("click", ()=>{
-  if (isStreaming) return;
-  filePicker.value = "";
-  filePicker.click();
-});
-
+plusBtn.addEventListener("click", ()=>{ if (isStreaming) return; filePicker.value = ""; filePicker.click(); });
 filePicker.addEventListener("change", async ()=>{
   const files = Array.from(filePicker.files || []);
   if (!files.length) return;
-
   for (const f of files){
     const id = "f_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,8);
     const isImage = /^image\//.test(f.type || "");
     let text = "";
-    const isTextLike =
-      /^(text\/|application\/json)/.test(f.type || "") ||
-      /\.(txt|md|json|csv|log)$/i.test(f.name || "");
+    const isTextLike = /^(text\/|application\/json)/.test(f.type || "") || /\.(txt|md|json|csv|log)$/i.test(f.name || "");
     if (isTextLike && f.size <= 200 * 1024){
       try{
         text = await f.text();
         if (text.length > 20000) text = text.slice(0,20000) + "\n…(truncated)";
       }catch{}
     }
-
-    draftAttachments.push({
-      id,
-      name: f.name || "file",
-      type: f.type || "",
-      size: f.size || 0,
-      lastModified: f.lastModified || 0,
-      isImage,
-      blob: f,
-      text
-    });
+    draftAttachments.push({ id, name: f.name || "file", type: f.type || "", size: f.size || 0, lastModified: f.lastModified || 0, isImage, blob: f, text });
   }
-
   renderAttachBar();
   syncSendState();
 });
 
 /***********************
- * File helpers (IndexedDB)
+ * File helpers
  ***********************/
 async function putFileRecord(att){
-  const rec = {
-    id: att.id,
-    name: att.name,
-    type: att.type,
-    size: att.size,
-    lastModified: att.lastModified,
-    blob: att.blob
-  };
+  const rec = { id: att.id, name: att.name, type: att.type, size: att.size, lastModified: att.lastModified, blob: att.blob };
   await idbPut("files", rec);
 }
-
 function revokeAllFileUrls(){
-  for (const url of fileUrlCache.values()){
-    try{ URL.revokeObjectURL(url); }catch{}
-  }
+  for (const url of fileUrlCache.values()){ try{ URL.revokeObjectURL(url); }catch{} }
   fileUrlCache.clear();
 }
-
 async function getFileBlob(fileId){
   const rec = await idbGet("files", fileId);
   return rec?.blob || null;
 }
-
 async function getFileUrl(fileId){
   if (fileUrlCache.has(fileId)) return fileUrlCache.get(fileId);
   const blob = await getFileBlob(fileId);
@@ -2249,7 +2189,6 @@ async function getFileUrl(fileId){
   fileUrlCache.set(fileId, url);
   return url;
 }
-
 function blobToDataURL(blob){
   return new Promise((resolve, reject)=>{
     const r = new FileReader();
@@ -2264,26 +2203,12 @@ function blobToDataURL(blob){
  ***********************/
 function clearChatDOM(){
   revokeAllFileUrls();
-  Array.from(chatwrap.children).forEach(ch=>{
-    if (ch !== emptyState) ch.remove();
-  });
+  Array.from(chatwrap.children).forEach(ch=>{ if (ch !== emptyState) ch.remove(); });
 }
-function showEmpty(show){
-  emptyState.style.display = show ? "" : "none";
-}
+function showEmpty(show){ emptyState.style.display = show ? "" : "none"; }
 
 /* Create a bubble with header actions */
-function createBubble({
-  roleClass,
-  kindClass,
-  label,
-  text,
-  msgId,
-  part,
-  allowTranslate,
-  allowRetry,
-  allowContinue
-}){
+function createBubble({ roleClass, kindClass, label, text, msgId, part, allowTranslate, allowRetry, allowContinue }){
   const b = document.createElement('div');
   b.className = `bubble ${roleClass} ${kindClass || ""}`.trim();
   b.dataset.msgId = msgId || "";
@@ -2291,22 +2216,25 @@ function createBubble({
   b.dataset.kind = kindClass || "";
   b.dataset.showZh = "0";
 
+  // ✅ 改进3：默认折叠 Thinking
+  if (kindClass === "thinking" && defaultThinkingCollapsed) {
+    b.classList.add("collapsed");
+  }
+
   const top = document.createElement("div");
   top.className = "bubbleTop";
-
   const lab = document.createElement("div");
   lab.className = "bubbleLabel";
 
   if (kindClass === "thinking") {
     const caret = document.createElement("span");
     caret.className = "caret";
-    caret.textContent = "▾";
+    // 默认折叠时，箭头方向正确
+    caret.textContent = b.classList.contains("collapsed") ? "▸" : "▾";
     lab.appendChild(caret);
-
     const t = document.createElement("span");
     t.textContent = label || "thinking";
     lab.appendChild(t);
-
     lab.style.cursor = "pointer";
     lab.addEventListener("click", ()=>{
       b.classList.toggle("collapsed");
@@ -2328,47 +2256,20 @@ function createBubble({
     return btn;
   };
 
-  const copyBtn = mkBtn("Copy", `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M9 9h10v12H9V9Z" stroke="rgba(0,0,0,.72)" stroke-width="2" />
-      <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" stroke="rgba(0,0,0,.60)" stroke-width="2" />
-    </svg>
-  `);
-
-  const editBtn = mkBtn("Edit", `
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/>
-      <path d="M13.5 6.5l4 4" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/>
-    </svg>
-  `);
+  const copyBtn = mkBtn("Copy", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 9h10v12H9V9Z" stroke="rgba(0,0,0,.72)" stroke-width="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" stroke="rgba(0,0,0,.60)" stroke-width="2" /></svg>`);
+  const editBtn = mkBtn("Edit", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 20h4l10.5-10.5a2 2 0 0 0 0-3L16.5 4.5a2 2 0 0 0-3 0L3 15v5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/><path d="M13.5 6.5l4 4" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/></svg>`);
 
   let translateBtn = null;
   if (allowTranslate) {
-    translateBtn = mkBtn("Translate to Chinese (Shift+Click to choose model)", `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M4 5h10M9 5v14M6 9h6" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/>
-        <path d="M14 19s3-2 3-7m0 0s3 5 3 7m-3-7v-2" stroke="rgba(0,0,0,.62)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `);
+    translateBtn = mkBtn("Translate to Chinese (Shift+Click to choose model)", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 5h10M9 5v14M6 9h6" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linecap="round"/><path d="M14 19s3-2 3-7m0 0s3 5 3 7m-3-7v-2" stroke="rgba(0,0,0,.62)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
   }
-
   let retryBtn = null;
   if (allowRetry) {
-    retryBtn = mkBtn("Regenerate", `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M20 12a8 8 0 1 1-2.3-5.7" stroke="rgba(0,0,0,.70)" stroke-width="2" stroke-linecap="round"/>
-        <path d="M20 4v6h-6" stroke="rgba(0,0,0,.70)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    `);
+    retryBtn = mkBtn("Regenerate", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 12a8 8 0 1 1-2.3-5.7" stroke="rgba(0,0,0,.70)" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" stroke="rgba(0,0,0,.70)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`);
   }
-
   let contBtn = null;
   if (allowContinue) {
-    contBtn = mkBtn("Continue", `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-        <path d="M8 5l11 7-11 7V5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/>
-      </svg>
-    `);
+    contBtn = mkBtn("Continue", `<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 5l11 7-11 7V5Z" stroke="rgba(0,0,0,.72)" stroke-width="2" stroke-linejoin="round"/></svg>`);
   }
 
   actions.appendChild(copyBtn);
@@ -2394,32 +2295,10 @@ function createBubble({
     const raw = shown ? (b.dataset.zhText || body.dataset.raw || "") : (body.dataset.raw || "");
     copyToClipboard(raw);
   });
-
-  editBtn.addEventListener("click", (e)=>{
-    e.stopPropagation();
-    startInlineEdit(b);
-  });
-
-  if (translateBtn) {
-    translateBtn.addEventListener("click", (e)=>{
-      e.stopPropagation();
-      handleTranslate(b, e);
-    });
-  }
-
-  if (retryBtn) {
-    retryBtn.addEventListener("click", (e)=>{
-      e.stopPropagation();
-      handleRegenerate(b);
-    });
-  }
-
-  if (contBtn) {
-    contBtn.addEventListener("click", (e)=>{
-      e.stopPropagation();
-      handleContinue(b);
-    });
-  }
+  editBtn.addEventListener("click", (e)=>{ e.stopPropagation(); startInlineEdit(b); });
+  if (translateBtn) { translateBtn.addEventListener("click", (e)=>{ e.stopPropagation(); handleTranslate(b, e); }); }
+  if (retryBtn) { retryBtn.addEventListener("click", (e)=>{ e.stopPropagation(); handleRegenerate(b); }); }
+  if (contBtn) { contBtn.addEventListener("click", (e)=>{ e.stopPropagation(); handleContinue(b); }); }
 
   chatwrap.appendChild(b);
   return { bubble: b, bodyEl: body };
@@ -2429,20 +2308,16 @@ async function renderAttachmentsInto(container, attachments){
   if (!attachments || !attachments.length) return;
   const list = document.createElement("div");
   list.className = "attachList";
-
   for (const a of attachments){
     const card = document.createElement("div");
     card.className = "attachCard";
-
     if (a.isImage){
       const img = document.createElement("img");
       img.className = "thumb";
       img.alt = a.name || "image";
       img.src = "";
       card.appendChild(img);
-      getFileUrl(a.id).then(url=>{
-        if (url) img.src = url;
-      });
+      getFileUrl(a.id).then(url=>{ if (url) img.src = url; });
     } else {
       const icon = document.createElement("div");
       icon.style.width = "38px";
@@ -2452,14 +2327,9 @@ async function renderAttachmentsInto(container, attachments){
       icon.style.display = "grid";
       icon.style.placeItems = "center";
       icon.style.background = "rgba(255,255,255,.55)";
-      icon.innerHTML = `
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-          <path d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
-          <path d="M14 3v4h4" stroke="rgba(0,0,0,.6)" stroke-width="2"/>
-        </svg>`;
+      icon.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M7 3h7l3 3v15a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" stroke="rgba(0,0,0,.6)" stroke-width="2"/><path d="M14 3v4h4" stroke="rgba(0,0,0,.6)" stroke-width="2"/></svg>`;
       card.appendChild(icon);
     }
-
     const meta = document.createElement("div");
     meta.className = "meta";
     const fn = document.createElement("div");
@@ -2470,7 +2340,6 @@ async function renderAttachmentsInto(container, attachments){
     sz.textContent = bytesToSize(a.size || 0);
     meta.appendChild(fn);
     meta.appendChild(sz);
-
     const link = document.createElement("a");
     link.href = "javascript:void(0)";
     link.textContent = "下载";
@@ -2484,97 +2353,46 @@ async function renderAttachmentsInto(container, attachments){
       aEl.click();
       aEl.remove();
     });
-
     card.appendChild(meta);
     card.appendChild(link);
     list.appendChild(card);
   }
-
   container.appendChild(list);
 }
 
-/***********************
- * Render chat
- ***********************/
 function renderChat(forceScrollToBottom=false){
   const chat = getActiveChat();
-
   const wasNear = isNearBottom(chatwrap, 80) || forceScrollToBottom;
-
   clearChatDOM();
-
-  if (!chat || !chat.messages || chat.messages.length === 0) {
-    showEmpty(true);
-    return;
-  }
-
+  if (!chat || !chat.messages || chat.messages.length === 0) { showEmpty(true); return; }
   showEmpty(false);
-
   const msgs = chat.messages;
   const total = msgs.length;
   const from = Math.max(0, total - chatWindowLimit);
   const slice = msgs.slice(from);
-
   if (from > 0) {
     const wrap = document.createElement("div");
     wrap.className = "loadEarlier";
     const btn = document.createElement("button");
     btn.textContent = `加载更早消息（剩余 ${from}）`;
-    btn.addEventListener("click", ()=>{
-      chatWindowLimit = Math.min(total, chatWindowLimit + WINDOW_STEP);
-      renderChat(false);
-    });
+    btn.addEventListener("click", ()=>{ chatWindowLimit = Math.min(total, chatWindowLimit + WINDOW_STEP); renderChat(false); });
     wrap.appendChild(btn);
     chatwrap.appendChild(wrap);
   }
-
   for (const msg of slice) {
     if (msg.role === "user") {
-      const { bubble } = createBubble({
-        roleClass: "user",
-        kindClass: "user",
-        label: "you",
-        text: msg.content || "",
-        msgId: msg.id,
-        part: "content",
-        allowTranslate: false,
-        allowRetry: false,
-        allowContinue: false
-      });
+      const { bubble } = createBubble({ roleClass: "user", kindClass: "user", label: "you", text: msg.content || "", msgId: msg.id, part: "content", allowTranslate: false, allowRetry: false, allowContinue: false });
       if (msg.attachments?.length) renderAttachmentsInto(bubble, msg.attachments);
     } else if (msg.role === "assistant") {
       const showThinkingBubble = !!(msg.thinking && (msg.pending || (msg.reasoning && msg.reasoning.trim())));
       if (showThinkingBubble) {
-        createBubble({
-          roleClass: "assistant",
-          kindClass: "thinking",
-          label: "thinking",
-          text: msg.reasoning || (msg.pending ? "（生成中…）" : ""),
-          msgId: msg.id,
-          part: "reasoning",
-          allowTranslate: true,
-          allowRetry: false,
-          allowContinue: false
-        });
+        createBubble({ roleClass: "assistant", kindClass: "thinking", label: "thinking", text: msg.reasoning || (msg.pending ? "（生成中…）" : ""), msgId: msg.id, part: "reasoning", allowTranslate: true, allowRetry: false, allowContinue: false });
       }
-
       const allowRetry = !msg.pending;
       const allowContinue = !!msg.interrupted;
-
-      createBubble({
-        roleClass: "assistant",
-        kindClass: "output",
-        label: "output",
-        text: msg.content || (msg.pending ? "…" : ""),
-        msgId: msg.id,
-        part: "content",
-        allowTranslate: true,
-        allowRetry,
-        allowContinue
-      });
+      createBubble({ roleClass: "assistant", kindClass: "output", label: "output", text: msg.content || (msg.pending ? "…" : ""), msgId: msg.id, part: "content", allowTranslate: true, allowRetry, allowContinue });
     }
   }
-
   if (wasNear) scrollToBottom();
 }
 
@@ -2582,10 +2400,7 @@ function renderChat(forceScrollToBottom=false){
  * Inline Edit
  ***********************/
 function startInlineEdit(bubbleEl){
-  if (isStreaming) {
-    showToast("生成中，暂不支持编辑");
-    return;
-  }
+  if (isStreaming) { showToast("生成中，暂不支持编辑"); return; }
   const chat = getActiveChat();
   const msgId = bubbleEl.dataset.msgId;
   const part = bubbleEl.dataset.part;
@@ -2594,45 +2409,60 @@ function startInlineEdit(bubbleEl){
 
   const body = bubbleEl.querySelector(".bubbleBody");
   if (!body) return;
-
   if (bubbleEl.querySelector(".editWrap")) return;
 
   const currentText = (part === "reasoning" ? (msg.reasoning || "") : (msg.content || ""));
-
   const wrap = document.createElement("div");
   wrap.className = "editWrap";
-
   const ta = document.createElement("textarea");
   ta.className = "editArea";
   ta.value = currentText;
-
   const actions = document.createElement("div");
   actions.className = "editActions";
-
   const cancel = document.createElement("button");
   cancel.className = "smallBtn";
   cancel.textContent = "取消";
-
   const save = document.createElement("button");
   save.className = "smallBtn primary";
   save.textContent = "保存";
-
   actions.appendChild(cancel);
   actions.appendChild(save);
-
   wrap.appendChild(ta);
   wrap.appendChild(actions);
 
   body.style.display = "none";
   bubbleEl.appendChild(wrap);
 
-  cancel.addEventListener("click", ()=>{
-    wrap.remove();
-    body.style.display = "";
-  });
+  cancel.addEventListener("click", ()=>{ wrap.remove(); body.style.display = ""; });
 
   save.addEventListener("click", ()=>{
     const v = (ta.value || "").toString();
+
+    // ✅ 改进5：真正的编辑逻辑
+    if (msg.role === 'user' && part === 'content') {
+        // 用户修改 Prompt -> 截断后续历史 -> 重新发送
+        const idx = chat.messages.findIndex(m => m.id === msg.id);
+        if (idx >= 0) {
+            msg.content = v;
+            msg.contentZh = "";
+            // 删除当前消息之后的所有消息
+            chat.messages = chat.messages.slice(0, idx + 1);
+            
+            touchChat(chat);
+            maybeUpdateTitle(chat);
+            schedulePersistChat(chat);
+            renderSidebar();
+            renderChat(true); // 刷新界面
+            
+            // 触发重新生成 (isRegenerate=true, 但不需要删除刚编辑的消息)
+            // 这里的语义其实是 "continue stream from here"
+            send({ isRegenerate: true }); 
+            showToast("已更新并重新生成");
+            return;
+        }
+    }
+
+    // 只是修改内容（如修改 Assistant 回答用于纠错，或修改 Thinking）
     if (part === "reasoning") {
       msg.reasoning = v;
       msg.reasoningZh = "";
@@ -2640,11 +2470,8 @@ function startInlineEdit(bubbleEl){
       msg.content = v;
       msg.contentZh = "";
     }
-    const chat = getActiveChat();
     touchChat(chat);
-    maybeUpdateTitle(chat);
     schedulePersistChat(chat);
-    renderSidebar();
     renderChat(false);
     showToast("已保存");
   });
@@ -2655,63 +2482,29 @@ function startInlineEdit(bubbleEl){
  ***********************/
 async function translateTextToZh(text, model){
   const apiKey = getApiKey();
-  if(!apiKey){
-    openSettings();
-    throw new Error("Missing API key（请先在设置里填写 Key）");
-  }
-  const sys =
-`你是翻译引擎。
-把用户提供的文本翻译为简体中文。
-要求：
-- 保留原有 Markdown/代码块/列表/换行结构
-- 不要解释，不要加前缀，只输出翻译结果`;
-
+  if(!apiKey){ openSettings(); throw new Error("Missing API key（请先在设置里填写 Key）"); }
+  const sys = `你是翻译引擎。 把用户提供的文本翻译为简体中文。 要求： - 保留原有 Markdown/代码块/列表/换行结构 - 不要解释，不要加前缀，只输出翻译结果`;
   const res = await fetch(`${VE_BASE_URL}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model,
-      stream: false,
-      messages: [
-        { role: "system", content: sys },
-        { role: "user", content: text }
-      ]
-    })
+    headers: { "Content-Type":"application/json", "Authorization": `Bearer ${apiKey}` },
+    body: JSON.stringify({ model, stream: false, messages: [ { role: "system", content: sys }, { role: "user", content: text } ] })
   });
-
-  if (!res.ok) {
-    const txt = await res.text().catch(()=> "");
-    throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
-  }
+  if (!res.ok) { const txt = await res.text().catch(()=> ""); throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`); }
   const json = await res.json().catch(()=> ({}));
   const out = json?.choices?.[0]?.message?.content ?? "";
   return (out || "").trim();
 }
-
 async function handleTranslate(bubbleEl, evt){
-  if (isStreaming) {
-    showToast("生成中，暂不支持翻译");
-    return;
-  }
-
+  if (isStreaming) { showToast("生成中，暂不支持翻译"); return; }
   const chat = getActiveChat();
   const msgId = bubbleEl.dataset.msgId;
   const part = bubbleEl.dataset.part;
   const msg = findMsg(chat, msgId);
   if (!msg) return;
-
   const body = bubbleEl.querySelector(".bubbleBody");
   if (!body) return;
-
   const original = (part === "reasoning") ? (msg.reasoning || "") : (msg.content || "");
-  if (!original.trim()) {
-    showToast("没有可翻译内容");
-    return;
-  }
-
+  if (!original.trim()) { showToast("没有可翻译内容"); return; }
   if (bubbleEl.dataset.showZh === "1") {
     bubbleEl.dataset.showZh = "0";
     body.dataset.raw = original;
@@ -2719,7 +2512,6 @@ async function handleTranslate(bubbleEl, evt){
     showToast("已切回原文");
     return;
   }
-
   const zhKey = (part === "reasoning") ? "reasoningZh" : "contentZh";
   if (msg[zhKey] && String(msg[zhKey]).trim()) {
     bubbleEl.dataset.showZh = "1";
@@ -2729,36 +2521,29 @@ async function handleTranslate(bubbleEl, evt){
     showToast("已显示中文翻译");
     return;
   }
-
   let model = getTranslateModel();
   if (evt && evt.shiftKey) {
     const picked = window.prompt("临时翻译模型 ID（仅本次）", model);
     if (picked === null) return;
     model = (picked || "").trim() || model;
   }
-
   try{
     showToast("翻译中…");
     const translated = await translateTextToZh(original, model);
     msg[zhKey] = translated;
     touchChat(chat);
     schedulePersistChat(chat);
-
     bubbleEl.dataset.showZh = "1";
     bubbleEl.dataset.zhText = translated;
     body.dataset.raw = translated;
     body.innerHTML = renderMarkdown(translated);
-
     renderSidebar();
     showToast("翻译完成");
-  }catch(err){
-    showToast("翻译失败");
-    console.error(err);
-  }
+  }catch(err){ showToast("翻译失败"); console.error(err); }
 }
 
 /***********************
- * Extract thinking
+ * Stream Logic
  ***********************/
 function extractThinkingFromText(fullText){
   if (typeof fullText !== "string") return { clean: fullText || "", thinking: "" };
@@ -2768,16 +2553,11 @@ function extractThinkingFromText(fullText){
   const clean = fullText.replace(m[0], "").trim();
   return { clean, thinking };
 }
-
-/***********************
- * Build API messages (multimodal for images)
- ***********************/
 function formatTextAttachmentsForModel(attachments){
   if (!attachments || !attachments.length) return "";
   const texts = attachments.filter(a => !a.isImage && a.text && a.text.trim());
   const others = attachments.filter(a => !a.isImage && !(a.text && a.text.trim()));
   if (!texts.length && !others.length) return "";
-
   const lines = [];
   lines.push("\n\n[附件]");
   for (const a of texts){
@@ -2786,25 +2566,16 @@ function formatTextAttachmentsForModel(attachments){
     lines.push(a.text);
     lines.push("```");
   }
-  for (const a of others){
-    lines.push(`- ${a.name || "file"} (${bytesToSize(a.size || 0)})`);
-  }
+  for (const a of others){ lines.push(`- ${a.name || "file"} (${bytesToSize(a.size || 0)})`); }
   return lines.join("\n");
 }
-
 async function buildUserMessageContent(userMsg, { includeImages=true } = {}){
   const attachments = userMsg.attachments || [];
   const hasImages = includeImages && attachments.some(a => a.isImage);
-
   const textSuffix = formatTextAttachmentsForModel(attachments);
   const baseText = (userMsg.content || "") + textSuffix;
-
-  if (!hasImages) {
-    return baseText;
-  }
-
+  if (!hasImages) { return baseText; }
   const parts = [{ type: "text", text: baseText || " " }];
-
   for (const a of attachments.filter(x => x.isImage)){
     const blob = await getFileBlob(a.id);
     if (!blob) continue;
@@ -2815,17 +2586,13 @@ async function buildUserMessageContent(userMsg, { includeImages=true } = {}){
       }
     }catch{}
   }
-
   return parts;
 }
-
 async function buildApiMessagesAsync(chat, { excludeAssistantId = "", includeImages=true } = {}){
   const all = (chat.messages || [])
     .filter(m => !(m.role === "assistant" && m.pending))
     .filter(m => !(excludeAssistantId && m.role === "assistant" && m.id === excludeAssistantId));
-
   const slice = all.slice(Math.max(0, all.length - CONTEXT_MAX_MESSAGES));
-
   const out = [];
   for (const m of slice){
     if (m.role === "user"){
@@ -2837,27 +2604,15 @@ async function buildApiMessagesAsync(chat, { excludeAssistantId = "", includeIma
   }
   return out;
 }
-
-/***********************
- * Streaming SSE (robust + abort)
- ***********************/
 async function streamChatCompletion({ model, messages, signal, onDelta, onDone }){
   const apiKey = getApiKey();
-  if(!apiKey){
-    openSettings();
-    throw new Error("Missing API key（请先在设置里填写 Key）");
-  }
-
+  if(!apiKey){ openSettings(); throw new Error("Missing API key（请先在设置里填写 Key）"); }
   const res = await fetch(`${VE_BASE_URL}/chat/completions`, {
     method: "POST",
-    headers: {
-      "Content-Type":"application/json",
-      "Authorization": `Bearer ${apiKey}`
-    },
+    headers: { "Content-Type":"application/json", "Authorization": `Bearer ${apiKey}` },
     body: JSON.stringify({ model, messages, stream: true }),
     signal
   });
-
   if (!res.ok) {
     const txt = await res.text().catch(()=> "");
     const err = new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
@@ -2866,56 +2621,37 @@ async function streamChatCompletion({ model, messages, signal, onDelta, onDone }
     throw err;
   }
   if (!res.body) throw new Error("Stream body not available");
-
   const reader = res.body.getReader();
   const decoder = new TextDecoder("utf-8");
   let buffer = "";
-
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
-
     buffer += decoder.decode(value, { stream: true });
-
     const events = buffer.split("\n\n");
     buffer = events.pop() || "";
-
     for (const evt of events) {
       const lines = evt.split("\n");
       let dataPayloads = [];
       for (const ln of lines){
         const line = ln.trimEnd();
-        if (line.startsWith("data:")){
-          dataPayloads.push(line.slice(5).trim());
-        }
+        if (line.startsWith("data:")){ dataPayloads.push(line.slice(5).trim()); }
       }
       if (!dataPayloads.length) continue;
-
       const dataStrJoined = dataPayloads.join("\n").trim();
-      if (dataStrJoined === "[DONE]") {
-        onDone?.();
-        return;
-      }
-
+      if (dataStrJoined === "[DONE]") { onDone?.(); return; }
       let json;
       try { json = JSON.parse(dataStrJoined); } catch { continue; }
-
       const choice = json?.choices?.[0];
       const delta = choice?.delta || {};
       const contentDelta = delta.content ?? "";
       const reasoningDelta = delta.reasoning_content ?? delta.reasoning ?? "";
-
-      if (contentDelta || reasoningDelta) {
-        onDelta?.({ contentDelta, reasoningDelta });
-      }
+      if (contentDelta || reasoningDelta) { onDelta?.({ contentDelta, reasoningDelta }); }
     }
   }
   onDone?.();
 }
 
-/***********************
- * Composer enable/disable + send button mode
- ***********************/
 function setSendModeStop(isStop){
   sendBtn.classList.toggle("stop", !!isStop);
   sendBtn.title = isStop ? "Stop" : "Send";
@@ -2924,7 +2660,6 @@ function setSendModeStop(isStop){
     ? `<path d="M7 7h10v10H7V7Z" stroke="rgba(255,255,255,.92)" stroke-width="2.2" />`
     : `<path d="M12 4l7 7-7 7" stroke="rgba(0,0,0,.65)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11h13" stroke="rgba(0,0,0,.65)" stroke-width="2.2" stroke-linecap="round"/>`;
 }
-
 function setComposerDisabled(disabled){
   if (disabled) {
     promptEl.disabled = true;
@@ -2932,7 +2667,6 @@ function setComposerDisabled(disabled){
     plusBtn.disabled = true;
     clockBtn.disabled = true;
     webBtn.disabled = true;
-
     sendBtn.disabled = false;
     setSendModeStop(true);
   } else {
@@ -2940,47 +2674,33 @@ function setComposerDisabled(disabled){
     modelBtn.disabled = false;
     plusBtn.disabled = false;
     webBtn.disabled = false;
-
     const m = getModelById(selectedModelId);
     const can = m ? (m.thinkingOnly || modelSupportsThinkingToggle(m)) : false;
     clockBtn.disabled = !can;
-
     setSendModeStop(false);
     syncSendState();
   }
 }
-
 function syncSendState(){
-  if (isStreaming) {
-    sendBtn.disabled = false;
-    return;
-  }
+  if (isStreaming) { sendBtn.disabled = false; return; }
   const hasText = promptEl.value.trim().length > 0;
   const hasAttach = draftAttachments.length > 0;
   sendBtn.disabled = !(hasText || hasAttach);
 }
 promptEl.addEventListener('input', syncSendState);
 
-/***********************
- * Stop generation
- ***********************/
 function stopGeneration(){
   if (!isStreaming) return;
   try{ abortCtl?.abort(); }catch{}
   showToast("已停止");
 }
 
-/***********************
- * Send / Retry / Continue
- ***********************/
 async function finalizeAssistantMessage({ chatId, msgId, effThinking, rawText, reasoning, interrupted=false }){
   const c = getChatById(chatId);
   const m = findMsg(c, msgId);
   if (!m) return;
-
   let finalAnswer = rawText;
   let finalReasoning = reasoning;
-
   if (!finalReasoning || !finalReasoning.trim()) {
     const ext = extractThinkingFromText(rawText);
     finalAnswer = ext.clean;
@@ -2989,28 +2709,21 @@ async function finalizeAssistantMessage({ chatId, msgId, effThinking, rawText, r
     const ext = extractThinkingFromText(rawText);
     finalAnswer = ext.clean;
   }
-
   m.pending = false;
   m.content = (finalAnswer || "").trim() || "（空响应）";
   m.reasoning = (finalReasoning || "").trim();
   m.thinking = !!effThinking;
   m.interrupted = !!interrupted;
-
   touchChat(c);
   maybeUpdateTitle(c);
   schedulePersistChat(c);
   renderSidebar();
-
   if (store.activeId === chatId) renderChat(false);
 }
 
-/***********************
- * ✅ 流式更新 DOM：默认不自动滚动（只有开启 streamAutoScroll 才滚）
- ***********************/
 function updateDOMStreamingVisible({ assistantMsgId, reasoning, rawText }){
   if (!activeStream) return null;
   if (store.activeId !== activeStream.chatId) return null;
-
   const answerBody = chatwrap.querySelector(`.bubble.assistant.output[data-msg-id="${assistantMsgId}"] .bubbleBody`);
   const thinkBody  = chatwrap.querySelector(`.bubble.assistant.thinking[data-msg-id="${assistantMsgId}"] .bubbleBody`);
   if (thinkBody) {
@@ -3021,52 +2734,53 @@ function updateDOMStreamingVisible({ assistantMsgId, reasoning, rawText }){
     answerBody.dataset.raw = rawText || "…";
     answerBody.innerHTML = renderMarkdown(rawText || "…");
   }
-
-  // ✅ 不自动滚动（除非设置开启，且用户在底部附近）
-  if (streamAutoScroll && isNearBottom(chatwrap, 40)) {
-    scrollToBottom();
-  }
+  if (streamAutoScroll && isNearBottom(chatwrap, 40)) { scrollToBottom(); }
 }
 
-async function send({ overrideUserText = "", excludeAssistantId = "" } = {}){
+async function send({ overrideUserText = "", excludeAssistantId = "", isRegenerate = false } = {}){
   if (isStreaming) return;
-
   const chat = getActiveChat();
   if (!chat) return;
 
   const text = (overrideUserText || promptEl.value || "").trim();
   const hasAttach = draftAttachments.length > 0;
-  if (!text && !hasAttach) return;
+
+  // 如果不是重新生成，且没有输入内容 -> 返回
+  if (!isRegenerate && !text && !hasAttach) return;
 
   const effThinking = effectiveThinking();
   showEmpty(false);
 
   const attachments = [];
-  if (hasAttach){
+  if (hasAttach && !isRegenerate){
     for (const a of draftAttachments){
       try{
         await putFileRecord(a);
-        attachments.push({
-          id: a.id,
-          name: a.name,
-          type: a.type,
-          size: a.size,
-          lastModified: a.lastModified,
-          isImage: !!a.isImage,
-          text: a.text || ""
-        });
-      }catch(e){
-        console.error("putFileRecord failed", e);
-      }
+        attachments.push({ id: a.id, name: a.name, type: a.type, size: a.size, lastModified: a.lastModified, isImage: !!a.isImage, text: a.text || "" });
+      }catch(e){ console.error("putFileRecord failed", e); }
     }
   }
 
-  const userMsgId = uid();
+  // 不是重新生成 -> 添加用户消息
+  if (!isRegenerate) {
+      const userMsgId = uid();
+      const userContent = text || (hasAttach ? "（发送了附件）" : "");
+      chat.messages.push({ id:userMsgId, role:"user", content:userContent, attachments });
+      
+      // UI上添加气泡
+      const u = createBubble({ roleClass: "user", kindClass: "user", label: "you", text: userContent, msgId: userMsgId, part: "content", allowTranslate: false, allowRetry: false, allowContinue: false });
+      if (attachments.length) renderAttachmentsInto(u.bubble, attachments);
+      
+      draftAttachments = [];
+      renderAttachBar();
+      promptEl.value = "";
+      syncSendState();
+  } else {
+      // 重新生成时，不添加用户消息，直接准备生成新的 Assistant 消息
+      // 但需要确保最后一条是 user (理论上是的，因为是 regenerate)
+  }
+
   const asstMsgId = uid();
-
-  const userContent = text || (hasAttach ? "（发送了附件）" : "");
-  chat.messages.push({ id:userMsgId, role:"user", content:userContent, attachments });
-
   chat.messages.push({
     id: asstMsgId,
     role:"assistant",
@@ -3080,56 +2794,17 @@ async function send({ overrideUserText = "", excludeAssistantId = "" } = {}){
     interrupted: false
   });
 
-  draftAttachments = [];
-  renderAttachBar();
-  promptEl.value = "";
-  syncSendState();
-
   touchChat(chat);
   maybeUpdateTitle(chat);
   schedulePersistChat(chat);
   renderChatsList();
 
-  const u = createBubble({
-    roleClass: "user",
-    kindClass: "user",
-    label: "you",
-    text: userContent,
-    msgId: userMsgId,
-    part: "content",
-    allowTranslate: false,
-    allowRetry: false,
-    allowContinue: false
-  });
-  if (attachments.length) renderAttachmentsInto(u.bubble, attachments);
-
+  // 添加 UI 占位符
   if (effThinking) {
-    createBubble({
-      roleClass: "assistant",
-      kindClass: "thinking",
-      label: "thinking",
-      text: "（生成中…）",
-      msgId: asstMsgId,
-      part: "reasoning",
-      allowTranslate: true,
-      allowRetry: false,
-      allowContinue: false
-    });
+    createBubble({ roleClass: "assistant", kindClass: "thinking", label: "thinking", text: "（生成中…）", msgId: asstMsgId, part: "reasoning", allowTranslate: true, allowRetry: false, allowContinue: false });
   }
+  createBubble({ roleClass: "assistant", kindClass: "output", label: "output", text: "…", msgId: asstMsgId, part: "content", allowTranslate: true, allowRetry: false, allowContinue: false });
 
-  createBubble({
-    roleClass: "assistant",
-    kindClass: "output",
-    label: "output",
-    text: "…",
-    msgId: asstMsgId,
-    part: "content",
-    allowTranslate: true,
-    allowRetry: false,
-    allowContinue: false
-  });
-
-  // ✅ 发送时：只在用户本来就在底部时滚一次（不是流式跟随滚）
   if (isNearBottom(chatwrap, 80)) scrollToBottom();
 
   isStreaming = true;
@@ -3138,17 +2813,14 @@ async function send({ overrideUserText = "", excludeAssistantId = "" } = {}){
   setComposerDisabled(true);
 
   const baseSys = getSystemPrompt();
-  const modeLine =
-`\n\n[UI_MODE]
-thinking_mode=${effThinking ? "on" : "off"}
-当 thinking_mode=on 时，请按 system 规则输出 <thinking>...</thinking>；off 则不要输出 <thinking>。`;
-
+  const modeLine = `\n\n[UI_MODE] thinking_mode=${effThinking ? "on" : "off"} 当 thinking_mode=on 时，请按 system 规则输出 <thinking>...</thinking>；off 则不要输出 <thinking>。`;
   const modelToUse = isWebSearch ? getSearchModel() : currentModelId();
 
   let rawText = "";
   let reasoning = "";
   let gotAnyDelta = false;
-
+  
+  // 检查历史记录中是否有图片
   const hadImages = attachments.some(a => a.isImage) || chat.messages.some(m => (m.attachments||[]).some(a=>a.isImage));
   let includeImages = true;
   let attempt = 0;
@@ -3157,9 +2829,8 @@ thinking_mode=${effThinking ? "on" : "off"}
     while (true){
       const reqMessages = [
         { role:"system", content: (baseSys + modeLine).trim() },
-        ...(await buildApiMessagesAsync(chat, { excludeAssistantId, includeImages }))
+        ...(await buildApiMessagesAsync(chat, { excludeAssistantId: asstMsgId, includeImages }))
       ];
-
       try{
         await streamChatCompletion({
           model: modelToUse,
@@ -3167,20 +2838,11 @@ thinking_mode=${effThinking ? "on" : "off"}
           signal: abortCtl.signal,
           onDelta: ({ contentDelta, reasoningDelta }) => {
             gotAnyDelta = gotAnyDelta || !!(contentDelta || reasoningDelta);
-
             const c = getChatById(activeStream.chatId);
             const m = findMsg(c, activeStream.assistantMsgId);
             if (!m) return;
-
-            if (reasoningDelta) {
-              reasoning += reasoningDelta;
-              m.reasoning = reasoning;
-            }
-            if (contentDelta) {
-              rawText += contentDelta;
-              m.content = rawText;
-            }
-
+            if (reasoningDelta) { reasoning += reasoningDelta; m.reasoning = reasoning; }
+            if (contentDelta) { rawText += contentDelta; m.content = rawText; }
             schedulePersistChat(c);
             updateDOMStreamingVisible({ assistantMsgId: activeStream.assistantMsgId, reasoning, rawText });
           },
@@ -3189,52 +2851,21 @@ thinking_mode=${effThinking ? "on" : "off"}
         break;
       }catch(err){
         if (err?.name === "AbortError") throw err;
-
         if (hadImages && includeImages && (err.status === 400 || err.status === 422) && attempt === 0) {
-          includeImages = false;
-          attempt++;
-          showToast("接口不支持图片输入，已降级为文本");
-          continue;
+          includeImages = false; attempt++; showToast("接口不支持图片输入，已降级为文本"); continue;
         }
-
         attempt++;
-        if (!gotAnyDelta && attempt <= 1) {
-          continue;
-        }
+        if (!gotAnyDelta && attempt <= 1) { continue; }
         throw err;
       }
     }
-
-    await finalizeAssistantMessage({
-      chatId: activeStream.chatId,
-      msgId: activeStream.assistantMsgId,
-      effThinking,
-      rawText,
-      reasoning,
-      interrupted: false
-    });
-
+    await finalizeAssistantMessage({ chatId: activeStream.chatId, msgId: activeStream.assistantMsgId, effThinking, rawText, reasoning, interrupted: false });
   }catch(err){
     if (err?.name === "AbortError") {
-      await finalizeAssistantMessage({
-        chatId: activeStream.chatId,
-        msgId: activeStream.assistantMsgId,
-        effThinking,
-        rawText,
-        reasoning,
-        interrupted: false
-      });
+      await finalizeAssistantMessage({ chatId: activeStream.chatId, msgId: activeStream.assistantMsgId, effThinking, rawText, reasoning, interrupted: false });
     } else {
-      await finalizeAssistantMessage({
-        chatId: activeStream.chatId,
-        msgId: activeStream.assistantMsgId,
-        effThinking,
-        rawText: rawText || `连接中断：${err?.message || String(err)}`,
-        reasoning,
-        interrupted: true
-      });
-      showToast("连接中断");
-      console.error(err);
+      await finalizeAssistantMessage({ chatId: activeStream.chatId, msgId: activeStream.assistantMsgId, effThinking, rawText: rawText || `连接中断：${err?.message || String(err)}`, reasoning, interrupted: true });
+      showToast("连接中断"); console.error(err);
     }
   }finally{
     isStreaming = false;
@@ -3252,25 +2883,22 @@ function handleRegenerate(bubbleEl){
   if (isStreaming) return;
   const chat = getActiveChat();
   if (!chat) return;
-
   const msgId = bubbleEl.dataset.msgId;
   const msg = findMsg(chat, msgId);
   if (!msg || msg.role !== "assistant") return;
-
+  
   const idx = chat.messages.findIndex(m => m.id === msgId);
   if (idx <= 0) return;
 
-  const prev = chat.messages[idx - 1];
-  if (!prev || prev.role !== "user") return;
-
-  chat.messages = chat.messages.filter(m => m.id !== msgId);
-
+  // ✅ 改进5：真正的重新生成 -> 删除当前回复，重新请求
+  chat.messages.splice(idx, 1);
+  
   touchChat(chat);
   schedulePersistChat(chat);
   renderSidebar();
-  renderChat(false);
-
-  send({ overrideUserText: "请重新回答上一条。", excludeAssistantId: "" });
+  renderChat(true); // 刷新 UI（移除该气泡）
+  
+  send({ isRegenerate: true }); 
 }
 
 function handleContinue(bubbleEl){
@@ -3281,17 +2909,9 @@ function handleContinue(bubbleEl){
 /***********************
  * Send button behavior
  ***********************/
-sendBtn.addEventListener('click', ()=>{
-  if (isStreaming) stopGeneration();
-  else send();
-});
-
+sendBtn.addEventListener('click', ()=>{ if (isStreaming) stopGeneration(); else send(); });
 promptEl.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter'){
-    e.preventDefault();
-    if (isStreaming) return;
-    send();
-  }
+  if(e.key === 'Enter'){ e.preventDefault(); if (isStreaming) return; send(); }
 });
 
 /***********************
@@ -3302,36 +2922,45 @@ function openSettings(){
   translateModelInput.value = getTranslateModel();
   searchModelInput.value = getSearchModel();
   sysInput.value = localStorage.getItem(SYS_PROMPT_STORAGE) || DEFAULT_SYSTEM_PROMPT;
-
   fontSizeRange.value = String(fontSize);
   fontSizeVal.textContent = String(fontSize);
-
-  // ✅ 新增
+  
   bgColorInput.value = theme.bg;
+  bgColorText.value = theme.bg;
   textColorInput.value = theme.ink;
+  textColorText.value = theme.ink;
+
   streamScrollToggle.checked = !!streamAutoScroll;
+  thinkingCollapsedToggle.checked = !!defaultThinkingCollapsed;
+  
+  bubbleWidthRange.value = String(bubbleMaxWidth);
+  bubbleWidthVal.textContent = bubbleMaxWidth + "%";
 
   settingsModal.classList.add("show");
 }
 function closeSettings(){ settingsModal.classList.remove("show"); }
-
-settingsBtn.addEventListener('click', ()=>{
-  if (isStreaming) return;
-  openSettings();
-});
+settingsBtn.addEventListener('click', ()=>{ if (isStreaming) return; openSettings(); });
 settingsCancel.addEventListener('click', closeSettings);
-settingsModal.addEventListener('click', (e)=>{
-  if (e.target === settingsModal) closeSettings();
-});
+settingsModal.addEventListener('click', (e)=>{ if (e.target === settingsModal) closeSettings(); });
 
 fontSizeRange.addEventListener("input", ()=>{
   fontSize = Number(fontSizeRange.value);
-  applyFontSize();
+  applyStyleSettings();
 });
+
+// ✅ 气泡宽度
+bubbleWidthRange.addEventListener("input", ()=>{
+    bubbleMaxWidth = Number(bubbleWidthRange.value);
+    applyStyleSettings();
+});
+
+// ✅ 颜色同步
+syncColorInputs(bgColorInput, bgColorText, "bg");
+syncColorInputs(textColorInput, textColorText, "ink");
+
 
 resetSysBtn.addEventListener('click', ()=>{ sysInput.value = DEFAULT_SYSTEM_PROMPT; });
 clearKeyBtn.addEventListener('click', ()=>{ keyInput.value = ""; });
-
 clearAllChatsBtn.addEventListener('click', async ()=>{
   if (isStreaming) return;
   store = { activeId:"", chats:[] };
@@ -3342,49 +2971,42 @@ clearAllChatsBtn.addEventListener('click', async ()=>{
   closeSettings();
   showToast("已清空");
 });
-
 settingsSave.addEventListener('click', ()=>{
   const k = (keyInput.value || "").trim();
   const s = (sysInput.value || "").trim();
   const tm = (translateModelInput.value || "").trim();
   const sm = (searchModelInput.value || "").trim();
 
-  if(!k) localStorage.removeItem(VE_KEY_STORAGE);
-  else localStorage.setItem(VE_KEY_STORAGE, k);
+  if(!k) localStorage.removeItem(VE_KEY_STORAGE); else localStorage.setItem(VE_KEY_STORAGE, k);
+  if(!tm) localStorage.removeItem(TRANSLATE_MODEL_STORAGE); else localStorage.setItem(TRANSLATE_MODEL_STORAGE, tm);
+  if(!sm) localStorage.removeItem(SEARCH_MODEL_STORAGE); else localStorage.setItem(SEARCH_MODEL_STORAGE, sm);
+  if(!s) localStorage.removeItem(SYS_PROMPT_STORAGE); else localStorage.setItem(SYS_PROMPT_STORAGE, s);
 
-  if(!tm) localStorage.removeItem(TRANSLATE_MODEL_STORAGE);
-  else localStorage.setItem(TRANSLATE_MODEL_STORAGE, tm);
-
-  if(!sm) localStorage.removeItem(SEARCH_MODEL_STORAGE);
-  else localStorage.setItem(SEARCH_MODEL_STORAGE, sm);
-
-  if(!s) localStorage.removeItem(SYS_PROMPT_STORAGE);
-  else localStorage.setItem(SYS_PROMPT_STORAGE, s);
-
-  // ✅ 保存主题
-  theme.bg = (bgColorInput.value || DEFAULT_THEME.bg).trim();
-  theme.ink = (textColorInput.value || DEFAULT_THEME.ink).trim();
+  // 保存主题
+  theme.bg = (bgColorText.value || DEFAULT_THEME.bg).trim();
+  theme.ink = (textColorText.value || DEFAULT_THEME.ink).trim();
   saveTheme();
   applyTheme();
 
-  // ✅ 保存流式滚动开关
   streamAutoScroll = !!streamScrollToggle.checked;
+  defaultThinkingCollapsed = !!thinkingCollapsedToggle.checked;
+  
+  applyStyleSettings();
   saveUIState();
 
-  applyFontSize();
   closeSettings();
   showToast("已保存");
 });
 
 exportBtn.addEventListener("click", async ()=>{
   const payload = {
-    version: 2,
+    version: 3,
     exportedAt: nowTs(),
     chats: store.chats,
     activeId: store.activeId,
     customModels,
     modelAliases,
-    ui: { selectedModelId, isThinking, isWebSearch, fontSize, streamAutoScroll },
+    ui: { selectedModelId, isThinking, isWebSearch, fontSize, streamAutoScroll, defaultThinkingCollapsed, bubbleMaxWidth },
     theme,
     translateModel: getTranslateModel(),
     searchModel: getSearchModel(),
@@ -3402,11 +3024,7 @@ exportBtn.addEventListener("click", async ()=>{
   showToast("已导出");
 });
 
-importBtn.addEventListener("click", ()=>{
-  importFile.value = "";
-  importFile.click();
-});
-
+importBtn.addEventListener("click", ()=>{ importFile.value = ""; importFile.click(); });
 importFile.addEventListener("change", async ()=>{
   const f = importFile.files?.[0];
   if (!f) return;
@@ -3414,7 +3032,6 @@ importFile.addEventListener("change", async ()=>{
     const txt = await f.text();
     const data = JSON.parse(txt);
     if (!data || !Array.isArray(data.chats)) throw new Error("Invalid file");
-
     await idbClear("chats");
     await idbClear("files");
     store.chats = data.chats.map(normalizeChat);
@@ -3422,15 +3039,8 @@ importFile.addEventListener("change", async ()=>{
     store.activeId = (data.activeId && store.chats.find(c=>c.id===data.activeId)) ? data.activeId : (store.chats[0]?.id || "");
     for (const c of store.chats) await idbPut("chats", c);
     await idbPut("meta", { key: "activeId", value: store.activeId || "" });
-
     if (Array.isArray(data.customModels)) {
-      customModels = data.customModels.map(m=>({
-        id: String(m.id || "").trim(),
-        label: String(m.label || "Model").trim(),
-        thinkingId: String(m.thinkingId || "").trim(),
-        thinkingOnly: !!m.thinkingOnly,
-        builtin: false
-      })).filter(m=>m.id);
+      customModels = data.customModels.map(m=>({ id: String(m.id || "").trim(), label: String(m.label || "Model").trim(), thinkingId: String(m.thinkingId || "").trim(), thinkingOnly: !!m.thinkingOnly, builtin: false })).filter(m=>m.id);
       localStorage.setItem(CUSTOM_MODELS_KEY, JSON.stringify(customModels));
     }
     if (data.modelAliases && typeof data.modelAliases === "object") {
@@ -3443,57 +3053,32 @@ importFile.addEventListener("change", async ()=>{
       isWebSearch = !!data.ui.isWebSearch;
       if (typeof data.ui.fontSize === "number") fontSize = data.ui.fontSize;
       if (typeof data.ui.streamAutoScroll === "boolean") streamAutoScroll = data.ui.streamAutoScroll;
+      if (typeof data.ui.defaultThinkingCollapsed === "boolean") defaultThinkingCollapsed = data.ui.defaultThinkingCollapsed;
+      if (typeof data.ui.bubbleMaxWidth === "number") bubbleMaxWidth = data.ui.bubbleMaxWidth;
       saveUIState();
     }
-
-    // ✅ 导入主题
     if (data.theme && typeof data.theme === "object"){
       if (typeof data.theme.bg === "string") theme.bg = data.theme.bg;
       if (typeof data.theme.ink === "string") theme.ink = data.theme.ink;
       saveTheme();
     }
-
     if (typeof data.translateModel === "string") localStorage.setItem(TRANSLATE_MODEL_STORAGE, data.translateModel);
     if (typeof data.searchModel === "string") localStorage.setItem(SEARCH_MODEL_STORAGE, data.searchModel);
     if (typeof data.systemPrompt === "string") localStorage.setItem(SYS_PROMPT_STORAGE, data.systemPrompt);
-
-    renderSidebar();
-    renderModelDropdown();
-    applyModelCapabilities();
-    applyWebSearchState();
-    applyFontSize();
-    applyTheme();
-    renderAttachBar();
-    renderChat(true);
+    renderSidebar(); renderModelDropdown(); applyModelCapabilities(); applyWebSearchState(); applyStyleSettings(); applyTheme(); renderAttachBar(); renderChat(true);
     showToast("已导入");
-  }catch(e){
-    console.error(e);
-    showToast("导入失败");
-  }
+  }catch(e){ console.error(e); showToast("导入失败"); }
 });
 
 /***********************
  * Model manager modal
  ***********************/
-function openModelManager(){
-  renderModelManager();
-  modelManagerModal.classList.add("show");
-}
-function closeModelManager(){
-  modelManagerModal.classList.remove("show");
-}
-modelsBtn.addEventListener("click", ()=>{
-  if (isStreaming) return;
-  openModelManager();
-});
+function openModelManager(){ renderModelManager(); modelManagerModal.classList.add("show"); }
+function closeModelManager(){ modelManagerModal.classList.remove("show"); }
+modelsBtn.addEventListener("click", ()=>{ if (isStreaming) return; openModelManager(); });
 mmCloseManagerBtn.addEventListener("click", closeModelManager);
-modelManagerModal.addEventListener("click", (e)=>{
-  if (e.target === modelManagerModal) closeModelManager();
-});
-mmAddBtn.addEventListener("click", ()=>{
-  if (isStreaming) return;
-  openModelModalAdd();
-});
+modelManagerModal.addEventListener("click", (e)=>{ if (e.target === modelManagerModal) closeModelManager(); });
+mmAddBtn.addEventListener("click", ()=>{ if (isStreaming) return; openModelModalAdd(); });
 
 /***********************
  * Model editor modal
@@ -3507,40 +3092,31 @@ function openModelModalAdd(){
   modelModalMode = "add";
   modelModalTargetId = "";
   modelModalIsBuiltin = false;
-
   modelModalTitle.textContent = "Add model";
   modelModalDesc.textContent = "新增自定义模型。";
   mmDeleteBtn.style.display = "none";
-
   mmLabel.value = "";
   mmBaseId.value = "";
   mmThinkingId.value = "";
   mmThinkingOnly.checked = false;
-
   mmBaseId.disabled = false;
   mmThinkingId.disabled = false;
   mmThinkingOnly.disabled = false;
-
   openModelModal();
 }
-
 function openModelModalEdit(m){
   modelModalMode = "edit";
   modelModalTargetId = m.id;
   modelModalIsBuiltin = !!m.builtin;
-
   modelModalTitle.textContent = modelModalIsBuiltin ? "Rename model" : "Edit model";
   modelModalDesc.textContent = modelModalIsBuiltin ? "仅修改显示名称。" : "编辑或删除自定义模型。";
-
   mmLabel.value = getModelLabel(m);
   mmBaseId.value = m.id;
   mmThinkingId.value = m.thinkingId || "";
   mmThinkingOnly.checked = !!m.thinkingOnly;
-
   mmBaseId.disabled = modelModalIsBuiltin;
   mmThinkingId.disabled = modelModalIsBuiltin;
   mmThinkingOnly.disabled = modelModalIsBuiltin;
-
   mmDeleteBtn.style.display = modelModalIsBuiltin ? "none" : "";
   openModelModal();
 }
@@ -3548,46 +3124,29 @@ function openModelModalEdit(m){
 mmDeleteBtn.addEventListener("click", ()=>{
   if (modelModalMode !== "edit") return;
   if (modelModalIsBuiltin) return;
-
   const id = modelModalTargetId;
   customModels = customModels.filter(m => m.id !== id);
-
-  if (selectedModelId === id) {
-    selectedModelId = BUILTIN_MODELS[0].id;
-    isThinking = false;
-  }
-
+  if (selectedModelId === id) { selectedModelId = BUILTIN_MODELS[0].id; isThinking = false; }
   saveModels();
   closeModelModal();
   applyModelCapabilities();
   renderModelDropdown();
   renderModelManager();
 });
-
 mmSaveBtn.addEventListener("click", ()=>{
   const label = (mmLabel.value || "").trim() || "Model";
   const baseId = (mmBaseId.value || "").trim();
   const thinkingId = (mmThinkingId.value || "").trim();
   const thinkingOnly = !!mmThinkingOnly.checked;
-
   if (modelModalMode === "add") {
     if (!baseId) { alert("请填写模型 ID（Base）。"); return; }
     const existingBuiltin = BUILTIN_MODELS.find(x => x.id === baseId);
     const existingCustom = customModels.find(x => x.id === baseId);
     if (existingBuiltin || existingCustom) { alert("该模型 ID 已存在。"); return; }
-
-    customModels.unshift({
-      id: baseId,
-      label,
-      thinkingId: thinkingOnly ? "" : thinkingId,
-      thinkingOnly: thinkingOnly,
-      builtin: false
-    });
-
+    customModels.unshift({ id: baseId, label, thinkingId: thinkingOnly ? "" : thinkingId, thinkingOnly: thinkingOnly, builtin: false });
     saveModels();
     selectedModelId = baseId;
     isThinking = thinkingOnly ? true : isThinking;
-
     closeModelModal();
     applyModelCapabilities();
     renderModelDropdown();
@@ -3595,7 +3154,6 @@ mmSaveBtn.addEventListener("click", ()=>{
     showToast("已保存");
     return;
   }
-
   if (modelModalIsBuiltin) {
     modelAliases[modelModalTargetId] = label;
     saveModels();
@@ -3606,29 +3164,18 @@ mmSaveBtn.addEventListener("click", ()=>{
     showToast("已保存");
     return;
   }
-
   if (!baseId) { alert("模型 ID（Base）不能为空。"); return; }
-
   const oldId = modelModalTargetId;
   if (baseId !== oldId) {
     const collisionBuiltin = BUILTIN_MODELS.find(x => x.id === baseId);
     const collisionCustom = customModels.find(x => x.id === baseId);
     if (collisionBuiltin || collisionCustom) { alert("新的模型 ID 与现有模型冲突。"); return; }
   }
-
   customModels = customModels.map(m => {
     if (m.id !== oldId) return m;
-    return {
-      id: baseId,
-      label,
-      thinkingId: thinkingOnly ? "" : thinkingId,
-      thinkingOnly,
-      builtin: false
-    };
+    return { id: baseId, label, thinkingId: thinkingOnly ? "" : thinkingId, thinkingOnly, builtin: false };
   });
-
   if (selectedModelId === oldId) selectedModelId = baseId;
-
   saveModels();
   closeModelModal();
   applyModelCapabilities();
@@ -3648,31 +3195,22 @@ topPlusBtn.addEventListener('click', ()=>{ createNewChat(); });
 async function init(){
   loadTheme();
   applyTheme();
-
   loadModels();
   loadUIState();
-
   await openDB();
   await migrateLegacyLocalStorageIfNeeded();
   await loadStoreFromDB();
-
-  if (!getModelById(selectedModelId)) {
-    selectedModelId = BUILTIN_MODELS[0].id;
-    isThinking = false;
-  }
-
+  if (!getModelById(selectedModelId)) { selectedModelId = BUILTIN_MODELS[0].id; isThinking = false; }
   renderSidebar();
   renderModelDropdown();
   applyModelCapabilities();
   applyWebSearchState();
-  applyFontSize();
-
+  applyStyleSettings();
   renderAttachBar();
   renderChat(true);
   syncSendState();
 }
 init();
 </script>
-
 </body>
 </html>
