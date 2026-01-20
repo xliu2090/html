@@ -1,0 +1,1489 @@
+<!--
+  AI Chat Mobile Client
+  Single-file HTML with inline CSS/JS
+-->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>移动端 AI 对话客户端</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/styles/github.min.css" />
+  <style>
+    /* ========== 样式定义 ========== */
+    :root {
+      color-scheme: light dark;
+      --bg: #f6f7fb;
+      --surface: #ffffff;
+      --surface-muted: #f0f2f7;
+      --text: #1c2333;
+      --text-muted: #5b6474;
+      --primary: #3b82f6;
+      --primary-weak: #e0ecff;
+      --danger: #ef4444;
+      --success: #16a34a;
+      --warning: #f59e0b;
+      --border: #e5e7ee;
+      --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+      --radius-sm: 12px;
+      --gap: 12px;
+      --font: "Inter", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      --mono: "SFMono-Regular", "JetBrains Mono", "Fira Code", monospace;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f1420;
+      --surface: #161b2a;
+      --surface-muted: #1d2334;
+      --text: #e9edf5;
+      --text-muted: #94a3b8;
+      --primary: #60a5fa;
+      --primary-weak: rgba(96, 165, 250, 0.15);
+      --danger: #f87171;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --border: #2a3245;
+      --shadow: 0 12px 36px rgba(2, 6, 23, 0.45);
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      display: flex;
+      min-height: 100vh;
+      overflow: hidden;
+      background: var(--bg);
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 78vw;
+      max-width: 320px;
+      height: 100vh;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      transform: translateX(-100%);
+      transition: transform 0.25s ease;
+      z-index: 30;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 14px 20px;
+    }
+
+    .sidebar.open {
+      transform: translateX(0%);
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 20;
+    }
+
+    .overlay.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .sidebar h2 {
+      font-size: 16px;
+      margin: 6px 0 12px;
+    }
+
+    .search-box input {
+      width: 100%;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      background: var(--surface-muted);
+      color: var(--text);
+    }
+
+    .session-list {
+      margin-top: 12px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .session-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+
+    .session-item.active {
+      background: var(--primary-weak);
+      border-color: var(--primary);
+    }
+
+    .session-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .session-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .button {
+      border: none;
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      background: var(--surface-muted);
+      color: var(--text);
+    }
+
+    .button.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .button.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+    }
+
+    .button.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: auto 1fr auto auto;
+      align-items: center;
+      padding: 12px 14px;
+      gap: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+      background: var(--surface-muted);
+      color: var(--text);
+    }
+
+    .top-title {
+      font-size: 15px;
+      font-weight: 600;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .model-switch {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+    }
+
+    .model-switch select {
+      border: none;
+      background: transparent;
+      font-size: 12px;
+      color: var(--text);
+    }
+
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 14px 80px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .message {
+      max-width: 88%;
+      padding: 12px 14px;
+      border-radius: var(--radius);
+      line-height: 1.5;
+      position: relative;
+      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: var(--primary);
+      color: white;
+      border-bottom-right-radius: 6px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 6px;
+    }
+
+    .message .meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+
+    .message .actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .message .actions button {
+      font-size: 11px;
+      padding: 6px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--surface-muted);
+      color: var(--text);
+    }
+
+    pre {
+      background: #0f172a;
+      color: #f8fafc;
+      padding: 12px;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-family: var(--mono);
+      position: relative;
+    }
+
+    pre code {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .code-toolbar {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      display: flex;
+      gap: 6px;
+    }
+
+    .code-toolbar button {
+      border: none;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      font-size: 11px;
+      border-radius: 8px;
+      padding: 4px 6px;
+    }
+
+    .status-bar {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .composer {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      padding: 10px 14px calc(10px + var(--safe-bottom));
+      display: grid;
+      grid-template-columns: auto auto 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .composer textarea {
+      width: 100%;
+      min-height: 40px;
+      max-height: 120px;
+      border-radius: 14px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-muted);
+      color: var(--text);
+      font-family: inherit;
+      resize: none;
+      line-height: 1.4;
+    }
+
+    .chip {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      background: var(--surface-muted);
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      background: rgba(15, 23, 42, 0.45);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 40;
+      padding: 12px;
+    }
+
+    .modal.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-card {
+      background: var(--surface);
+      width: 100%;
+      max-width: 520px;
+      border-radius: 20px;
+      padding: 16px;
+      max-height: 86vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow);
+    }
+
+    .modal-card h3 {
+      margin: 0 0 12px;
+    }
+
+    .form-grid {
+      display: grid;
+      gap: 12px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"],
+    select {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      background: var(--surface-muted);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+
+    .slider-group {
+      display: grid;
+      gap: 8px;
+    }
+
+    .slider-group input {
+      width: 100%;
+    }
+
+    .helper {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .badge {
+      font-size: 11px;
+      background: var(--primary-weak);
+      color: var(--primary);
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 20px;
+    }
+
+    @media (min-width: 768px) {
+      .sidebar {
+        position: static;
+        transform: translateX(0);
+        height: auto;
+        width: 280px;
+      }
+
+      .overlay {
+        display: none;
+      }
+
+      .main {
+        margin-left: 0;
+      }
+
+      .composer {
+        left: 280px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- ========== HTML结构 ========== -->
+  <div class="app" data-theme="light">
+    <aside class="sidebar" id="sidebar">
+      <h2>对话管理</h2>
+      <div class="search-box">
+        <input type="text" id="sessionSearch" placeholder="搜索对话" />
+      </div>
+      <div class="session-list" id="sessionList"></div>
+      <div class="session-actions">
+        <button class="button primary" id="newSessionBtn">+ 新建对话</button>
+        <button class="button ghost" id="exportBtn">📤 导出</button>
+      </div>
+      <div class="session-actions">
+        <button class="button" id="importBtn">📥 导入</button>
+        <button class="button" id="settingsBtn">⚙ 设置</button>
+      </div>
+    </aside>
+
+    <div class="overlay" id="overlay"></div>
+
+    <main class="main">
+      <header class="topbar">
+        <button class="icon-button" id="menuToggle">≡</button>
+        <div class="top-title" id="currentTitle">未命名对话</div>
+        <div class="model-switch">
+          <span id="currentProvider">默认</span>
+          <select id="modelSelect"></select>
+        </div>
+        <button class="icon-button" id="themeToggle">🌓</button>
+      </header>
+
+      <section class="chat-area" id="chatArea">
+        <div class="empty-state" id="emptyState">
+          <p>开始你的第一条消息吧。支持 Markdown、代码块、LaTeX。</p>
+          <span class="badge">流式输出</span>
+          <span class="badge">多会话</span>
+          <span class="badge">本地存储</span>
+        </div>
+      </section>
+
+      <div class="status-bar" id="statusBar">
+        <span>约 <span id="tokenEstimate">0</span> tokens</span>
+        <span id="connectionStatus">API 未连接</span>
+      </div>
+
+      <div class="composer">
+        <button class="icon-button" id="systemPromptBtn">🧩</button>
+        <button class="icon-button" id="quickInsertBtn">💡</button>
+        <textarea id="messageInput" placeholder="输入消息..." rows="1"></textarea>
+        <button class="icon-button" id="sendBtn">➤</button>
+      </div>
+    </main>
+  </div>
+
+  <input type="file" id="importFile" accept="application/json" hidden />
+
+  <div class="modal" id="settingsModal">
+    <div class="modal-card">
+      <h3>设置与API管理</h3>
+      <div class="form-grid">
+        <div>
+          <label>API 源</label>
+          <select id="apiSourceSelect"></select>
+        </div>
+        <div class="form-grid" id="apiEditor">
+          <div>
+            <label>名称</label>
+            <input type="text" id="apiName" placeholder="例如 OpenAI" />
+          </div>
+          <div>
+            <label>API 地址</label>
+            <input type="text" id="apiBase" placeholder="https://api.openai.com/v1" />
+          </div>
+          <div>
+            <label>API Key</label>
+            <input type="password" id="apiKey" placeholder="sk-..." />
+          </div>
+          <div>
+            <label>模型名称</label>
+            <input type="text" id="apiModels" placeholder="gpt-4o-mini, gpt-4.1" />
+          </div>
+        </div>
+        <div class="session-actions">
+          <button class="button" id="saveApiBtn">保存</button>
+          <button class="button" id="newApiBtn">新增</button>
+          <button class="button danger" id="deleteApiBtn">删除</button>
+        </div>
+        <div class="session-actions">
+          <button class="button primary" id="testApiBtn">连接测试</button>
+          <span class="helper" id="apiTestStatus">未测试</span>
+        </div>
+        <hr />
+        <div>
+          <label>系统提示词</label>
+          <textarea id="systemPrompt" rows="3" placeholder="输入 System Prompt"></textarea>
+        </div>
+        <div>
+          <label>Prompt 预设</label>
+          <select id="promptPreset"></select>
+        </div>
+        <div class="session-actions">
+          <button class="button" id="savePromptPreset">保存为预设</button>
+          <button class="button" id="applyPromptPreset">应用预设</button>
+        </div>
+        <hr />
+        <div class="slider-group">
+          <label>temperature: <span id="tempValue">0.7</span></label>
+          <input type="range" id="temperature" min="0" max="1" step="0.1" />
+          <label>top_p: <span id="topPValue">1.0</span></label>
+          <input type="range" id="topP" min="0" max="1" step="0.05" />
+          <label>max_tokens: <span id="maxTokensValue">1024</span></label>
+          <input type="range" id="maxTokens" min="128" max="4096" step="64" />
+        </div>
+        <div class="toggle">
+          <span>跟随系统主题</span>
+          <input type="checkbox" id="followSystem" />
+        </div>
+        <div class="toggle">
+          <span>消息自动滚动</span>
+          <input type="checkbox" id="autoScroll" />
+        </div>
+        <div class="toggle">
+          <span>动画效果</span>
+          <input type="checkbox" id="enableMotion" />
+        </div>
+        <div class="session-actions">
+          <button class="button ghost" id="closeSettings">关闭</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="quickInsertModal">
+    <div class="modal-card">
+      <h3>快捷短语</h3>
+      <div class="form-grid">
+        <div>
+          <label>新增短语</label>
+          <input type="text" id="quickPhraseInput" placeholder="例如：帮我总结以下内容" />
+        </div>
+        <button class="button primary" id="saveQuickPhrase">保存短语</button>
+        <div id="quickPhraseList"></div>
+        <button class="button ghost" id="closeQuickInsert">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== 工具函数 ========== -->
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/highlight.js@11.9.0/lib/common.min.js"></script>
+  <script>
+    const $ = (selector, scope = document) => scope.querySelector(selector);
+    const $$ = (selector, scope = document) => Array.from(scope.querySelectorAll(selector));
+
+    const storage = {
+      get(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : fallback;
+        } catch (error) {
+          console.warn('Storage read failed', error);
+          return fallback;
+        }
+      },
+      set(key, value) {
+        localStorage.setItem(key, JSON.stringify(value));
+      }
+    };
+
+    const uid = () => Math.random().toString(36).slice(2, 10);
+
+    const debounce = (fn, delay = 200) => {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    };
+
+    const formatTime = (date = new Date()) => {
+      return `${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    };
+
+    /* ========== API模块 ========== */
+    const apiClient = (() => {
+      let controller;
+
+      const getActiveConfig = () => {
+        const configs = storage.get('apiConfigs', []);
+        const activeId = storage.get('activeApiId', configs[0]?.id);
+        return configs.find((config) => config.id === activeId) || configs[0];
+      };
+
+      const streamChat = async ({ messages, params }) => {
+        const config = getActiveConfig();
+        if (!config) throw new Error('请先配置 API');
+
+        controller = new AbortController();
+        const payload = {
+          model: params.model,
+          messages,
+          temperature: params.temperature,
+          top_p: params.top_p,
+          max_tokens: params.max_tokens,
+          stream: true
+        };
+
+        const response = await fetch(`${config.base}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${config.key}`
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`API 错误: ${response.status} ${errorText}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+
+        return {
+          async *[Symbol.asyncIterator]() {
+            while (true) {
+              const { value, done } = await reader.read();
+              if (done) break;
+              buffer += decoder.decode(value, { stream: true });
+              const lines = buffer.split('\n');
+              buffer = lines.pop() || '';
+              for (const line of lines) {
+                const trimmed = line.trim();
+                if (!trimmed.startsWith('data:')) continue;
+                const data = trimmed.replace('data:', '').trim();
+                if (data === '[DONE]') return;
+                try {
+                  const json = JSON.parse(data);
+                  const delta = json.choices?.[0]?.delta?.content;
+                  if (delta) {
+                    yield delta;
+                  }
+                } catch (error) {
+                  console.warn('Stream parse error', error);
+                }
+              }
+            }
+          },
+          cancel() {
+            controller?.abort();
+          }
+        };
+      };
+
+      const testConnection = async () => {
+        const config = getActiveConfig();
+        if (!config) throw new Error('未找到配置');
+        const response = await fetch(`${config.base}/models`, {
+          headers: { Authorization: `Bearer ${config.key}` }
+        });
+        if (!response.ok) {
+          throw new Error(`连接失败: ${response.status}`);
+        }
+        return await response.json();
+      };
+
+      return { getActiveConfig, streamChat, testConnection, cancel: () => controller?.abort() };
+    })();
+
+    /* ========== 存储模块 ========== */
+    const db = (() => {
+      const DB_NAME = 'ai-chat-mobile';
+      const DB_VERSION = 1;
+      const STORE = 'messages';
+      let instance;
+
+      const open = () => {
+        if (instance) return Promise.resolve(instance);
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(DB_NAME, DB_VERSION);
+          request.onupgradeneeded = (event) => {
+            const database = event.target.result;
+            if (!database.objectStoreNames.contains(STORE)) {
+              const store = database.createObjectStore(STORE, { keyPath: 'id' });
+              store.createIndex('sessionId', 'sessionId', { unique: false });
+            }
+          };
+          request.onsuccess = () => {
+            instance = request.result;
+            resolve(instance);
+          };
+          request.onerror = () => reject(request.error);
+        });
+      };
+
+      const withStore = async (mode, callback) => {
+        const database = await open();
+        return new Promise((resolve, reject) => {
+          const tx = database.transaction(STORE, mode);
+          const store = tx.objectStore(STORE);
+          const result = callback(store);
+          tx.oncomplete = () => resolve(result);
+          tx.onerror = () => reject(tx.error);
+        });
+      };
+
+      const getMessages = async (sessionId) => {
+        const database = await open();
+        return new Promise((resolve, reject) => {
+          const tx = database.transaction(STORE, 'readonly');
+          const store = tx.objectStore(STORE);
+          const index = store.index('sessionId');
+          const request = index.getAll(sessionId);
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        });
+      };
+
+      const saveMessage = async (message) => withStore('readwrite', (store) => store.put(message));
+
+      const deleteBySession = async (sessionId) => withStore('readwrite', (store) => {
+        const index = store.index('sessionId');
+        const request = index.openCursor(sessionId);
+        request.onsuccess = (event) => {
+          const cursor = event.target.result;
+          if (cursor) {
+            store.delete(cursor.primaryKey);
+            cursor.continue();
+          }
+        };
+      });
+
+      return { getMessages, saveMessage, deleteBySession };
+    })();
+
+    /* ========== UI模块 ========== */
+    const ui = (() => {
+      const chatArea = $('#chatArea');
+      const emptyState = $('#emptyState');
+
+      const renderMarkdown = (content) => {
+        marked.setOptions({
+          breaks: true,
+          highlight(code, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+              return hljs.highlight(code, { language: lang }).value;
+            }
+            return hljs.highlightAuto(code).value;
+          }
+        });
+        return marked.parse(content);
+      };
+
+      const injectCodeToolbar = (messageEl) => {
+        $$('pre', messageEl).forEach((block) => {
+          if (block.querySelector('.code-toolbar')) return;
+          const code = block.querySelector('code');
+          const toolbar = document.createElement('div');
+          toolbar.className = 'code-toolbar';
+          const lang = code?.className?.replace('language-', '') || 'code';
+          const label = document.createElement('button');
+          label.textContent = lang;
+          const copy = document.createElement('button');
+          copy.textContent = '复制';
+          copy.addEventListener('click', () => {
+            navigator.clipboard.writeText(code?.innerText || '');
+            copy.textContent = '已复制';
+            setTimeout(() => (copy.textContent = '复制'), 1500);
+          });
+          toolbar.append(label, copy);
+          block.appendChild(toolbar);
+        });
+      };
+
+      const createMessage = ({ id, role, content, createdAt }) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = `message ${role}`;
+        wrapper.dataset.id = id;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = `${role === 'user' ? '👤 用户' : '🤖 AI'} · ${createdAt}`;
+        const body = document.createElement('div');
+        body.className = 'body';
+        body.innerHTML = renderMarkdown(content || '');
+        const actions = document.createElement('div');
+        actions.className = 'actions';
+        const copyBtn = document.createElement('button');
+        copyBtn.textContent = '复制';
+        copyBtn.addEventListener('click', () => navigator.clipboard.writeText(content));
+        const editBtn = document.createElement('button');
+        editBtn.textContent = role === 'user' ? '编辑' : '重新生成';
+        actions.append(copyBtn, editBtn);
+        wrapper.append(meta, body, actions);
+        injectCodeToolbar(wrapper);
+        return wrapper;
+      };
+
+      const appendMessage = (message) => {
+        const node = createMessage(message);
+        chatArea.appendChild(node);
+        emptyState.style.display = 'none';
+        return node;
+      };
+
+      const updateMessageContent = (id, content) => {
+        const node = chatArea.querySelector(`[data-id="${id}"] .body`);
+        if (!node) return;
+        node.innerHTML = renderMarkdown(content);
+        injectCodeToolbar(node.parentElement);
+      };
+
+      const clear = () => {
+        chatArea.innerHTML = '';
+        chatArea.appendChild(emptyState);
+      };
+
+      const setStatus = (text, tone = '') => {
+        const status = $('#connectionStatus');
+        status.textContent = text;
+        status.style.color = tone ? `var(--${tone})` : 'var(--text-muted)';
+      };
+
+      const setTokenEstimate = (value) => {
+        $('#tokenEstimate').textContent = value;
+      };
+
+      return { appendMessage, updateMessageContent, clear, setStatus, setTokenEstimate };
+    })();
+
+    /* ========== 初始化 ========== */
+    const app = (() => {
+      const state = {
+        sessions: storage.get('sessions', []),
+        activeSessionId: storage.get('activeSessionId', null),
+        settings: storage.get('settings', {
+          theme: 'light',
+          followSystem: true,
+          autoScroll: true,
+          enableMotion: true,
+          temperature: 0.7,
+          top_p: 1,
+          max_tokens: 1024
+        }),
+        promptPresets: storage.get('promptPresets', ['你是一个高效且简洁的助手。']),
+        quickPhrases: storage.get('quickPhrases', ['总结一下', '帮我润色', '翻译成英文']),
+        history: [],
+        historyIndex: -1
+      };
+
+      const ensureDefaultSession = () => {
+        if (state.sessions.length === 0) {
+          const session = {
+            id: uid(),
+            title: '新的对话',
+            pinned: false,
+            updatedAt: new Date().toISOString()
+          };
+          state.sessions.push(session);
+          state.activeSessionId = session.id;
+        }
+      };
+
+      const saveState = () => {
+        storage.set('sessions', state.sessions);
+        storage.set('activeSessionId', state.activeSessionId);
+        storage.set('settings', state.settings);
+        storage.set('promptPresets', state.promptPresets);
+        storage.set('quickPhrases', state.quickPhrases);
+      };
+
+      const renderSessions = (filter = '') => {
+        const list = $('#sessionList');
+        list.innerHTML = '';
+        const filtered = state.sessions
+          .filter((session) => session.title.includes(filter))
+          .sort((a, b) => (b.pinned === a.pinned ? new Date(b.updatedAt) - new Date(a.updatedAt) : b.pinned - a.pinned));
+        filtered.forEach((session) => {
+          const item = document.createElement('div');
+          item.className = `session-item ${session.id === state.activeSessionId ? 'active' : ''}`;
+          item.innerHTML = `
+            <div>${session.title}</div>
+            <div class="session-meta">
+              <span>${session.pinned ? '📌 已置顶' : '最近更新'}</span>
+              <span>${new Date(session.updatedAt).toLocaleDateString()}</span>
+            </div>
+          `;
+          item.addEventListener('click', () => switchSession(session.id));
+          list.appendChild(item);
+        });
+      };
+
+      const renderModelSelect = () => {
+        const select = $('#modelSelect');
+        select.innerHTML = '';
+        const config = apiClient.getActiveConfig();
+        const models = config?.models || [];
+        models.forEach((model) => {
+          const option = document.createElement('option');
+          option.value = model;
+          option.textContent = model;
+          select.appendChild(option);
+        });
+        if (models.length === 0) {
+          const option = document.createElement('option');
+          option.value = '';
+          option.textContent = '未配置模型';
+          select.appendChild(option);
+        }
+        $('#currentProvider').textContent = config?.name || '默认';
+      };
+
+      const renderSettings = () => {
+        const configs = storage.get('apiConfigs', []);
+        const select = $('#apiSourceSelect');
+        select.innerHTML = '';
+        configs.forEach((config) => {
+          const option = document.createElement('option');
+          option.value = config.id;
+          option.textContent = config.name;
+          select.appendChild(option);
+        });
+        const active = apiClient.getActiveConfig();
+        if (active) {
+          select.value = active.id;
+          $('#apiName').value = active.name || '';
+          $('#apiBase').value = active.base || '';
+          $('#apiKey').value = active.key || '';
+          $('#apiModels').value = (active.models || []).join(', ');
+        }
+
+        $('#temperature').value = state.settings.temperature;
+        $('#topP').value = state.settings.top_p;
+        $('#maxTokens').value = state.settings.max_tokens;
+        $('#tempValue').textContent = state.settings.temperature;
+        $('#topPValue').textContent = state.settings.top_p;
+        $('#maxTokensValue').textContent = state.settings.max_tokens;
+        $('#followSystem').checked = state.settings.followSystem;
+        $('#autoScroll').checked = state.settings.autoScroll;
+        $('#enableMotion').checked = state.settings.enableMotion;
+
+        const presetSelect = $('#promptPreset');
+        presetSelect.innerHTML = '';
+        state.promptPresets.forEach((preset, index) => {
+          const option = document.createElement('option');
+          option.value = index;
+          option.textContent = preset.slice(0, 24);
+          presetSelect.appendChild(option);
+        });
+        $('#systemPrompt').value = storage.get('systemPrompt', '');
+      };
+
+      const renderQuickPhrases = () => {
+        const container = $('#quickPhraseList');
+        container.innerHTML = '';
+        state.quickPhrases.forEach((phrase) => {
+          const chip = document.createElement('button');
+          chip.className = 'chip';
+          chip.textContent = phrase;
+          chip.addEventListener('click', () => {
+            insertAtCursor($('#messageInput'), phrase);
+          });
+          container.appendChild(chip);
+        });
+      };
+
+      const switchSession = async (sessionId) => {
+        state.activeSessionId = sessionId;
+        saveState();
+        renderSessions($('#sessionSearch').value);
+        $('#currentTitle').textContent = state.sessions.find((s) => s.id === sessionId)?.title || '未命名对话';
+        ui.clear();
+        const messages = await db.getMessages(sessionId);
+        messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        messages.forEach((msg) => ui.appendMessage(msg));
+        ui.setTokenEstimate(estimateTokens(messages.map((m) => m.content).join(' ')));
+      };
+
+      const createSession = () => {
+        const session = {
+          id: uid(),
+          title: `对话 ${state.sessions.length + 1}`,
+          pinned: false,
+          updatedAt: new Date().toISOString()
+        };
+        state.sessions.unshift(session);
+        state.activeSessionId = session.id;
+        saveState();
+        renderSessions();
+        switchSession(session.id);
+      };
+
+      const updateSessionTitle = (sessionId, title) => {
+        const session = state.sessions.find((s) => s.id === sessionId);
+        if (session) {
+          session.title = title;
+          session.updatedAt = new Date().toISOString();
+          saveState();
+          renderSessions($('#sessionSearch').value);
+          $('#currentTitle').textContent = title;
+        }
+      };
+
+      const deleteSession = async (sessionId) => {
+        const index = state.sessions.findIndex((s) => s.id === sessionId);
+        if (index === -1) return;
+        state.sessions.splice(index, 1);
+        await db.deleteBySession(sessionId);
+        if (state.sessions.length) {
+          state.activeSessionId = state.sessions[0].id;
+        } else {
+          state.activeSessionId = null;
+        }
+        saveState();
+        renderSessions($('#sessionSearch').value);
+        if (state.activeSessionId) {
+          switchSession(state.activeSessionId);
+        } else {
+          ui.clear();
+        }
+      };
+
+      const estimateTokens = (text) => Math.round(text.length / 4);
+
+      const insertAtCursor = (textarea, text) => {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const value = textarea.value;
+        textarea.value = value.slice(0, start) + text + value.slice(end);
+        textarea.selectionStart = textarea.selectionEnd = start + text.length;
+        textarea.focus();
+        autoResize(textarea);
+      };
+
+      const autoResize = (textarea) => {
+        textarea.style.height = 'auto';
+        textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+      };
+
+      const buildPromptMessages = async () => {
+        const systemPrompt = storage.get('systemPrompt', '').trim();
+        const messages = await db.getMessages(state.activeSessionId);
+        const ordered = messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        const result = [];
+        if (systemPrompt) {
+          result.push({ role: 'system', content: systemPrompt });
+        }
+        ordered.forEach((msg) => {
+          result.push({ role: msg.role, content: msg.content });
+        });
+        return result;
+      };
+
+      const sendMessage = async () => {
+        const input = $('#messageInput');
+        const content = input.value.trim();
+        if (!content) return;
+
+        const userMessage = {
+          id: uid(),
+          role: 'user',
+          content,
+          createdAt: formatTime()
+        };
+
+        await db.saveMessage({ ...userMessage, sessionId: state.activeSessionId });
+        ui.appendMessage(userMessage);
+        input.value = '';
+        autoResize(input);
+
+        state.history.unshift(content);
+        state.historyIndex = -1;
+        storage.set('draft', '');
+
+        const session = state.sessions.find((s) => s.id === state.activeSessionId);
+        if (session && session.title === '新的对话') {
+          session.title = content.slice(0, 16) || '新的对话';
+        }
+        if (session) session.updatedAt = new Date().toISOString();
+        saveState();
+        renderSessions($('#sessionSearch').value);
+        $('#currentTitle').textContent = session?.title || '未命名对话';
+
+        const assistantMessage = {
+          id: uid(),
+          role: 'assistant',
+          content: '',
+          createdAt: formatTime()
+        };
+        ui.appendMessage(assistantMessage);
+
+        try {
+          ui.setStatus('AI 正在思考...', 'warning');
+          const messages = await buildPromptMessages();
+          const config = apiClient.getActiveConfig();
+          const params = {
+            model: $('#modelSelect').value || config?.models?.[0],
+            temperature: state.settings.temperature,
+            top_p: state.settings.top_p,
+            max_tokens: state.settings.max_tokens
+          };
+
+          const stream = await apiClient.streamChat({ messages, params });
+          for await (const chunk of stream) {
+            assistantMessage.content += chunk;
+            ui.updateMessageContent(assistantMessage.id, assistantMessage.content);
+            ui.setTokenEstimate(estimateTokens(assistantMessage.content));
+            if (state.settings.autoScroll) {
+              $('#chatArea').scrollTop = $('#chatArea').scrollHeight;
+            }
+          }
+
+          await db.saveMessage({ ...assistantMessage, sessionId: state.activeSessionId });
+          ui.setStatus('已连接', 'success');
+        } catch (error) {
+          assistantMessage.content = `❌ ${error.message}`;
+          ui.updateMessageContent(assistantMessage.id, assistantMessage.content);
+          ui.setStatus('连接失败', 'danger');
+        }
+      };
+
+      const initApiConfigs = () => {
+        const configs = storage.get('apiConfigs', []);
+        if (configs.length === 0) {
+          const defaultConfig = {
+            id: uid(),
+            name: '默认 API',
+            base: 'https://api.openai.com/v1',
+            key: '',
+            models: ['gpt-4o-mini']
+          };
+          configs.push(defaultConfig);
+          storage.set('apiConfigs', configs);
+          storage.set('activeApiId', defaultConfig.id);
+        }
+      };
+
+      const bindEvents = () => {
+        $('#menuToggle').addEventListener('click', () => {
+          $('#sidebar').classList.add('open');
+          $('#overlay').classList.add('show');
+        });
+        $('#overlay').addEventListener('click', () => {
+          $('#sidebar').classList.remove('open');
+          $('#overlay').classList.remove('show');
+        });
+
+        $('#newSessionBtn').addEventListener('click', createSession);
+        $('#sessionSearch').addEventListener('input', (event) => renderSessions(event.target.value));
+
+        $('#settingsBtn').addEventListener('click', () => {
+          renderSettings();
+          $('#settingsModal').classList.add('show');
+        });
+        $('#closeSettings').addEventListener('click', () => $('#settingsModal').classList.remove('show'));
+
+        $('#themeToggle').addEventListener('click', () => {
+          state.settings.theme = state.settings.theme === 'light' ? 'dark' : 'light';
+          state.settings.followSystem = false;
+          applyTheme();
+          saveState();
+        });
+
+        $('#sendBtn').addEventListener('click', sendMessage);
+        $('#messageInput').addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault();
+            sendMessage();
+          }
+          if (event.key === 'ArrowUp') {
+            const next = state.history[state.historyIndex + 1];
+            if (next) {
+              state.historyIndex += 1;
+              event.target.value = next;
+            }
+          }
+          if (event.key === 'ArrowDown') {
+            const prev = state.history[state.historyIndex - 1] || '';
+            state.historyIndex = Math.max(-1, state.historyIndex - 1);
+            event.target.value = prev;
+          }
+        });
+
+        $('#messageInput').addEventListener('input', debounce((event) => {
+          autoResize(event.target);
+          storage.set('draft', event.target.value);
+        }, 100));
+
+        $('#apiSourceSelect').addEventListener('change', (event) => {
+          storage.set('activeApiId', event.target.value);
+          renderSettings();
+          renderModelSelect();
+        });
+
+        $('#saveApiBtn').addEventListener('click', () => {
+          const configs = storage.get('apiConfigs', []);
+          const activeId = $('#apiSourceSelect').value;
+          const target = configs.find((c) => c.id === activeId);
+          if (!target) return;
+          target.name = $('#apiName').value.trim() || target.name;
+          target.base = $('#apiBase').value.trim();
+          target.key = $('#apiKey').value.trim();
+          target.models = $('#apiModels').value.split(',').map((m) => m.trim()).filter(Boolean);
+          storage.set('apiConfigs', configs);
+          renderSettings();
+          renderModelSelect();
+        });
+
+        $('#newApiBtn').addEventListener('click', () => {
+          const configs = storage.get('apiConfigs', []);
+          const config = {
+            id: uid(),
+            name: '新 API',
+            base: '',
+            key: '',
+            models: []
+          };
+          configs.push(config);
+          storage.set('apiConfigs', configs);
+          storage.set('activeApiId', config.id);
+          renderSettings();
+          renderModelSelect();
+        });
+
+        $('#deleteApiBtn').addEventListener('click', () => {
+          const configs = storage.get('apiConfigs', []);
+          const activeId = $('#apiSourceSelect').value;
+          const nextConfigs = configs.filter((c) => c.id !== activeId);
+          storage.set('apiConfigs', nextConfigs);
+          storage.set('activeApiId', nextConfigs[0]?.id || null);
+          renderSettings();
+          renderModelSelect();
+        });
+
+        $('#testApiBtn').addEventListener('click', async () => {
+          const status = $('#apiTestStatus');
+          status.textContent = '测试中...';
+          try {
+            await apiClient.testConnection();
+            status.textContent = '连接成功';
+            status.style.color = 'var(--success)';
+          } catch (error) {
+            status.textContent = error.message;
+            status.style.color = 'var(--danger)';
+          }
+        });
+
+        $('#systemPromptBtn').addEventListener('click', () => {
+          renderSettings();
+          $('#settingsModal').classList.add('show');
+        });
+
+        $('#promptPreset').addEventListener('change', (event) => {
+          const preset = state.promptPresets[event.target.value];
+          if (preset) {
+            $('#systemPrompt').value = preset;
+          }
+        });
+
+        $('#savePromptPreset').addEventListener('click', () => {
+          const value = $('#systemPrompt').value.trim();
+          if (value) {
+            state.promptPresets.push(value);
+            saveState();
+            renderSettings();
+          }
+        });
+
+        $('#applyPromptPreset').addEventListener('click', () => {
+          storage.set('systemPrompt', $('#systemPrompt').value.trim());
+        });
+
+        $('#temperature').addEventListener('input', (event) => {
+          state.settings.temperature = Number(event.target.value);
+          $('#tempValue').textContent = event.target.value;
+          saveState();
+        });
+
+        $('#topP').addEventListener('input', (event) => {
+          state.settings.top_p = Number(event.target.value);
+          $('#topPValue').textContent = event.target.value;
+          saveState();
+        });
+
+        $('#maxTokens').addEventListener('input', (event) => {
+          state.settings.max_tokens = Number(event.target.value);
+          $('#maxTokensValue').textContent = event.target.value;
+          saveState();
+        });
+
+        $('#followSystem').addEventListener('change', (event) => {
+          state.settings.followSystem = event.target.checked;
+          applyTheme();
+          saveState();
+        });
+
+        $('#autoScroll').addEventListener('change', (event) => {
+          state.settings.autoScroll = event.target.checked;
+          saveState();
+        });
+
+        $('#enableMotion').addEventListener('change', (event) => {
+          state.settings.enableMotion = event.target.checked;
+          saveState();
+        });
+
+        $('#quickInsertBtn').addEventListener('click', () => {
+          renderQuickPhrases();
+          $('#quickInsertModal').classList.add('show');
+        });
+
+        $('#closeQuickInsert').addEventListener('click', () => $('#quickInsertModal').classList.remove('show'));
+
+        $('#saveQuickPhrase').addEventListener('click', () => {
+          const value = $('#quickPhraseInput').value.trim();
+          if (value) {
+            state.quickPhrases.push(value);
+            $('#quickPhraseInput').value = '';
+            saveState();
+            renderQuickPhrases();
+          }
+        });
+
+        $('#exportBtn').addEventListener('click', async () => {
+          const sessions = state.sessions;
+          const exportData = {
+            sessions,
+            settings: state.settings,
+            apiConfigs: storage.get('apiConfigs', []),
+            systemPrompt: storage.get('systemPrompt', ''),
+            messages: {}
+          };
+          for (const session of sessions) {
+            exportData.messages[session.id] = await db.getMessages(session.id);
+          }
+          const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = 'ai-chat-backup.json';
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+
+        $('#importBtn').addEventListener('click', () => $('#importFile').click());
+
+        $('#importFile').addEventListener('change', async (event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const text = await file.text();
+          try {
+            const data = JSON.parse(text);
+            storage.set('apiConfigs', data.apiConfigs || []);
+            storage.set('systemPrompt', data.systemPrompt || '');
+            state.sessions = data.sessions || [];
+            state.settings = data.settings || state.settings;
+            for (const [sessionId, messages] of Object.entries(data.messages || {})) {
+              for (const msg of messages) {
+                await db.saveMessage({ ...msg, sessionId });
+              }
+            }
+            saveState();
+            renderSessions();
+            renderModelSelect();
+          } catch (error) {
+            alert('导入失败，请检查文件格式');
+          }
+        });
+      };
+
+      const applyTheme = () => {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const theme = state.settings.followSystem ? (prefersDark ? 'dark' : 'light') : state.settings.theme;
+        document.querySelector('.app').setAttribute('data-theme', theme);
+      };
+
+      const init = async () => {
+        initApiConfigs();
+        ensureDefaultSession();
+        saveState();
+        bindEvents();
+        applyTheme();
+        renderSessions();
+        renderModelSelect();
+        $('#messageInput').value = storage.get('draft', '');
+        autoResize($('#messageInput'));
+        if (state.activeSessionId) {
+          await switchSession(state.activeSessionId);
+        }
+      };
+
+      return { init };
+    })();
+
+    document.addEventListener('DOMContentLoaded', app.init);
+  </script>
+</body>
+</html>
