@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VectorEngine API 余额查询</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 50px;
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border: none;
+            border-radius: 15px;
+        }
+        .result-box {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #fff;
+            border-radius: 10px;
+        }
+        .loading {
+            display: none;
+        }
+        .stat-label {
+            color: #6c757d;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .stat-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            /* 核心修复：强制不换行，防止数字掉到第二行 */
+            white-space: nowrap; 
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .text-success-custom { color: #198754; }
+        .text-danger-custom { color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h3 class="text-center mb-4">API Key 余额查询</h3>
+                <p class="text-center text-muted small">接口地址: https://api.vectorengine.ai</p>
+                
+                <div class="mb-3">
+                    <label for="apiKey" class="form-label">请输入 API Key (sk-开头)</label>
+                    <input type="text" class="form-control" id="apiKey" placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="checkBalance()">查询额度</button>
+                </div>
+
+                <div class="text-center mt-3 loading" id="loading">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">正在查询数据...</p>
+                </div>
+
+                <div class="alert alert-danger mt-3" id="errorBox" style="display: none;"></div>
+
+                <div class="result-box" id="resultBox">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="stat-label">总额度</div>
+                            <div class="stat-value" id="totalLimit">$0.00</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-label">已使用</div>
+                            <div class="stat-value text-danger-custom" id="totalUsed">$0.00</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-label">剩余余额</div>
+                            <div class="stat-value text-success-custom" id="remainingBalance">$0.00</div>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="text-muted small text-center">
+                        <span id="planTitle">订阅类型: 检测中...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = "https://api.vectorengine.ai";
+
+    async function checkBalance() {
+        const key = document.getElementById('apiKey').value.trim();
+        const errorBox = document.getElementById('errorBox');
+        const resultBox = document.getElementById('resultBox');
+        const loading = document.getElementById('loading');
+
+        // 重置界面
+        errorBox.style.display = 'none';
+        resultBox.style.display = 'none';
+        
+        if (!key.startsWith('sk-')) {
+            showError('API Key 格式不正确，请以 sk- 开头');
+            return;
+        }
+
+        loading.style.display = 'block';
+
+        try {
+            // 1. 获取订阅总量 (Subscription)
+            const subResponse = await fetch(`${API_BASE}/v1/dashboard/billing/subscription`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            if (!subResponse.ok) {
+                if(subResponse.status === 401) throw new Error("API Key 无效或已过期");
+                throw new Error(`请求失败，状态码: ${subResponse.status}`);
+            }
+
+            const subData = await subResponse.json();
+            const total = subData.hard_limit_usd || 0;
+
+            // 2. 获取已使用量 (Usage) - 查询最近100天的使用情况
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 99); 
+            
+            const formatDate = (date) => date.toISOString().split('T')[0];
+            const usageUrl = `${API_BASE}/v1/dashboard/billing/usage?start_date=${formatDate(startDate)}&end_date=${formatDate(endDate)}`;
+
+            const usageResponse = await fetch(usageUrl, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${key}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            const usageData = await usageResponse.json();
+            const used = (usageData.total_usage || 0) / 100; // 转换美分
+            
+            // 3. 计算并显示 (toFixed(2) 保留两位小数)
+            const remaining = total - used;
+            
+            document.getElementById('totalLimit').innerText = `$${total.toFixed(2)}`;
+            document.getElementById('totalUsed').innerText = `$${used.toFixed(2)}`;
+            document.getElementById('remainingBalance').innerText = `$${remaining.toFixed(2)}`;
+            document.getElementById('planTitle').innerText = `订阅类型: ${subData.plan ? subData.plan.title : '标准订阅'}`;
+
+            loading.style.display = 'none';
+            resultBox.style.display = 'block';
+
+        } catch (error) {
+            loading.style.display = 'none';
+            console.error(error);
+            if (error.message.includes('Failed to fetch')) {
+                showError('网络错误：可能是浏览器跨域限制(CORS)或接口地址无法访问。<br>建议：请尝试在无痕模式打开，或联系管理员确认接口是否允许跨域。');
+            } else {
+                showError(error.message);
+            }
+        }
+    }
+
+    function showError(msg) {
+        const errorBox = document.getElementById('errorBox');
+        errorBox.innerHTML = msg;
+        errorBox.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
