@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GEMINI CHARADES V10 (AUTO CLEAR)</title>
+    <title>GEMINI CHARADES V11 (VOICE)</title>
     <style>
         :root {
             --bg: #f2f4f6;       
             --fg: #1a1a1a;       
             --accent: #2962ff;   
+            --recording: #ff3b30; /* 录音中的红色 */
             --card-bg: #ffffff;  
             --border: #d1d5db;   
             --input-bg: #ffffff; 
@@ -144,6 +145,35 @@
             height: 60px;
         }
 
+        /* 麦克风按钮样式 */
+        #mic-btn {
+            width: 60px;
+            background: #fff;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 24px;
+            transition: all 0.2s;
+            color: #555;
+        }
+        #mic-btn:hover { border-color: var(--accent); color: var(--accent); }
+        
+        /* 录音时的动画 */
+        #mic-btn.listening {
+            border-color: var(--recording);
+            color: var(--recording);
+            animation: pulse 1.5s infinite;
+            background: #fff5f5;
+        }
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.4); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(255, 59, 48, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+        }
+
         #word-input {
             flex: 1;
             background: #fff;
@@ -161,7 +191,7 @@
         #word-input::placeholder { color: #ccc; font-size: 20px; font-weight: normal; }
 
         button#go-btn {
-            width: 120px;
+            width: 100px; /* 稍微调窄一点给麦克风腾位置 */
             background: var(--fg);
             color: #fff;
             border: none;
@@ -187,6 +217,8 @@
             #results { grid-template-columns: 1fr; }
             .input-row { height: 50px; }
             #word-input { font-size: 20px; }
+            #mic-btn { width: 50px; font-size: 20px; }
+            button#go-btn { width: 80px; font-size: 12px; }
         }
 
         .result-card {
@@ -261,7 +293,7 @@
 <body>
 
     <header>
-        <span>GEMINI CHARADES V10</span>
+        <span>GEMINI CHARADES V11</span>
         <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
     </header>
 
@@ -273,6 +305,7 @@
 
         <div id="status-bar"></div>
         <div class="input-row">
+            <button id="mic-btn" onclick="toggleVoice()" title="Click to speak">🎤</button>
             <input type="text" id="word-input" placeholder="输入词语..." autocomplete="off">
             <button id="go-btn" onclick="generate()">GENERATE</button>
         </div>
@@ -337,6 +370,10 @@
         let failedKeysSession = new Set();
         let currentMode = 'describe';
 
+        // 语音识别对象
+        let recognition = null;
+        let isListening = false;
+
         const els = {
             apiKeys: document.getElementById('api-keys'),
             modelId: document.getElementById('model-id'),
@@ -350,6 +387,7 @@
             btn: document.getElementById('go-btn'),
             toast: document.getElementById('toast'),
             statsDisplay: document.getElementById('key-stats-display'),
+            micBtn: document.getElementById('mic-btn'), // 新增
             modeBtns: {
                 describe: document.getElementById('mode-desc'),
                 guess: document.getElementById('mode-guess')
@@ -364,12 +402,64 @@
 
             switchMode('describe');
             updateKeyStats();
+            initSpeech(); // 初始化语音
 
             els.wordInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') generate();
             });
             els.wordInput.focus();
         });
+
+        // --- 语音识别逻辑 ---
+        function initSpeech() {
+            if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.lang = 'zh-CN'; // 默认中文
+                recognition.continuous = false; // 说话结束自动停
+                recognition.interimResults = false;
+
+                recognition.onstart = () => {
+                    isListening = true;
+                    els.micBtn.classList.add('listening');
+                    els.wordInput.placeholder = "Listening...";
+                };
+
+                recognition.onend = () => {
+                    isListening = false;
+                    els.micBtn.classList.remove('listening');
+                    els.wordInput.placeholder = "输入词语...";
+                };
+
+                recognition.onresult = (event) => {
+                    const transcript = event.results[0][0].transcript;
+                    // 去除末尾句号（语音输入习惯加标点）
+                    els.wordInput.value = transcript.replace(/[。\.]$/, '');
+                };
+
+                recognition.onerror = (event) => {
+                    console.error("Speech error", event.error);
+                    isListening = false;
+                    els.micBtn.classList.remove('listening');
+                    if (event.error === 'not-allowed') {
+                        alert('Microphone access denied.');
+                    }
+                };
+            } else {
+                els.micBtn.style.display = 'none'; // 不支持则隐藏按钮
+            }
+        }
+
+        function toggleVoice() {
+            if (!recognition) return;
+            if (isListening) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+
+        // --- 常规逻辑 ---
 
         function switchMode(mode) {
             currentMode = mode;
@@ -485,18 +575,12 @@
 
                 try {
                     await fetchWithTimeout(inputText, currentKey, timeoutMs);
-                    
                     incrementUsage(currentKey);
                     els.status.innerText = `Success with Key (${shortKey})`;
                     els.status.style.color = 'green';
-                    
-                    // --- V10 新增：成功后清空输入框 ---
-                    els.wordInput.value = ''; 
-                    // ----------------------------------
-                    
+                    els.wordInput.value = ''; // Auto clear
                     success = true;
                     break;
-
                 } catch (err) {
                     console.warn(`Key ${shortKey} failed:`, err);
                     failedKeysSession.add(currentKey);
