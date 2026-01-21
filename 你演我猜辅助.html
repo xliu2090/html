@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GEMINI CHARADES V7</title>
+    <title>GEMINI CHARADES V9 (CUSTOM TIMEOUT)</title>
     <style>
         :root {
             --bg: #f2f4f6;       
@@ -29,7 +29,6 @@
             padding: 15px;
         }
 
-        /* 顶部栏 */
         header {
             width: 100%;
             max-width: 800px;
@@ -45,7 +44,6 @@
         .settings-btn { cursor: pointer; text-decoration: underline; font-weight: bold; }
         .settings-btn:hover { color: var(--accent); }
 
-        /* 模式切换器 */
         .mode-toggle-container {
             display: flex;
             background: #e0e0e0;
@@ -74,7 +72,6 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
 
-        /* 设置面板 */
         #config-panel {
             width: 100%;
             max-width: 800px;
@@ -104,7 +101,10 @@
         .config-input:focus, textarea:focus { border-color: var(--accent); }
         textarea.keys-area { height: 80px; white-space: pre; overflow-x: auto; }
 
-        /* 复选框样式 */
+        /* 两列布局容器 */
+        .two-col { display: flex; gap: 15px; }
+        .two-col > div { flex: 1; }
+
         .checkbox-group {
             display: flex;
             align-items: center;
@@ -116,7 +116,7 @@
             border: 1px solid #eee;
         }
         .checkbox-group input { width: auto; cursor: pointer; transform: scale(1.2); }
-        .checkbox-group label { margin: 0; cursor: pointer; color: #333; }
+        .checkbox-group label { margin: 0; cursor: pointer; color: #333; font-size: 12px; }
         
         #key-stats-display {
             margin-top: 8px;
@@ -135,10 +135,8 @@
         }
         .key-stat-count { color: var(--accent); font-weight: bold; }
 
-        /* 主界面 */
         main { width: 100%; max-width: 800px; display: flex; flex-direction: column; align-items: center; }
 
-        /* 输入行 */
         .input-row {
             width: 100%;
             display: flex;
@@ -179,7 +177,6 @@
         button#go-btn:active { transform: translateY(1px); }
         button#go-btn:disabled { opacity: 0.6; cursor: not-allowed; background: #999; }
 
-        /* 结果区域 */
         #results {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -211,15 +208,12 @@
             color: #333;
             font-weight: 600;
         }
-
         .result-card:hover {
             border-color: var(--accent);
             transform: translateY(-3px);
             box-shadow: 0 8px 16px rgba(41, 98, 255, 0.15);
         }
-
         .result-card:active { transform: translateY(0); }
-
         .result-card::after {
             content: "COPY";
             position: absolute;
@@ -232,15 +226,15 @@
         }
         .result-card:hover::after { color: var(--accent); }
 
-        /* 状态条 */
         #status-bar {
             width: 100%;
-            height: 20px;
+            min-height: 20px;
             margin-bottom: 5px;
             font-family: var(--font-mono);
             font-size: 11px;
             color: #888;
             text-align: right;
+            white-space: pre-wrap; 
         }
 
         .toast {
@@ -268,7 +262,7 @@
 <body>
 
     <header>
-        <span>GEMINI CHARADES V7</span>
+        <span>GEMINI CHARADES V9</span>
         <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
     </header>
 
@@ -288,24 +282,28 @@
 
     <div id="config-panel">
         <div class="input-group">
-            <label>API KEYS (One per line)</label>
+            <label>API KEYS (Priority: Last Successful -> Others)</label>
             <textarea id="api-keys" class="keys-area" placeholder="Paste keys here..." oninput="updateKeyStats()"></textarea>
             <div id="key-stats-display"></div>
         </div>
         
-        <div class="input-group">
-            <label>MODEL CONFIG</label>
-            <input type="text" id="model-id" class="config-input" value="gemini-1.5-flash" placeholder="Model ID">
-            
-            <div class="checkbox-group">
-                <input type="checkbox" id="thinking-minimal">
-                <label for="thinking-minimal" title="Adds thinkingConfig: { thinkingLevel: 'minimal' }">
-                    ENABLE MINIMAL THINKING (Speed Up)
-                </label>
+        <div class="two-col">
+            <div class="input-group">
+                <label>MODEL ID</label>
+                <input type="text" id="model-id" class="config-input" value="gemini-1.5-flash">
+            </div>
+            <div class="input-group">
+                <label>TIMEOUT (Seconds)</label>
+                <input type="number" id="timeout-setting" class="config-input" value="7" min="1" max="60">
             </div>
         </div>
 
-        <div class="input-group">
+        <div class="checkbox-group">
+            <input type="checkbox" id="thinking-minimal">
+            <label for="thinking-minimal">ENABLE MINIMAL THINKING (Faster)</label>
+        </div>
+
+        <div class="input-group" style="margin-top:15px;">
             <label>CURRENT SYSTEM PROMPT</label>
             <textarea id="sys-prompt" style="height:80px"></textarea>
         </div>
@@ -318,7 +316,6 @@
     <div id="toast" class="toast">COPIED!</div>
 
     <script>
-        // --- PROMPTS ---
         const PROMPTS = {
             describe: `辅助我玩文字版你演我猜，我给你词帮我描述。
 要求：
@@ -336,12 +333,16 @@
         };
 
         const STORAGE_USAGE_KEY = 'gemini_key_usage_v3';
+        const STORAGE_LAST_KEY = 'gemini_last_success_key';
+        
+        let failedKeysSession = new Set();
         let currentMode = 'describe';
 
         const els = {
             apiKeys: document.getElementById('api-keys'),
             modelId: document.getElementById('model-id'),
-            thinkingMinimal: document.getElementById('thinking-minimal'), // 新增
+            timeout: document.getElementById('timeout-setting'), // 新增
+            thinkingMinimal: document.getElementById('thinking-minimal'),
             sysPrompt: document.getElementById('sys-prompt'),
             wordInput: document.getElementById('word-input'),
             results: document.getElementById('results'),
@@ -356,14 +357,13 @@
             }
         };
 
-        // --- 初始化 ---
         window.addEventListener('DOMContentLoaded', () => {
             els.apiKeys.value = localStorage.getItem('gemini_api_keys') || '';
             els.modelId.value = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+            els.thinkingMinimal.checked = localStorage.getItem('gemini_thinking_minimal') === 'true';
             
-            // 加载 Minimal Thinking 状态
-            const savedThinking = localStorage.getItem('gemini_thinking_minimal');
-            els.thinkingMinimal.checked = savedThinking === 'true';
+            // 加载超时设置，默认为 7
+            els.timeout.value = localStorage.getItem('gemini_timeout') || '7';
 
             switchMode('describe');
             updateKeyStats();
@@ -374,7 +374,6 @@
             els.wordInput.focus();
         });
 
-        // --- 模式切换 ---
         function switchMode(mode) {
             currentMode = mode;
             els.modeBtns.describe.classList.toggle('active', mode === 'describe');
@@ -385,7 +384,6 @@
             els.status.innerText = '';
         }
 
-        // --- 设置相关 ---
         function toggleSettings() {
             els.config.classList.toggle('show');
             saveConfig();
@@ -394,7 +392,8 @@
         function saveConfig() {
             localStorage.setItem('gemini_api_keys', els.apiKeys.value);
             localStorage.setItem('gemini_model', els.modelId.value);
-            localStorage.setItem('gemini_thinking_minimal', els.thinkingMinimal.checked); // 保存开关状态
+            localStorage.setItem('gemini_thinking_minimal', els.thinkingMinimal.checked);
+            localStorage.setItem('gemini_timeout', els.timeout.value); // 保存超时设置
             updateKeyStats();
         }
 
@@ -406,18 +405,20 @@
             const map = getUsageMap();
             map[key] = (map[key] || 0) + 1;
             localStorage.setItem(STORAGE_USAGE_KEY, JSON.stringify(map));
+            localStorage.setItem(STORAGE_LAST_KEY, key);
             updateKeyStats();
         }
 
         function clearStats() {
-            if(confirm('Reset all key usage stats?')) {
+            if(confirm('Reset all stats?')) {
                 localStorage.removeItem(STORAGE_USAGE_KEY);
+                localStorage.removeItem(STORAGE_LAST_KEY);
                 updateKeyStats();
             }
         }
 
         function updateKeyStats() {
-            const keys = getKeyList();
+            const keys = getRawKeyList();
             const map = getUsageMap();
             if (keys.length === 0) {
                 els.statsDisplay.innerHTML = 'No keys configured.';
@@ -426,52 +427,85 @@
             els.statsDisplay.innerHTML = keys.map((k, index) => {
                 const count = map[k] || 0;
                 const shortKey = '...' + k.slice(-4);
-                return `<div class="key-stat-item">LINE ${index + 1} (${shortKey}): <span class="key-stat-count">${count}</span></div>`;
+                const isFailed = failedKeysSession.has(k) ? ' (SKIPPED)' : '';
+                const colorStyle = failedKeysSession.has(k) ? 'color:#999;text-decoration:line-through' : '';
+                return `<div class="key-stat-item" style="${colorStyle}">L${index + 1} (${shortKey}): <span class="key-stat-count">${count}</span>${isFailed}</div>`;
             }).join('');
         }
 
-        function getKeyList() {
+        function getRawKeyList() {
             return els.apiKeys.value.split(/\n|,/).map(k => k.trim()).filter(k => k.length > 10);
         }
 
-        // --- 生成逻辑 ---
+        function getSmartKeyList() {
+            const allKeys = getRawKeyList();
+            const lastSuccess = localStorage.getItem(STORAGE_LAST_KEY);
+            const validKeys = allKeys.filter(k => !failedKeysSession.has(k));
+
+            if (!lastSuccess || !validKeys.includes(lastSuccess)) {
+                return validKeys;
+            }
+            const otherKeys = validKeys.filter(k => k !== lastSuccess);
+            return [lastSuccess, ...otherKeys];
+        }
+
         async function generate() {
             const inputText = els.wordInput.value.trim();
             if (!inputText) return;
-            
-            els.wordInput.blur(); // 收起键盘
-            
-            const keys = getKeyList();
+            els.wordInput.blur();
+            saveConfig();
+
+            const keys = getSmartKeyList();
             if (keys.length === 0) {
-                alert('Please enter API Keys in Settings');
-                toggleSettings();
+                if (failedKeysSession.size > 0) {
+                    alert('All keys failed in this session. Refresh page to reset.');
+                } else {
+                    alert('Please enter API Keys in Settings');
+                    toggleSettings();
+                }
                 return;
             }
 
+            // 获取自定义超时时间（毫秒）
+            const timeoutVal = parseInt(els.timeout.value, 10);
+            const timeoutMs = (isNaN(timeoutVal) || timeoutVal <= 0) ? 7000 : timeoutVal * 1000;
+
             els.btn.disabled = true;
-            els.btn.innerText = "...";
+            els.btn.innerText = "THINKING...";
             els.results.innerHTML = '';
             els.status.innerText = '';
-
+            
             let success = false;
 
             for (let i = 0; i < keys.length; i++) {
                 const currentKey = keys[i];
-                if (i > 0) els.status.innerText = `Key ${i} failed, trying Key ${i+1}...`;
+                const shortKey = "..." + currentKey.slice(-4);
+                
+                if (i === 0) {
+                    els.status.innerText = `Trying Key (${shortKey})...`;
+                } else {
+                    els.status.innerText += `\nFailed. Switching to Key (${shortKey})...`;
+                }
 
                 try {
-                    await fetchAndRender(inputText, currentKey);
+                    // 使用动态超时时间
+                    await fetchWithTimeout(inputText, currentKey, timeoutMs);
+                    
                     incrementUsage(currentKey);
-                    els.status.innerText = `Done (Key ${i+1})`;
+                    els.status.innerText = `Success with Key (${shortKey})`;
+                    els.status.style.color = 'green';
                     success = true;
-                    break; 
+                    break;
+
                 } catch (err) {
-                    console.warn(`Key ${i+1} failed:`, err);
+                    console.warn(`Key ${shortKey} failed:`, err);
+                    failedKeysSession.add(currentKey);
+                    updateKeyStats();
                 }
             }
 
             if (!success) {
-                els.status.innerText = "ALL KEYS FAILED. Check config/quota.";
+                els.status.innerText += "\nALL KEYS FAILED.";
                 els.status.style.color = '#ff3333';
             }
 
@@ -479,53 +513,54 @@
             els.btn.innerText = "GENERATE";
         }
 
-        async function fetchAndRender(text, key) {
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${els.modelId.value}:generateContent?key=${key}`;
-            
-            const userMsg = currentMode === 'describe' ? `目标词：${text}` : `描述内容：${text}`;
+        async function fetchWithTimeout(text, key, timeout) {
+            const controller = new AbortController();
+            const id = setTimeout(() => controller.abort(), timeout);
 
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${els.modelId.value}:generateContent?key=${key}`;
+            const userMsg = currentMode === 'describe' ? `目标词：${text}` : `描述内容：${text}`;
+            
             const payload = {
                 contents: [{ parts: [{ text: userMsg }] }],
                 systemInstruction: { parts: [{ text: els.sysPrompt.value }] }
             };
 
-            // [新增] 只有当用户勾选了 "Minimal Thinking" 时才添加此配置
             if (els.thinkingMinimal.checked) {
-                payload.generationConfig = {
-                    thinkingConfig: {
-                        thinkingLevel: "minimal",
-                        includeThoughts: false
-                    }
-                };
+                payload.generationConfig = { thinkingConfig: { thinkingLevel: "minimal", includeThoughts: false } };
             }
 
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                    signal: controller.signal
+                });
 
-            const data = await response.json();
-            
-            // 错误处理优化
-            if (!response.ok) {
-                let msg = response.statusText;
-                if(data.error) msg = data.error.message;
-                // 特别提示：如果是因为 Model 不支持 Thinking
-                if (msg.includes("thinking") || msg.includes("generationConfig")) {
-                    msg += " (Check if this model supports Thinking Config)";
+                clearTimeout(id);
+
+                const data = await response.json();
+                if (!response.ok) {
+                    let msg = data.error ? data.error.message : response.statusText;
+                    throw new Error(msg);
                 }
-                throw new Error(msg);
-            }
-            
-            if (!data.candidates) throw new Error("No Content");
+                if (!data.candidates) throw new Error("No Content");
 
-            const rawText = data.candidates[0].content.parts[0].text;
-            
+                const rawText = data.candidates[0].content.parts[0].text;
+                renderResults(rawText);
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error(`Timeout (${timeout/1000}s)`);
+                }
+                throw error;
+            }
+        }
+
+        function renderResults(rawText) {
             const regex = /```(?:[\w]*\n)?([\s\S]*?)```/g;
             let match;
             let count = 0;
-
             while ((match = regex.exec(rawText)) !== null) {
                 createCard(match[1].trim());
                 count++;
