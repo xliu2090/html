@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GEMINI CHARADES V11 (VOICE)</title>
+    <title>GEMINI CHARADES V12 (CUSTOM URL)</title>
     <style>
         :root {
             --bg: #f2f4f6;       
             --fg: #1a1a1a;       
             --accent: #2962ff;   
-            --recording: #ff3b30; /* 录音中的红色 */
+            --recording: #ff3b30;
             --card-bg: #ffffff;  
             --border: #d1d5db;   
             --input-bg: #ffffff; 
@@ -145,7 +145,6 @@
             height: 60px;
         }
 
-        /* 麦克风按钮样式 */
         #mic-btn {
             width: 60px;
             background: #fff;
@@ -161,7 +160,6 @@
         }
         #mic-btn:hover { border-color: var(--accent); color: var(--accent); }
         
-        /* 录音时的动画 */
         #mic-btn.listening {
             border-color: var(--recording);
             color: var(--recording);
@@ -191,7 +189,7 @@
         #word-input::placeholder { color: #ccc; font-size: 20px; font-weight: normal; }
 
         button#go-btn {
-            width: 100px; /* 稍微调窄一点给麦克风腾位置 */
+            width: 100px;
             background: var(--fg);
             color: #fff;
             border: none;
@@ -293,7 +291,7 @@
 <body>
 
     <header>
-        <span>GEMINI CHARADES V11</span>
+        <span>GEMINI CHARADES V12</span>
         <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
     </header>
 
@@ -313,6 +311,11 @@
     </main>
 
     <div id="config-panel">
+        <div class="input-group">
+            <label>API BASE URL (Default: https://generativelanguage.googleapis.com)</label>
+            <input type="text" id="api-base" class="config-input" placeholder="https://generativelanguage.googleapis.com">
+        </div>
+
         <div class="input-group">
             <label>API KEYS (Priority: Last Successful -> Others)</label>
             <textarea id="api-keys" class="keys-area" placeholder="Paste keys here..." oninput="updateKeyStats()"></textarea>
@@ -369,12 +372,11 @@
         
         let failedKeysSession = new Set();
         let currentMode = 'describe';
-
-        // 语音识别对象
         let recognition = null;
         let isListening = false;
 
         const els = {
+            apiBase: document.getElementById('api-base'), // 新增
             apiKeys: document.getElementById('api-keys'),
             modelId: document.getElementById('model-id'),
             timeout: document.getElementById('timeout-setting'),
@@ -387,7 +389,7 @@
             btn: document.getElementById('go-btn'),
             toast: document.getElementById('toast'),
             statsDisplay: document.getElementById('key-stats-display'),
-            micBtn: document.getElementById('mic-btn'), // 新增
+            micBtn: document.getElementById('mic-btn'),
             modeBtns: {
                 describe: document.getElementById('mode-desc'),
                 guess: document.getElementById('mode-guess')
@@ -395,6 +397,9 @@
         };
 
         window.addEventListener('DOMContentLoaded', () => {
+            // 加载 API Base URL
+            els.apiBase.value = localStorage.getItem('gemini_api_base') || 'https://generativelanguage.googleapis.com';
+            
             els.apiKeys.value = localStorage.getItem('gemini_api_keys') || '';
             els.modelId.value = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
             els.thinkingMinimal.checked = localStorage.getItem('gemini_thinking_minimal') === 'true';
@@ -402,7 +407,7 @@
 
             switchMode('describe');
             updateKeyStats();
-            initSpeech(); // 初始化语音
+            initSpeech();
 
             els.wordInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') generate();
@@ -410,13 +415,13 @@
             els.wordInput.focus();
         });
 
-        // --- 语音识别逻辑 ---
+        // --- 语音逻辑 ---
         function initSpeech() {
             if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
                 recognition = new SpeechRecognition();
-                recognition.lang = 'zh-CN'; // 默认中文
-                recognition.continuous = false; // 说话结束自动停
+                recognition.lang = 'zh-CN';
+                recognition.continuous = false;
                 recognition.interimResults = false;
 
                 recognition.onstart = () => {
@@ -433,7 +438,6 @@
 
                 recognition.onresult = (event) => {
                     const transcript = event.results[0][0].transcript;
-                    // 去除末尾句号（语音输入习惯加标点）
                     els.wordInput.value = transcript.replace(/[。\.]$/, '');
                 };
 
@@ -441,26 +445,20 @@
                     console.error("Speech error", event.error);
                     isListening = false;
                     els.micBtn.classList.remove('listening');
-                    if (event.error === 'not-allowed') {
-                        alert('Microphone access denied.');
-                    }
+                    if (event.error === 'not-allowed') alert('Please enable microphone access in System Settings -> Apps -> Chrome -> Permissions.');
                 };
             } else {
-                els.micBtn.style.display = 'none'; // 不支持则隐藏按钮
+                els.micBtn.style.display = 'none';
             }
         }
 
         function toggleVoice() {
             if (!recognition) return;
-            if (isListening) {
-                recognition.stop();
-            } else {
-                recognition.start();
-            }
+            if (isListening) recognition.stop();
+            else recognition.start();
         }
 
         // --- 常规逻辑 ---
-
         function switchMode(mode) {
             currentMode = mode;
             els.modeBtns.describe.classList.toggle('active', mode === 'describe');
@@ -477,6 +475,13 @@
         }
 
         function saveConfig() {
+            // 保存 API Base URL
+            let baseUrl = els.apiBase.value.trim();
+            if (!baseUrl) baseUrl = 'https://generativelanguage.googleapis.com';
+            // 去除末尾斜杠
+            baseUrl = baseUrl.replace(/\/+$/, '');
+            localStorage.setItem('gemini_api_base', baseUrl);
+            
             localStorage.setItem('gemini_api_keys', els.apiKeys.value);
             localStorage.setItem('gemini_model', els.modelId.value);
             localStorage.setItem('gemini_thinking_minimal', els.thinkingMinimal.checked);
@@ -528,10 +533,7 @@
             const allKeys = getRawKeyList();
             const lastSuccess = localStorage.getItem(STORAGE_LAST_KEY);
             const validKeys = allKeys.filter(k => !failedKeysSession.has(k));
-
-            if (!lastSuccess || !validKeys.includes(lastSuccess)) {
-                return validKeys;
-            }
+            if (!lastSuccess || !validKeys.includes(lastSuccess)) return validKeys;
             const otherKeys = validKeys.filter(k => k !== lastSuccess);
             return [lastSuccess, ...otherKeys];
         }
@@ -578,7 +580,7 @@
                     incrementUsage(currentKey);
                     els.status.innerText = `Success with Key (${shortKey})`;
                     els.status.style.color = 'green';
-                    els.wordInput.value = ''; // Auto clear
+                    els.wordInput.value = '';
                     success = true;
                     break;
                 } catch (err) {
@@ -601,7 +603,13 @@
             const controller = new AbortController();
             const id = setTimeout(() => controller.abort(), timeout);
 
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/${els.modelId.value}:generateContent?key=${key}`;
+            // 获取 API Base URL
+            let baseUrl = els.apiBase.value.trim();
+            if (!baseUrl) baseUrl = "https://generativelanguage.googleapis.com";
+            baseUrl = baseUrl.replace(/\/+$/, ''); // 确保没有末尾斜杠
+
+            // 拼接完整 URL
+            const url = `${baseUrl}/v1beta/models/${els.modelId.value}:generateContent?key=${key}`;
             const userMsg = currentMode === 'describe' ? `目标词：${text}` : `描述内容：${text}`;
             
             const payload = {
@@ -634,9 +642,7 @@
                 renderResults(rawText);
 
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    throw new Error(`Timeout (${timeout/1000}s)`);
-                }
+                if (error.name === 'AbortError') throw new Error(`Timeout (${timeout/1000}s)`);
                 throw error;
             }
         }
