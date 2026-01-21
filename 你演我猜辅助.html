@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GEMINI CHARADES V9 (CUSTOM TIMEOUT)</title>
+    <title>GEMINI CHARADES V10 (AUTO CLEAR)</title>
     <style>
         :root {
             --bg: #f2f4f6;       
@@ -101,7 +101,6 @@
         .config-input:focus, textarea:focus { border-color: var(--accent); }
         textarea.keys-area { height: 80px; white-space: pre; overflow-x: auto; }
 
-        /* 两列布局容器 */
         .two-col { display: flex; gap: 15px; }
         .two-col > div { flex: 1; }
 
@@ -262,7 +261,7 @@
 <body>
 
     <header>
-        <span>GEMINI CHARADES V9</span>
+        <span>GEMINI CHARADES V10</span>
         <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
     </header>
 
@@ -341,7 +340,7 @@
         const els = {
             apiKeys: document.getElementById('api-keys'),
             modelId: document.getElementById('model-id'),
-            timeout: document.getElementById('timeout-setting'), // 新增
+            timeout: document.getElementById('timeout-setting'),
             thinkingMinimal: document.getElementById('thinking-minimal'),
             sysPrompt: document.getElementById('sys-prompt'),
             wordInput: document.getElementById('word-input'),
@@ -361,8 +360,6 @@
             els.apiKeys.value = localStorage.getItem('gemini_api_keys') || '';
             els.modelId.value = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
             els.thinkingMinimal.checked = localStorage.getItem('gemini_thinking_minimal') === 'true';
-            
-            // 加载超时设置，默认为 7
             els.timeout.value = localStorage.getItem('gemini_timeout') || '7';
 
             switchMode('describe');
@@ -393,7 +390,7 @@
             localStorage.setItem('gemini_api_keys', els.apiKeys.value);
             localStorage.setItem('gemini_model', els.modelId.value);
             localStorage.setItem('gemini_thinking_minimal', els.thinkingMinimal.checked);
-            localStorage.setItem('gemini_timeout', els.timeout.value); // 保存超时设置
+            localStorage.setItem('gemini_timeout', els.timeout.value);
             updateKeyStats();
         }
 
@@ -466,7 +463,6 @@
                 return;
             }
 
-            // 获取自定义超时时间（毫秒）
             const timeoutVal = parseInt(els.timeout.value, 10);
             const timeoutMs = (isNaN(timeoutVal) || timeoutVal <= 0) ? 7000 : timeoutVal * 1000;
 
@@ -488,12 +484,16 @@
                 }
 
                 try {
-                    // 使用动态超时时间
                     await fetchWithTimeout(inputText, currentKey, timeoutMs);
                     
                     incrementUsage(currentKey);
                     els.status.innerText = `Success with Key (${shortKey})`;
                     els.status.style.color = 'green';
+                    
+                    // --- V10 新增：成功后清空输入框 ---
+                    els.wordInput.value = ''; 
+                    // ----------------------------------
+                    
                     success = true;
                     break;
 
