@@ -1,646 +1,554 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>GEMINI CHARADES V6</title>
-  <style>
-    :root {
-      --bg: #f2f4f6;
-      --fg: #1a1a1a;
-      --accent: #2962ff;
-      --card-bg: #ffffff;
-      --border: #d1d5db;
-      --input-bg: #ffffff;
-      --font-mono: 'Courier New', Courier, monospace;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GEMINI CHARADES V7</title>
+    <style>
+        :root {
+            --bg: #f2f4f6;       
+            --fg: #1a1a1a;       
+            --accent: #2962ff;   
+            --card-bg: #ffffff;  
+            --border: #d1d5db;   
+            --input-bg: #ffffff; 
+            --font-mono: 'Courier New', Courier, monospace;
+        }
 
-    * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; outline: none; -webkit-tap-highlight-color: transparent; }
 
-    body {
-      margin: 0;
-      background: var(--bg);
-      color: var(--fg);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      min-height: 100vh;
-      padding: 15px;
-    }
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 15px;
+        }
 
-    header {
-      width: 100%;
-      max-width: 800px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: #666;
-    }
+        /* 顶部栏 */
+        header {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: #666;
+        }
 
-    .settings-btn { cursor: pointer; text-decoration: underline; font-weight: bold; }
-    .settings-btn:hover { color: var(--accent); }
+        .settings-btn { cursor: pointer; text-decoration: underline; font-weight: bold; }
+        .settings-btn:hover { color: var(--accent); }
 
-    .mode-toggle-container {
-      display: flex;
-      background: #e0e0e0;
-      border-radius: 20px;
-      padding: 4px;
-      gap: 5px;
-      margin-bottom: 20px;
-    }
+        /* 模式切换器 */
+        .mode-toggle-container {
+            display: flex;
+            background: #e0e0e0;
+            border-radius: 20px;
+            padding: 4px;
+            gap: 5px;
+            margin-bottom: 20px;
+        }
 
-    .mode-btn {
-      border: none;
-      background: transparent;
-      padding: 6px 16px;
-      border-radius: 16px;
-      font-size: 12px;
-      font-weight: bold;
-      color: #666;
-      cursor: pointer;
-      font-family: var(--font-mono);
-      transition: all 0.2s;
-    }
+        .mode-btn {
+            border: none;
+            background: transparent;
+            padding: 6px 16px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            transition: all 0.2s;
+        }
 
-    .mode-btn.active {
-      background: #fff;
-      color: var(--accent);
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
+        .mode-btn.active {
+            background: #fff;
+            color: var(--accent);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
 
-    #config-panel {
-      width: 100%;
-      max-width: 800px;
-      display: none;
-      background: #fff;
-      padding: 20px;
-      border: 2px solid var(--fg);
-      margin-bottom: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      border-radius: 8px;
-    }
-    #config-panel.show { display: block; }
+        /* 设置面板 */
+        #config-panel {
+            width: 100%;
+            max-width: 800px;
+            display: none;
+            background: #fff;
+            padding: 20px;
+            border: 2px solid var(--fg);
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            border-radius: 8px;
+        }
+        #config-panel.show { display: block; }
 
-    .input-group { margin-bottom: 15px; }
-    .input-group label {
-      display: block;
-      font-size: 11px;
-      margin-bottom: 5px;
-      color: #555;
-      font-weight: bold;
-      font-family: var(--font-mono);
-    }
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-size: 11px; margin-bottom: 5px; color: #555; font-weight: bold; font-family: var(--font-mono); }
+        
+        .config-input, textarea {
+            width: 100%;
+            background: var(--input-bg);
+            border: 1px solid #bbb;
+            color: var(--fg);
+            padding: 8px;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            border-radius: 4px;
+        }
+        .config-input:focus, textarea:focus { border-color: var(--accent); }
+        textarea.keys-area { height: 80px; white-space: pre; overflow-x: auto; }
 
-    .config-input, textarea {
-      width: 100%;
-      background: var(--input-bg);
-      border: 1px solid #bbb;
-      color: var(--fg);
-      padding: 8px;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      border-radius: 4px;
-    }
-    .config-input:focus, textarea:focus { border-color: var(--accent); }
-    textarea.keys-area { height: 80px; white-space: pre; overflow-x: auto; }
+        /* 复选框样式 */
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+        .checkbox-group input { width: auto; cursor: pointer; transform: scale(1.2); }
+        .checkbox-group label { margin: 0; cursor: pointer; color: #333; }
+        
+        #key-stats-display {
+            margin-top: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #666;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 8px;
+        }
+        .key-stat-item {
+            background: #eee;
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .key-stat-count { color: var(--accent); font-weight: bold; }
 
-    #key-stats-display {
-      margin-top: 8px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: #666;
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 8px;
-    }
-    .key-stat-item {
-      background: #eee;
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid #ddd;
-    }
-    .key-stat-count { color: var(--accent); font-weight: bold; }
+        /* 主界面 */
+        main { width: 100%; max-width: 800px; display: flex; flex-direction: column; align-items: center; }
 
-    main { width: 100%; max-width: 800px; display: flex; flex-direction: column; align-items: center; }
+        /* 输入行 */
+        .input-row {
+            width: 100%;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            height: 60px;
+        }
 
-    .input-row {
-      width: 100%;
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-      height: 60px;
-    }
+        #word-input {
+            flex: 1;
+            background: #fff;
+            border: 2px solid var(--border);
+            color: var(--fg);
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            padding: 0 15px;
+            border-radius: 8px;
+            transition: all 0.2s;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+        }
+        #word-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.1); }
+        #word-input::placeholder { color: #ccc; font-size: 20px; font-weight: normal; }
 
-    #word-input {
-      flex: 1;
-      background: #fff;
-      border: 2px solid var(--border);
-      color: var(--fg);
-      font-size: 24px;
-      font-weight: 700;
-      text-align: center;
-      padding: 0 15px;
-      border-radius: 8px;
-      transition: all 0.2s;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.02);
-    }
-    #word-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(41, 98, 255, 0.1); }
-    #word-input::placeholder { color: #ccc; font-size: 20px; font-weight: normal; }
+        button#go-btn {
+            width: 120px;
+            background: var(--fg);
+            color: #fff;
+            border: none;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        button#go-btn:hover { background: var(--accent); transform: translateY(-1px); }
+        button#go-btn:active { transform: translateY(1px); }
+        button#go-btn:disabled { opacity: 0.6; cursor: not-allowed; background: #999; }
 
-    button#go-btn {
-      width: 120px;
-      background: var(--fg);
-      color: #fff;
-      border: none;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      font-family: var(--font-mono);
-      border-radius: 8px;
-      transition: all 0.2s;
-    }
-    button#go-btn:hover { background: var(--accent); transform: translateY(-1px); }
-    button#go-btn:active { transform: translateY(1px); }
-    button#go-btn:disabled { opacity: 0.6; cursor: not-allowed; background: #999; }
+        /* 结果区域 */
+        #results {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+        }
 
-    #results {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 15px;
-      width: 100%;
-    }
+        @media (max-width: 500px) {
+            #results { grid-template-columns: 1fr; }
+            .input-row { height: 50px; }
+            #word-input { font-size: 20px; }
+        }
 
-    @media (max-width: 500px) {
-      #results { grid-template-columns: 1fr; }
-      .input-row { height: 50px; }
-      #word-input { font-size: 20px; }
-    }
+        .result-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            padding: 20px;
+            font-size: 18px;
+            line-height: 1.5;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+            color: #333;
+            font-weight: 600;
+        }
 
-    .result-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      padding: 20px;
-      font-size: 18px;
-      line-height: 1.5;
-      cursor: pointer;
-      position: relative;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100px;
-      border-radius: 8px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.03);
-      color: #333;
-      font-weight: 600;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
+        .result-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(41, 98, 255, 0.15);
+        }
 
-    .result-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-3px);
-      box-shadow: 0 8px 16px rgba(41, 98, 255, 0.15);
-    }
+        .result-card:active { transform: translateY(0); }
 
-    .result-card:active { transform: translateY(0); }
+        .result-card::after {
+            content: "COPY";
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 10px;
+            color: #999;
+            font-family: var(--font-mono);
+            font-weight: bold;
+        }
+        .result-card:hover::after { color: var(--accent); }
 
-    .result-card::after {
-      content: "COPY";
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      font-size: 10px;
-      color: #999;
-      font-family: var(--font-mono);
-      font-weight: bold;
-    }
-    .result-card:hover::after { color: var(--accent); }
+        /* 状态条 */
+        #status-bar {
+            width: 100%;
+            height: 20px;
+            margin-bottom: 5px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: #888;
+            text-align: right;
+        }
 
-    #status-bar {
-      width: 100%;
-      height: 20px;
-      margin-bottom: 5px;
-      font-family: var(--font-mono);
-      font-size: 11px;
-      color: #888;
-      text-align: right;
-    }
-
-    .toast {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(4px);
-      color: #fff;
-      padding: 15px 30px;
-      border-radius: 50px;
-      font-weight: 600;
-      font-size: 16px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s;
-      z-index: 999;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      letter-spacing: 1px;
-    }
-    .toast.show { opacity: 1; }
-
-    .tiny-hint {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: #777;
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-  </style>
+        .toast {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(4px);
+            color: #fff;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            z-index: 999;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            letter-spacing: 1px;
+        }
+        .toast.show { opacity: 1; }
+    </style>
 </head>
 <body>
-  <header>
-    <span>GEMINI CHARADES V6</span>
-    <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
-  </header>
 
-  <main>
-    <div class="mode-toggle-container">
-      <button id="mode-desc" class="mode-btn active" onclick="switchMode('describe')">描述 (DESC)</button>
-      <button id="mode-guess" class="mode-btn" onclick="switchMode('guess')">猜词 (GUESS)</button>
+    <header>
+        <span>GEMINI CHARADES V7</span>
+        <span class="settings-btn" onclick="toggleSettings()">[SETTINGS]</span>
+    </header>
+
+    <main>
+        <div class="mode-toggle-container">
+            <button id="mode-desc" class="mode-btn active" onclick="switchMode('describe')">描述 (DESC)</button>
+            <button id="mode-guess" class="mode-btn" onclick="switchMode('guess')">猜词 (GUESS)</button>
+        </div>
+
+        <div id="status-bar"></div>
+        <div class="input-row">
+            <input type="text" id="word-input" placeholder="输入词语..." autocomplete="off">
+            <button id="go-btn" onclick="generate()">GENERATE</button>
+        </div>
+        <div id="results"></div>
+    </main>
+
+    <div id="config-panel">
+        <div class="input-group">
+            <label>API KEYS (One per line)</label>
+            <textarea id="api-keys" class="keys-area" placeholder="Paste keys here..." oninput="updateKeyStats()"></textarea>
+            <div id="key-stats-display"></div>
+        </div>
+        
+        <div class="input-group">
+            <label>MODEL CONFIG</label>
+            <input type="text" id="model-id" class="config-input" value="gemini-1.5-flash" placeholder="Model ID">
+            
+            <div class="checkbox-group">
+                <input type="checkbox" id="thinking-minimal">
+                <label for="thinking-minimal" title="Adds thinkingConfig: { thinkingLevel: 'minimal' }">
+                    ENABLE MINIMAL THINKING (Speed Up)
+                </label>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>CURRENT SYSTEM PROMPT</label>
+            <textarea id="sys-prompt" style="height:80px"></textarea>
+        </div>
+
+        <div style="text-align: right;">
+            <button onclick="clearStats()" style="background:#eee; color:#333; border:1px solid #ccc; padding:6px 12px; font-size:10px; cursor:pointer; border-radius:4px;">RESET STATS</button>
+        </div>
     </div>
 
-    <div id="status-bar"></div>
+    <div id="toast" class="toast">COPIED!</div>
 
-    <div class="input-row">
-      <input type="text" id="word-input" placeholder="输入词语..." autocomplete="off" />
-      <button id="go-btn" onclick="generate()">GENERATE</button>
-    </div>
-
-    <div id="results"></div>
-  </main>
-
-  <div id="config-panel">
-    <div class="input-group">
-      <label>API KEYS (One per line)</label>
-      <textarea id="api-keys" class="keys-area" placeholder="Paste keys here..." oninput="handleConfigInput()"></textarea>
-      <div id="key-stats-display"></div>
-    </div>
-
-    <div class="input-group">
-      <label>CURRENT SYSTEM PROMPT (Auto-updates with mode)</label>
-      <textarea id="sys-prompt" style="height:80px" oninput="handleConfigInput()"></textarea>
-      <div class="tiny-hint">
-        提示：这里会随模式自动更新。你也可以手改，但下次切换模式会覆盖回默认 Prompt。
-      </div>
-    </div>
-
-    <div class="input-group">
-      <label>MODEL ID</label>
-      <input type="text" id="model-id" class="config-input" value="gemini-3-flash-preview" oninput="handleConfigInput()" />
-      <div class="tiny-hint">
-        已内置：thinkingLevel="minimal" + includeThoughts=false（尽量不思考 & 不返回 thoughts）。
-      </div>
-    </div>
-
-    <div style="display:flex; justify-content: space-between; align-items:center; gap:10px;">
-      <button onclick="clearStats()" style="background:#eee; color:#333; border:1px solid #ccc; padding:6px 12px; font-size:10px; cursor:pointer; border-radius:4px;">
-        RESET STATS
-      </button>
-      <button onclick="testEndpoint()" style="background:#fff; color:#333; border:1px solid #ccc; padding:6px 12px; font-size:10px; cursor:pointer; border-radius:4px;">
-        TEST MODEL
-      </button>
-    </div>
-  </div>
-
-  <div id="toast" class="toast">COPIED!</div>
-
-  <script>
-    // --- PROMPTS ---
-    const PROMPTS = {
-      describe: `辅助我玩文字版你演我猜，我给你词帮我描述。
+    <script>
+        // --- PROMPTS ---
+        const PROMPTS = {
+            describe: `辅助我玩文字版你演我猜，我给你词帮我描述。
 要求：
 1. 一共生成4个版本：3个不同的精炼文字描述，1个纯Emoji版本。
 2. 每个版本必须独立用 \`\`\` 包裹。
 3. 严禁出现目标词中的任意字（包括同音字）。
 4. 语言极其精炼，直击特征，不要啰嗦。
 5. 去掉所有开场白，直接输出4个块。`,
-      guess: `你是一个猜词大师。根据我给出的描述，猜出目标词。
+            guess: `你是一个猜词大师。根据我给出的描述，猜出目标词。
 要求：
 1. 只提供 2 个最可能的猜测结果（版本）。
 2. 每个结果必须独立用 \`\`\` 包裹。
 3. 严禁输出任何思考过程、解释或闲聊。
 4. 仅输出词语本身。`
-    };
+        };
 
-    const STORAGE_USAGE_KEY = 'gemini_key_usage_v3';
-    let currentMode = 'describe';
-    let configSaveTimer = null;
+        const STORAGE_USAGE_KEY = 'gemini_key_usage_v3';
+        let currentMode = 'describe';
 
-    const els = {
-      apiKeys: document.getElementById('api-keys'),
-      modelId: document.getElementById('model-id'),
-      sysPrompt: document.getElementById('sys-prompt'),
-      wordInput: document.getElementById('word-input'),
-      results: document.getElementById('results'),
-      status: document.getElementById('status-bar'),
-      config: document.getElementById('config-panel'),
-      btn: document.getElementById('go-btn'),
-      toast: document.getElementById('toast'),
-      statsDisplay: document.getElementById('key-stats-display'),
-      modeBtns: {
-        describe: document.getElementById('mode-desc'),
-        guess: document.getElementById('mode-guess')
-      }
-    };
+        const els = {
+            apiKeys: document.getElementById('api-keys'),
+            modelId: document.getElementById('model-id'),
+            thinkingMinimal: document.getElementById('thinking-minimal'), // 新增
+            sysPrompt: document.getElementById('sys-prompt'),
+            wordInput: document.getElementById('word-input'),
+            results: document.getElementById('results'),
+            status: document.getElementById('status-bar'),
+            config: document.getElementById('config-panel'),
+            btn: document.getElementById('go-btn'),
+            toast: document.getElementById('toast'),
+            statsDisplay: document.getElementById('key-stats-display'),
+            modeBtns: {
+                describe: document.getElementById('mode-desc'),
+                guess: document.getElementById('mode-guess')
+            }
+        };
 
-    // --- 初始化 ---
-    window.addEventListener('DOMContentLoaded', () => {
-      els.apiKeys.value = localStorage.getItem('gemini_api_keys') || '';
-      els.modelId.value = localStorage.getItem('gemini_model') || 'gemini-3-flash-preview';
+        // --- 初始化 ---
+        window.addEventListener('DOMContentLoaded', () => {
+            els.apiKeys.value = localStorage.getItem('gemini_api_keys') || '';
+            els.modelId.value = localStorage.getItem('gemini_model') || 'gemini-1.5-flash';
+            
+            // 加载 Minimal Thinking 状态
+            const savedThinking = localStorage.getItem('gemini_thinking_minimal');
+            els.thinkingMinimal.checked = savedThinking === 'true';
 
-      // 默认加载模式
-      switchMode('describe');
-      updateKeyStats();
+            switchMode('describe');
+            updateKeyStats();
 
-      els.wordInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') generate();
-      });
+            els.wordInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') generate();
+            });
+            els.wordInput.focus();
+        });
 
-      els.wordInput.focus();
-    });
-
-    // --- 模式切换 ---
-    function switchMode(mode) {
-      currentMode = mode;
-
-      // UI 更新
-      els.modeBtns.describe.classList.toggle('active', mode === 'describe');
-      els.modeBtns.guess.classList.toggle('active', mode === 'guess');
-
-      // 提示词更新（强制覆盖）
-      els.sysPrompt.value = PROMPTS[mode];
-
-      // Placeholder 更新
-      els.wordInput.placeholder = mode === 'describe'
-        ? "输入词语 (如: 香蕉)..."
-        : "输入描述 (如: 黄色弯弯)...";
-
-      // 清空结果/状态
-      els.results.innerHTML = '';
-      setStatus('', 'normal');
-    }
-
-    // --- 设置相关 ---
-    function toggleSettings() {
-      els.config.classList.toggle('show');
-      saveConfig();
-    }
-
-    function handleConfigInput() {
-      // 轻量防抖保存
-      if (configSaveTimer) clearTimeout(configSaveTimer);
-      configSaveTimer = setTimeout(() => {
-        saveConfig();
-      }, 150);
-    }
-
-    function saveConfig() {
-      localStorage.setItem('gemini_api_keys', els.apiKeys.value);
-      localStorage.setItem('gemini_model', els.modelId.value);
-      updateKeyStats();
-    }
-
-    function setStatus(text, tone = 'normal') {
-      els.status.innerText = text || '';
-      els.status.style.color =
-        tone === 'error' ? '#ff3333' :
-        tone === 'ok' ? '#0a7f2e' :
-        '#888';
-    }
-
-    function getUsageMap() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_USAGE_KEY) || '{}'); } catch { return {}; }
-    }
-
-    function incrementUsage(key) {
-      const map = getUsageMap();
-      map[key] = (map[key] || 0) + 1;
-      localStorage.setItem(STORAGE_USAGE_KEY, JSON.stringify(map));
-      updateKeyStats();
-    }
-
-    function clearStats() {
-      if (confirm('Reset all key usage stats?')) {
-        localStorage.removeItem(STORAGE_USAGE_KEY);
-        updateKeyStats();
-      }
-    }
-
-    function updateKeyStats() {
-      const keys = getKeyList();
-      const map = getUsageMap();
-
-      if (keys.length === 0) {
-        els.statsDisplay.innerHTML = 'No keys configured.';
-        return;
-      }
-
-      els.statsDisplay.innerHTML = keys.map((k, index) => {
-        const count = map[k] || 0;
-        const shortKey = '...' + k.slice(-4);
-        return `<div class="key-stat-item">LINE ${index + 1} (${shortKey}): <span class="key-stat-count">${count}</span></div>`;
-      }).join('');
-    }
-
-    function getKeyList() {
-      return els.apiKeys.value
-        .split(/\n|,/)
-        .map(k => k.trim())
-        .filter(k => k.length > 10);
-    }
-
-    // --- 生成逻辑 ---
-    async function generate() {
-      const inputText = els.wordInput.value.trim();
-      if (!inputText) return;
-
-      els.wordInput.blur(); // 收起键盘
-
-      const keys = getKeyList();
-      if (keys.length === 0) {
-        alert('Please enter API Keys in Settings');
-        if (!els.config.classList.contains('show')) toggleSettings();
-        return;
-      }
-
-      els.btn.disabled = true;
-      els.btn.innerText = "...";
-      els.results.innerHTML = '';
-      setStatus('Requesting...', 'normal');
-
-      let success = false;
-      let lastErr = null;
-
-      for (let i = 0; i < keys.length; i++) {
-        const currentKey = keys[i];
-        if (i > 0) setStatus(`Key ${i} failed, trying Key ${i + 1}...`, 'normal');
-
-        try {
-          await fetchAndRender(inputText, currentKey);
-          incrementUsage(currentKey);
-          setStatus(`Done (Key ${i + 1})`, 'ok');
-          success = true;
-          break;
-        } catch (err) {
-          lastErr = err;
-          console.warn(`Key ${i + 1} failed:`, err);
+        // --- 模式切换 ---
+        function switchMode(mode) {
+            currentMode = mode;
+            els.modeBtns.describe.classList.toggle('active', mode === 'describe');
+            els.modeBtns.guess.classList.toggle('active', mode === 'guess');
+            els.sysPrompt.value = PROMPTS[mode];
+            els.wordInput.placeholder = mode === 'describe' ? "输入词语 (如: 香蕉)..." : "输入描述 (如: 黄色弯弯)...";
+            els.results.innerHTML = '';
+            els.status.innerText = '';
         }
-      }
 
-      if (!success) {
-        const msg = lastErr?.message ? `ALL KEYS FAILED. (${lastErr.message})` : "ALL KEYS FAILED.";
-        setStatus(msg, 'error');
-      }
-
-      els.btn.disabled = false;
-      els.btn.innerText = "GENERATE";
-    }
-
-    // --- Gemini 调用：强制 minimal thinking + 不返回 thoughts ---
-    function buildPayload(userMsg, systemPrompt) {
-      return {
-        contents: [{ parts: [{ text: userMsg }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: {
-          thinkingConfig: {
-            thinkingLevel: "minimal",
-            includeThoughts: false
-          }
+        // --- 设置相关 ---
+        function toggleSettings() {
+            els.config.classList.toggle('show');
+            saveConfig();
         }
-      };
-    }
 
-    function extractCandidateText(data) {
-      // candidates[0].content.parts 可能多段；只拼非 thought 的 text
-      const cand = data?.candidates?.[0];
-      const parts = cand?.content?.parts || [];
-
-      const texts = parts
-        .filter(p => !p?.thought && typeof p?.text === 'string')
-        .map(p => p.text);
-
-      return texts.join('\n').trim();
-    }
-
-    function stripThinkingTags(s) {
-      if (!s) return s;
-      // 如果某些客户端/模型仍吐出 <thinking>，直接剔除
-      return s
-        .replace(/<thinking\b[^>]*>[\s\S]*?<\/thinking>/gi, '')
-        .replace(/```thinking[\s\S]*?```/gi, '')
-        .trim();
-    }
-
-    async function fetchAndRender(text, key) {
-      const model = (els.modelId.value || '').trim();
-      if (!model) throw new Error('MODEL ID is empty');
-
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`;
-
-      const userMsg = currentMode === 'describe' ? `目标词：${text}` : `描述内容：${text}`;
-      const payload = buildPayload(userMsg, els.sysPrompt.value);
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      let data = null;
-      try {
-        data = await response.json();
-      } catch {
-        // non-json
-      }
-
-      if (!response.ok) {
-        const apiMsg = data?.error?.message || `${response.status} ${response.statusText}`;
-        throw new Error(apiMsg);
-      }
-      if (data?.error) throw new Error(data.error.message || "API Error");
-      if (!data?.candidates?.length) throw new Error("No Content");
-
-      let rawText = extractCandidateText(data);
-      rawText = stripThinkingTags(rawText);
-
-      if (!rawText) {
-        // 兜底：尝试直接抓第一段
-        const fallback = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        rawText = stripThinkingTags(String(fallback || '')).trim();
-      }
-
-      if (!rawText) throw new Error("Empty response text");
-
-      renderBlocks(rawText);
-    }
-
-    function renderBlocks(rawText) {
-      // 优先解析 ``` ``` 块
-      const regex = /```(?:[\w-]*\n)?([\s\S]*?)```/g;
-      let match;
-      let count = 0;
-
-      while ((match = regex.exec(rawText)) !== null) {
-        const content = (match[1] || '').trim();
-        if (content) {
-          createCard(content);
-          count++;
+        function saveConfig() {
+            localStorage.setItem('gemini_api_keys', els.apiKeys.value);
+            localStorage.setItem('gemini_model', els.modelId.value);
+            localStorage.setItem('gemini_thinking_minimal', els.thinkingMinimal.checked); // 保存开关状态
+            updateKeyStats();
         }
-      }
 
-      // 没有代码块就整体当作一张卡
-      if (count === 0) createCard(rawText.trim());
-    }
+        function getUsageMap() {
+            try { return JSON.parse(localStorage.getItem(STORAGE_USAGE_KEY) || '{}'); } catch { return {}; }
+        }
 
-    function createCard(text) {
-      const div = document.createElement('div');
-      div.className = 'result-card';
-      div.innerText = text;
-      div.onclick = () => copyText(text, div);
-      els.results.appendChild(div);
-    }
+        function incrementUsage(key) {
+            const map = getUsageMap();
+            map[key] = (map[key] || 0) + 1;
+            localStorage.setItem(STORAGE_USAGE_KEY, JSON.stringify(map));
+            updateKeyStats();
+        }
 
-    function copyText(text, el) {
-      navigator.clipboard.writeText(text).then(() => {
-        el.style.backgroundColor = '#f0f0f0';
-        setTimeout(() => el.style.backgroundColor = '', 150);
-        els.toast.classList.add('show');
-        setTimeout(() => els.toast.classList.remove('show'), 900);
-      });
-    }
+        function clearStats() {
+            if(confirm('Reset all key usage stats?')) {
+                localStorage.removeItem(STORAGE_USAGE_KEY);
+                updateKeyStats();
+            }
+        }
 
-    // --- 小工具：测试模型是否可用 ---
-    async function testEndpoint() {
-      const keys = getKeyList();
-      if (keys.length === 0) {
-        alert('Please enter API Keys in Settings');
-        return;
-      }
-      const key = keys[0];
-      setStatus('Testing model...', 'normal');
+        function updateKeyStats() {
+            const keys = getKeyList();
+            const map = getUsageMap();
+            if (keys.length === 0) {
+                els.statsDisplay.innerHTML = 'No keys configured.';
+                return;
+            }
+            els.statsDisplay.innerHTML = keys.map((k, index) => {
+                const count = map[k] || 0;
+                const shortKey = '...' + k.slice(-4);
+                return `<div class="key-stat-item">LINE ${index + 1} (${shortKey}): <span class="key-stat-count">${count}</span></div>`;
+            }).join('');
+        }
 
-      try {
-        await fetchAndRender('测试', key);
-        setStatus('Model OK', 'ok');
-      } catch (e) {
-        setStatus(`Model test failed: ${e.message || e}`, 'error');
-      }
-    }
-  </script>
+        function getKeyList() {
+            return els.apiKeys.value.split(/\n|,/).map(k => k.trim()).filter(k => k.length > 10);
+        }
+
+        // --- 生成逻辑 ---
+        async function generate() {
+            const inputText = els.wordInput.value.trim();
+            if (!inputText) return;
+            
+            els.wordInput.blur(); // 收起键盘
+            
+            const keys = getKeyList();
+            if (keys.length === 0) {
+                alert('Please enter API Keys in Settings');
+                toggleSettings();
+                return;
+            }
+
+            els.btn.disabled = true;
+            els.btn.innerText = "...";
+            els.results.innerHTML = '';
+            els.status.innerText = '';
+
+            let success = false;
+
+            for (let i = 0; i < keys.length; i++) {
+                const currentKey = keys[i];
+                if (i > 0) els.status.innerText = `Key ${i} failed, trying Key ${i+1}...`;
+
+                try {
+                    await fetchAndRender(inputText, currentKey);
+                    incrementUsage(currentKey);
+                    els.status.innerText = `Done (Key ${i+1})`;
+                    success = true;
+                    break; 
+                } catch (err) {
+                    console.warn(`Key ${i+1} failed:`, err);
+                }
+            }
+
+            if (!success) {
+                els.status.innerText = "ALL KEYS FAILED. Check config/quota.";
+                els.status.style.color = '#ff3333';
+            }
+
+            els.btn.disabled = false;
+            els.btn.innerText = "GENERATE";
+        }
+
+        async function fetchAndRender(text, key) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${els.modelId.value}:generateContent?key=${key}`;
+            
+            const userMsg = currentMode === 'describe' ? `目标词：${text}` : `描述内容：${text}`;
+
+            const payload = {
+                contents: [{ parts: [{ text: userMsg }] }],
+                systemInstruction: { parts: [{ text: els.sysPrompt.value }] }
+            };
+
+            // [新增] 只有当用户勾选了 "Minimal Thinking" 时才添加此配置
+            if (els.thinkingMinimal.checked) {
+                payload.generationConfig = {
+                    thinkingConfig: {
+                        thinkingLevel: "minimal",
+                        includeThoughts: false
+                    }
+                };
+            }
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await response.json();
+            
+            // 错误处理优化
+            if (!response.ok) {
+                let msg = response.statusText;
+                if(data.error) msg = data.error.message;
+                // 特别提示：如果是因为 Model 不支持 Thinking
+                if (msg.includes("thinking") || msg.includes("generationConfig")) {
+                    msg += " (Check if this model supports Thinking Config)";
+                }
+                throw new Error(msg);
+            }
+            
+            if (!data.candidates) throw new Error("No Content");
+
+            const rawText = data.candidates[0].content.parts[0].text;
+            
+            const regex = /```(?:[\w]*\n)?([\s\S]*?)```/g;
+            let match;
+            let count = 0;
+
+            while ((match = regex.exec(rawText)) !== null) {
+                createCard(match[1].trim());
+                count++;
+            }
+            if (count === 0) createCard(rawText);
+        }
+
+        function createCard(text) {
+            const div = document.createElement('div');
+            div.className = 'result-card';
+            div.innerText = text;
+            div.onclick = () => copyText(text, div);
+            els.results.appendChild(div);
+        }
+
+        function copyText(text, el) {
+            navigator.clipboard.writeText(text).then(() => {
+                el.style.backgroundColor = '#f0f0f0';
+                setTimeout(() => el.style.backgroundColor = '', 150);
+                els.toast.classList.add('show');
+                setTimeout(() => els.toast.classList.remove('show'), 1000);
+            });
+        }
+    </script>
 </body>
 </html>
-```0
