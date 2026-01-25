@@ -15,7 +15,7 @@
     @media (min-width: 860px){ .grid{ grid-template-columns:1fr 1fr; } }
     .card{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:12px; background:rgba(127,127,127,.06); }
     label{ display:block; font-size:13px; margin:10px 0 6px; opacity:.9; }
-    input, textarea, select{
+    input, textarea{
       width:100%; box-sizing:border-box; border:1px solid rgba(127,127,127,.35);
       border-radius:10px; padding:10px; font-size:14px; background:transparent;
     }
@@ -42,14 +42,17 @@
     .small{ font-size:12px; opacity:.8; }
     .inline{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .hr{ height:1px; background:rgba(127,127,127,.25); margin:10px 0; }
+    .warn{ color: #f59e0b; }
+    .ok{ color: #22c55e; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>OpenAI Sora（/v1/videos）手机端 Demo（支持自定义模型）</h1>
   <div class="note">
-    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：你切后台/刷新不会中断服务端生成；回来继续轮询即可。2<br>
-    ⚠️ 生产环境请别把 Key 放前端：OpenAI 明确要求不要在浏览器/APP 暴露 API Key。3
+    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：切后台/刷新不会中断服务端生成；回来继续轮询即可。<br>
+    ⚠️ 生产环境请别把 Key 放前端：不要在浏览器/APP 暴露 API Key。<br>
+    ℹ️ 官方 <code>size</code> 是字符串 <code>widthxheight</code>，例如竖屏 <code>720x1280</code>。2
   </div>
 
   <div class="grid">
@@ -66,38 +69,33 @@
       <input id="apiKey" type="password" placeholder="sk-..." />
       <div class="inline" style="margin-top:8px;">
         <label class="small"><input id="rememberKey" type="checkbox" /> 记住 Key（localStorage，慎用）</label>
-        <button id="btnNotif">开启完成通知</button>
+        <button id="btnNotif" type="button">开启完成通知</button>
       </div>
 
       <div class="hr"></div>
 
-      <label>Model（✅这里就是“自定义模型”，可手动输入）</label>
+      <label>Model（可手动输入）</label>
       <input id="model" list="modelList" type="text" value="sora-2" placeholder="例如：sora-2 / sora-2-pro / 你的代理自定义模型名" />
       <datalist id="modelList">
         <option value="sora-2"></option>
         <option value="sora-2-pro"></option>
       </datalist>
-      <div class="small">
-        官方允许值通常是 <code>sora-2</code> / <code>sora-2-pro</code>（如果你走的是“中转/代理”，也可能允许更多自定义模型名）。4
-      </div>
+      <div class="small" id="modelHint"></div>
 
       <label>Prompt</label>
       <textarea id="prompt" placeholder="例如：一只三花猫在舞台上弹钢琴，聚光灯，电影感"></textarea>
 
       <div class="row">
         <div>
-          <label>Seconds（允许 4/8/12；也可手动输入）</label>
+          <label>Seconds（4/8/12）</label>
           <input id="seconds" type="text" value="8" placeholder="4 或 8 或 12" />
         </div>
         <div>
-          <label>Size（允许：720x1280 / 1280x720 / 1024x1792 / 1792x1024；也可手动输入）</label>
-          <input id="size" type="text" value="1280x720" placeholder="例如：1280x720" />
+          <label>Size（例如：竖屏 720x1280）</label>
+          <input id="size" list="sizeList" type="text" value="720x1280" placeholder="720x1280 / 1280x720 / 1024x1792 / 1792x1024" />
+          <datalist id="sizeList"></datalist>
+          <div class="small" id="sizeHint"></div>
         </div>
       </div>
 
-      <label>参考图片 input_reference（可选）</label>
-      <input id="refImage" type="file" accept="image/*" />
-
-      <div class="row">
-        <div>
-          <label>轮询间隔（秒，建议 10~20）
+      <div class="inline" style="margin-top:8
