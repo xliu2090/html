@@ -15,7 +15,7 @@
     @media (min-width: 860px){ .grid{ grid-template-columns:1fr 1fr; } }
     .card{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:12px; background:rgba(127,127,127,.06); }
     label{ display:block; font-size:13px; margin:10px 0 6px; opacity:.9; }
-    input, textarea, select{
+    input, textarea{
       width:100%; box-sizing:border-box; border:1px solid rgba(127,127,127,.35);
       border-radius:10px; padding:10px; font-size:14px; background:transparent;
     }
@@ -42,14 +42,17 @@
     .small{ font-size:12px; opacity:.8; }
     .inline{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
     .hr{ height:1px; background:rgba(127,127,127,.25); margin:10px 0; }
+    .warn{ color: #f59e0b; }
+    .ok{ color: #22c55e; }
   </style>
 </head>
 <body>
 <div class="wrap">
   <h1>OpenAI Sora（/v1/videos）手机端 Demo（支持自定义模型）</h1>
   <div class="note">
-    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：你切后台/刷新不会中断服务端生成；回来继续轮询即可。2<br>
-    ⚠️ 生产环境请别把 Key 放前端：OpenAI 明确要求不要在浏览器/APP 暴露 API Key。3
+    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：切后台/刷新不会中断服务端生成；回来继续轮询即可。<br>
+    ⚠️ 生产环境请别把 Key 放前端：不要在浏览器/APP 暴露 API Key。<br>
+    ℹ️ 官方 <code>size</code> 是字符串 <code>widthxheight</code>，例如竖屏 <code>720x1280</code>。2
   </div>
 
   <div class="grid">
@@ -66,33 +69,40 @@
       <input id="apiKey" type="password" placeholder="sk-..." />
       <div class="inline" style="margin-top:8px;">
         <label class="small"><input id="rememberKey" type="checkbox" /> 记住 Key（localStorage，慎用）</label>
-        <button id="btnNotif">开启完成通知</button>
+        <button id="btnNotif" type="button">开启完成通知</button>
       </div>
 
       <div class="hr"></div>
 
-      <label>Model（✅这里就是“自定义模型”，可手动输入）</label>
+      <label>Model（可手动输入）</label>
       <input id="model" list="modelList" type="text" value="sora-2" placeholder="例如：sora-2 / sora-2-pro / 你的代理自定义模型名" />
       <datalist id="modelList">
         <option value="sora-2"></option>
         <option value="sora-2-pro"></option>
       </datalist>
-      <div class="small">
-        官方允许值通常是 <code>sora-2</code> / <code>sora-2-pro</code>（如果你走的是“中转/代理”，也可能允许更多自定义模型名）。4
-      </div>
+      <div class="small" id="modelHint"></div>
 
       <label>Prompt</label>
       <textarea id="prompt" placeholder="例如：一只三花猫在舞台上弹钢琴，聚光灯，电影感"></textarea>
 
       <div class="row">
         <div>
-          <label>Seconds（允许 4/8/12；也可手动输入）</label>
+          <label>Seconds（4/8/12）</label>
           <input id="seconds" type="text" value="8" placeholder="4 或 8 或 12" />
         </div>
         <div>
-          <label>Size（允许：720x1280 / 1280x720 / 1024x1792 / 1792x1024；也可手动输入）</label>
-          <input id="size" type="text" value="1280x720" placeholder="例如：1280x720" />
+          <label>Size（例如：竖屏 720x1280）</label>
+          <input id="size" list="sizeList" type="text" value="720x1280" placeholder="720x1280 / 1280x720 / 1024x1792 / 1792x1024" />
+          <datalist id="sizeList"></datalist>
+          <div class="small" id="sizeHint"></div>
         </div>
+      </div>
+
+      <div class="inline" style="margin-top:8px;">
+        <button type="button" id="btnPortraitLow">竖屏 720x1280</button>
+        <button type="button" id="btnLandscapeLow">横屏 1280x720</button>
+        <button type="button" id="btnPortraitHi">竖屏高清 1024x1792</button>
+        <button type="button" id="btnLandscapeHi">横屏高清 1792x1024</button>
       </div>
 
       <label>参考图片 input_reference（可选）</label>
@@ -101,411 +111,452 @@
       <div class="row">
         <div>
           <label>轮询间隔（秒，建议 10~20）</label>
-          <input id="pollSec" type="number" min="2" step="1" value="10" />
+          <input id="pollSec" type="number" min="3" step="1" value="12" />
         </div>
         <div>
-          <label>Retrieve content 的 variant（可选）</label>
-          <input id="variant" type="text" placeholder="留空=默认 MP4；或填你需要的 asset variant" />
+          <label>并发轮询上限（避免太频繁）</label>
+          <input id="pollBatch" type="number" min="1" step="1" value="3" />
         </div>
       </div>
 
-      <label>高级：额外 FormData 字段（JSON，可选）</label>
-      <textarea id="extraJson" placeholder='例如：{"seed":123,"foo":"bar"}（OpenAI 未必支持，代理可能支持）'></textarea>
-
       <div class="btns">
-        <button class="primary" id="btnCreate">提交生成</button>
-        <button id="btnStartPoll">开始/继续轮询</button>
-        <button class="danger" id="btnStopPoll">停止轮询</button>
-        <button id="btnAddExisting">添加已有 video_id</button>
-        <button class="danger" id="btnClear">清空任务</button>
+        <button class="primary" id="btnCreate" type="button">创建任务</button>
+        <button id="btnTogglePoll" type="button">开始轮询</button>
+        <button class="danger" id="btnClear" type="button">清空任务</button>
       </div>
 
-      <div style="margin-top:12px;">
-        <div class="small">日志</div>
-        <div class="log" id="log"></div>
-      </div>
+      <div style="margin-top:10px" class="log" id="log"></div>
     </div>
 
     <div class="card">
       <div class="inline" style="justify-content:space-between;">
-        <div><b>任务列表</b>（自动保存到本地）</div>
-        <button id="btnRefresh">手动刷新一次</button>
-      </div>
-      <div class="small" style="margin-top:6px;">
-        注意：手机切后台后 JS 轮询可能被系统降频/暂停；但服务端生成仍会继续，你回来再查状态即可。5
+        <div class="pill">任务列表</div>
+        <div class="pill"><span id="taskCount">0</span> 个</div>
       </div>
       <div class="tasks" id="tasks"></div>
+      <div class="small" style="margin-top:10px;">
+        下载走 <code>GET /v1/videos/{video_id}/content</code>。3
+      </div>
     </div>
   </div>
 </div>
 
 <script>
-  const LS_TASKS = "sora_mobile_tasks_v2";
-  const LS_BASE  = "sora_mobile_baseUrl_v2";
-  const LS_KEY   = "sora_mobile_apiKey_v2";
-
+(() => {
   const $ = (id) => document.getElementById(id);
-  const logEl = $("log"), tasksEl = $("tasks");
-  const pollPill = $("pollPill"), netPill = $("netPill");
+
+  const el = {
+    baseUrl: $("baseUrl"),
+    apiKey: $("apiKey"),
+    rememberKey: $("rememberKey"),
+    btnNotif: $("btnNotif"),
+    model: $("model"),
+    modelHint: $("modelHint"),
+    prompt: $("prompt"),
+    seconds: $("seconds"),
+    size: $("size"),
+    sizeList: $("sizeList"),
+    sizeHint: $("sizeHint"),
+    refImage: $("refImage"),
+    pollSec: $("pollSec"),
+    pollBatch: $("pollBatch"),
+    btnCreate: $("btnCreate"),
+    btnTogglePoll: $("btnTogglePoll"),
+    btnClear: $("btnClear"),
+    pollPill: $("pollPill"),
+    netPill: $("netPill"),
+    log: $("log"),
+    tasks: $("tasks"),
+    taskCount: $("taskCount"),
+    btnPortraitLow: $("btnPortraitLow"),
+    btnLandscapeLow: $("btnLandscapeLow"),
+    btnPortraitHi: $("btnPortraitHi"),
+    btnLandscapeHi: $("btnLandscapeHi"),
+  };
+
+  // 官方允许值（整体），但不同 model 可能子集。4
+  const SIZES_ALL = ["720x1280","1280x720","1024x1792","1792x1024"];
+  const SIZES_BY_MODEL = {
+    "sora-2": ["720x1280","1280x720"],
+    "sora-2-pro": ["720x1280","1280x720","1024x1792","1792x1024"]
+  };
+
+  let tasks = []; // { id, status, progress, model, size, seconds, createdAt, lastUpdate, videoUrl }
   let pollTimer = null;
+  let notifEnabled = false;
 
-  function nowStr(){ return new Date().toLocaleString(); }
-  function log(msg){ logEl.textContent = `[${nowStr()}] ${msg}\n` + logEl.textContent; }
-
-  function normalizeBaseUrl(u){ return (u||"").trim().replace(/\/+$/,"") || "https://api.openai.com"; }
-  function authHeaders(apiKey, extraHeaders = {}){
-    return { "Authorization":"Bearer " + apiKey, "Accept":"application/json", ...extraHeaders };
+  function log(line) {
+    const t = new Date().toLocaleTimeString();
+    el.log.textContent = `[${t}] ${line}\n` + el.log.textContent;
   }
 
-  function loadTasks(){ try{ return JSON.parse(localStorage.getItem(LS_TASKS) || "[]"); }catch{ return []; } }
-  function saveTasks(ts){ localStorage.setItem(LS_TASKS, JSON.stringify(ts)); }
-
-  function isTerminal(status){
-    const s = String(status||"").toLowerCase();
-    return ["completed","succeeded","success","failed","error","canceled","cancelled"].includes(s);
+  function setNetPill() {
+    const online = navigator.onLine;
+    el.netPill.textContent = `网络：${online ? "在线" : "离线"}`;
   }
 
-  function setNetworkPill(){ netPill.textContent = "网络：" + (navigator.onLine ? "在线" : "离线"); }
-
-  function escapeHtml(str){
-    return String(str ?? "").replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"
-    }[c]));
-  }
-  function escapeAttr(str){ return escapeHtml(str).replace(/\s+/g," "); }
-
-  function addTask(t){
-    const tasks = loadTasks();
-    const idx = tasks.findIndex(x => x.id === t.id);
-    if (idx >= 0) tasks.splice(idx, 1);
-    tasks.unshift(t);
-    saveTasks(tasks);
-    renderTasks();
-  }
-  function patchTask(id, patch){
-    const tasks = loadTasks();
-    const i = tasks.findIndex(x => x.id === id);
-    if (i === -1) return;
-    tasks[i] = { ...tasks[i], ...patch, updatedAt: nowStr() };
-    saveTasks(tasks);
-    renderTasks();
-  }
-  function delTask(id){
-    saveTasks(loadTasks().filter(x => x.id !== id));
-    renderTasks();
-    log("删除任务：" + id);
-  }
-  function clearTasks(){
-    saveTasks([]);
-    renderTasks();
-    log("已清空全部任务");
+  // 关键修复：把 720×1280 / 720X1280 / " 720 x 1280 " 统一成 720x1280
+  function normalizeSize(raw) {
+    if (!raw) return "";
+    const s = String(raw).trim()
+      .replace(/×/g, "x")
+      .replace(/X/g, "x")
+      .replace(/\s+/g, "");
+    // 只允许形如 123x456
+    const m = s.match(/^(\d+)x(\d+)$/);
+    if (!m) return "";
+    return `${Number(m[1])}x${Number(m[2])}`;
   }
 
-  async function fetchWithTimeout(url, options={}, timeoutMs=60000){
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), timeoutMs);
-    try{ return await fetch(url, { ...options, signal: ctrl.signal }); }
-    finally{ clearTimeout(t); }
+  function normalizeSeconds(raw) {
+    const s = String(raw ?? "").trim();
+    // 官方是字符串 4/8/12。5
+    if (["4","8","12"].includes(s)) return s;
+    const n = Number(s);
+    if ([4,8,12].includes(n)) return String(n);
+    return "";
   }
 
-  function parseExtraJson(){
-    const s = $("extraJson").value.trim();
-    if (!s) return null;
-    try { return JSON.parse(s); }
-    catch { throw new Error("高级 JSON 解析失败，请检查格式"); }
+  function resolveAllowedSizes(modelName) {
+    // 自定义模型（代理）不一定严格限制；这里：若匹配 sora-2 / sora-2-pro 就按官方限制，否则放开但仍校验格式。
+    const m = (modelName || "").trim();
+    return SIZES_BY_MODEL[m] || SIZES_ALL;
   }
 
-  // POST /v1/videos (multipart/form-data)
-  async function createVideo({ baseUrl, apiKey, model, prompt, seconds, size, refFile, extraObj }){
-    const url = normalizeBaseUrl(baseUrl) + "/v1/videos";
-    const fd = new FormData();
-    fd.append("prompt", prompt);
-    if (model) fd.append("model", model);
-    if (seconds) fd.append("seconds", String(seconds));
-    if (size) fd.append("size", String(size));
-    if (refFile) fd.append("input_reference", refFile);
+  function refreshSizeDatalist() {
+    const allowed = resolveAllowedSizes(el.model.value);
+    el.sizeList.innerHTML = allowed.map(v => `<option value="${v}"></option>`).join("");
+    el.sizeHint.innerHTML = `可用尺寸：${allowed.map(v => `<code>${v}</code>`).join(" / ")}（竖屏示例：<code>720x1280</code>）`;
+    const m = (el.model.value || "").trim();
+    if (m === "sora-2") {
+      el.modelHint.innerHTML = `提示：<code>sora-2</code> 通常只支持 <code>720x1280</code> / <code>1280x720</code>。`;
+    } else if (m === "sora-2-pro") {
+      el.modelHint.innerHTML = `提示：<code>sora-2-pro</code> 支持包含 <code>1024x1792</code> 的高清尺寸。`;
+    } else {
+      el.modelHint.innerHTML = `提示：自定义模型名将不做严格尺寸白名单，但会修正输入格式（如 <code>×</code> → <code>x</code>）。`;
+    }
+  }
 
-    // 允许代理扩展字段；OpenAI 可能忽略/报错（看你网关）
-    if (extraObj && typeof extraObj === "object") {
-      for (const [k, v] of Object.entries(extraObj)) {
-        if (v === undefined) continue;
-        if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") fd.append(k, String(v));
-        else fd.append(k, JSON.stringify(v));
+  function ensureSizeAllowedOrFix() {
+    const allowed = resolveAllowedSizes(el.model.value);
+    const normalized = normalizeSize(el.size.value);
+    if (!normalized) {
+      el.sizeHint.innerHTML = `<span class="warn">尺寸格式不合法：请用类似 <code>720x1280</code>（注意是小写 x）。</span>`;
+      return { ok:false, size:"" };
+    }
+    // 如果是官方模型，则必须在 allowed 里；避免“竖屏失败”其实是“选了 pro 尺寸”。
+    const m = (el.model.value || "").trim();
+    if (m === "sora-2" || m === "sora-2-pro") {
+      if (!allowed.includes(normalized)) {
+        // 自动回落到同方向的第一个可用值
+        const [w,h] = normalized.split("x").map(Number);
+        const wantPortrait = h > w;
+        const fallback = allowed.find(v => {
+          const [aw,ah] = v.split("x").map(Number);
+          return wantPortrait ? (ah > aw) : (aw > ah);
+        }) || allowed[0];
+        el.size.value = fallback;
+        log(`尺寸 ${normalized} 不被 ${m} 支持，已自动改为 ${fallback}`);
+        return { ok:true, size:fallback };
       }
     }
-
-    const res = await fetchWithTimeout(url, { method:"POST", headers: authHeaders(apiKey), body: fd }, 120000);
-    const text = await res.text();
-    let data; try{ data = JSON.parse(text); }catch{ data = { raw:text }; }
-    if (!res.ok) throw new Error(`创建失败 HTTP ${res.status}: ` + (data?.error?.message || data.raw || text));
-    return data;
+    el.size.value = normalized;
+    return { ok:true, size:normalized };
   }
 
-  // GET /v1/videos/{id}
-  async function retrieveVideo({ baseUrl, apiKey, id }){
-    const url = normalizeBaseUrl(baseUrl) + "/v1/videos/" + encodeURIComponent(id);
-    const res = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(apiKey) }, 60000);
-    const text = await res.text();
-    let data; try{ data = JSON.parse(text); }catch{ data = { raw:text }; }
-    if (!res.ok) throw new Error(`查询失败 HTTP ${res.status}: ` + (data?.error?.message || data.raw || text));
-    return data;
-  }
-
-  // GET /v1/videos/{id}/content?variant=...
-  async function downloadContent({ baseUrl, apiKey, id, variant }){
-    let url = normalizeBaseUrl(baseUrl) + "/v1/videos/" + encodeURIComponent(id) + "/content";
-    if (variant) url += "?variant=" + encodeURIComponent(variant);
-
-    const res = await fetchWithTimeout(url, { method:"GET", headers: authHeaders(apiKey) }, 180000);
-    if (!res.ok){
-      const t = await res.text().catch(()=> "");
-      throw new Error(`下载失败 HTTP ${res.status}: ${t}`);
-    }
-    const blob = await res.blob();
-    const localUrl = URL.createObjectURL(blob);
-    return { blob, localUrl, contentType: blob.type || res.headers.get("content-type") || "video/mp4" };
-  }
-
-  function renderTasks(){
-    const tasks = loadTasks();
-    if (!tasks.length){
-      tasksEl.innerHTML = `<div class="small">暂无任务。提交生成或“添加已有 video_id”后会出现在这里。</div>`;
-      return;
-    }
-    tasksEl.innerHTML = tasks.map(t => {
-      const status = t.status || "--";
-      const progress = (t.progress ?? "") !== "" ? ` · progress=${t.progress}` : "";
-      const preview = t.previewUrl ? `
-        <video controls playsinline src="${t.previewUrl}"></video>
-        <div class="meta">preview：<span class="mono">${escapeHtml(t.previewUrl)}</span></div>
-      ` : "";
-      const err = t.lastError ? `<div class="meta" style="color:#ef4444;">error：${escapeHtml(String(t.lastError)).slice(0,180)}</div>` : "";
+  function render() {
+    el.taskCount.textContent = String(tasks.length);
+    el.tasks.innerHTML = tasks.map(t => {
+      const meta = [
+        `model=${t.model}`,
+        `size=${t.size}`,
+        `seconds=${t.seconds}`,
+        `status=${t.status}`,
+        `progress=${t.progress ?? 0}%`
+      ].join(" · ");
+      const videoHtml = t.videoUrl ? `<video controls playsinline src="${t.videoUrl}"></video>` : "";
+      const btnDlDisabled = t.status !== "completed";
       return `
-        <div class="task">
+        <div class="task" data-id="${t.id}">
           <div class="taskHead">
-            <div style="flex:1;min-width:0;">
-              <div class="mono">${escapeHtml(t.id)}</div>
-              <div class="meta">model=${escapeHtml(t.model||"")} · status=${escapeHtml(status)}${progress}</div>
-              <div class="meta">updated：${escapeHtml(t.updatedAt||t.createdAt||"")}</div>
-              ${err}
+            <div>
+              <div class="mono">${t.id}</div>
+              <div class="meta">${meta}</div>
             </div>
-            <div class="pill">${escapeHtml(status)}</div>
+            <div class="meta">${new Date(t.createdAt).toLocaleString()}</div>
           </div>
           <div class="taskBtns">
-            <button data-act="query" data-id="${escapeAttr(t.id)}">查询</button>
-            <button data-act="download" data-id="${escapeAttr(t.id)}">下载/预览</button>
-            <button data-act="save" data-id="${escapeAttr(t.id)}" ${t.previewUrl ? "" : "disabled"}>保存文件</button>
-            <button data-act="open" data-id="${escapeAttr(t.id)}" ${t.previewUrl ? "" : "disabled"}>打开预览</button>
-            <button class="danger" data-act="del" data-id="${escapeAttr(t.id)}">删除</button>
+            <button type="button" data-act="refresh">刷新状态</button>
+            <button type="button" data-act="download" ${btnDlDisabled ? "disabled" : ""}>下载并预览</button>
+            <button type="button" class="danger" data-act="remove">移除</button>
           </div>
-          ${preview}
+          ${videoHtml}
         </div>
       `;
     }).join("");
 
-    tasksEl.querySelectorAll("button[data-act]").forEach(btn => {
-      btn.addEventListener("click", async () => {
-        const act = btn.getAttribute("data-act");
-        const id = btn.getAttribute("data-id");
-        if (!id) return;
-        if (act === "del") return delTask(id);
-        if (act === "open") return openPreview(id);
-        if (act === "save") return savePreview(id);
-        if (act === "query") return queryOne(id);
-        if (act === "download") return downloadOne(id);
+    // bind
+    el.tasks.querySelectorAll(".task").forEach(node => {
+      const id = node.getAttribute("data-id");
+      node.querySelectorAll("button[data-act]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const act = btn.getAttribute("data-act");
+          if (act === "remove") {
+            tasks = tasks.filter(x => x.id !== id);
+            render();
+          } else if (act === "refresh") {
+            await refreshOne(id);
+          } else if (act === "download") {
+            await downloadOne(id);
+          }
+        });
       });
     });
   }
 
-  function openPreview(id){
-    const t = loadTasks().find(x => x.id === id);
-    if (!t?.previewUrl) return;
-    const html = `
-      <!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-      <title>Video Preview</title>
-      <style>body{margin:0;background:#000;color:#fff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto} .w{padding:12px}</style>
-      <div class="w">
-        <div style="opacity:.8;font-size:12px;margin-bottom:10px;">${escapeHtml(id)}</div>
-        <video controls playsinline style="width:100%;max-height:85vh" src="${escapeHtml(t.previewUrl)}"></video>
-      </div>
-    `;
-    const w = window.open();
-    w.document.write(html);
-    w.document.close();
+  function authHeaders() {
+    const key = el.apiKey.value.trim();
+    if (!key) throw new Error("请先填写 API Key");
+    return {
+      "Authorization": `Bearer ${key}`
+    };
   }
 
-  function savePreview(id){
-    const t = loadTasks().find(x => x.id === id);
-    if (!t?.previewUrl) return;
-    const a = document.createElement("a");
-    a.href = t.previewUrl;
-    a.download = `${id}.mp4`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    log("已触发下载（不同手机浏览器下载行为可能不同）");
+  function safeBaseUrl() {
+    return el.baseUrl.value.trim().replace(/\/+$/, "");
   }
 
-  function getPollMs(){
-    const sec = Number($("pollSec").value || 10);
-    return Math.max(2000, sec * 1000);
-  }
-  function setPollPill(running){
-    pollPill.textContent = running ? `轮询：运行中（${Math.round(getPollMs()/1000)}s）` : "轮询：未启动";
+  async function createVideo() {
+    const baseUrl = safeBaseUrl();
+    const model = el.model.value.trim() || "sora-2";
+    const prompt = el.prompt.value.trim();
+    const seconds = normalizeSeconds(el.seconds.value);
+    if (!prompt) throw new Error("请填写 Prompt");
+    if (!seconds) throw new Error("Seconds 只允许 4 / 8 / 12");
+
+    const { ok, size } = ensureSizeAllowedOrFix();
+    if (!ok) throw new Error("Size 不合法，请修正后重试");
+
+    const file = el.refImage.files && el.refImage.files[0];
+
+    let res, data;
+    if (file) {
+      // 有 input_reference 必须用 multipart/form-data（FormData），不要手动设 Content-Type
+      const fd = new FormData();
+      fd.set("model", model);
+      fd.set("prompt", prompt);
+      fd.set("seconds", seconds);
+      fd.set("size", size);
+      fd.set("input_reference", file, file.name);
+
+      res = await fetch(`${baseUrl}/v1/videos`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: fd
+      });
+    } else {
+      // 没有文件时，用 JSON 更稳（也能避免部分代理对 multipart 的兼容问题）
+      res = await fetch(`${baseUrl}/v1/videos`, {
+        method: "POST",
+        headers: {
+          ...authHeaders(),
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ model, prompt, seconds, size })
+      });
+    }
+
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+    if (!res.ok) {
+      throw new Error(`创建失败：HTTP ${res.status} ${res.statusText}\n${JSON.stringify(data, null, 2)}`);
+    }
+    if (!data.id) throw new Error(`创建返回缺少 id：\n${JSON.stringify(data, null, 2)}`);
+
+    tasks.unshift({
+      id: data.id,
+      status: data.status || "queued",
+      progress: data.progress ?? 0,
+      model: data.model || model,
+      size: data.size || size,
+      seconds: data.seconds || seconds,
+      createdAt: Date.now(),
+      lastUpdate: Date.now(),
+      videoUrl: ""
+    });
+
+    log(`创建成功：${data.id}（${size}）`);
+    render();
+    // 创建后立刻刷新一次状态
+    await refreshOne(data.id);
   }
 
-  function startPolling(){
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(pollAllOnce, getPollMs());
-    setPollPill(true);
-    log("开始轮询（后台可能被系统降频/暂停）");
+  async function refreshOne(id) {
+    const baseUrl = safeBaseUrl();
+    const res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}`, {
+      method: "GET",
+      headers: authHeaders()
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      log(`刷新失败 ${id}：HTTP ${res.status} ${res.statusText}`);
+      return;
+    }
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    const prevStatus = t.status;
+    t.status = data.status || t.status;
+    t.progress = data.progress ?? t.progress;
+    t.lastUpdate = Date.now();
+    render();
+    log(`状态更新 ${id}：${t.status}（${t.progress ?? 0}%）`);
+
+    if (notifEnabled && prevStatus !== "completed" && t.status === "completed") {
+      notifyDone(id);
+    }
   }
-  function stopPolling(){
+
+  async function downloadOne(id) {
+    const baseUrl = safeBaseUrl();
+    // 默认返回 MP4；也可加 ?variant=xxx，官方说明 variant 可选。6
+    const res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}/content`, {
+      method: "GET",
+      headers: authHeaders()
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      log(`下载失败 ${id}：HTTP ${res.status} ${res.statusText} ${txt}`);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const t = tasks.find(x => x.id === id);
+    if (t) {
+      // 释放旧的
+      if (t.videoUrl) URL.revokeObjectURL(t.videoUrl);
+      t.videoUrl = url;
+    }
+    render();
+    log(`已下载并可预览：${id}`);
+  }
+
+  async function pollTick() {
+    const running = tasks.filter(t => t.status !== "completed" && t.status !== "failed");
+    if (running.length === 0) return;
+    const batch = Math.max(1, Number(el.pollBatch.value || 3));
+    for (const t of running.slice(0, batch)) {
+      await refreshOne(t.id);
+    }
+  }
+
+  function startPolling() {
+    const sec = Math.max(3, Number(el.pollSec.value || 12));
+    stopPolling();
+    pollTimer = setInterval(pollTick, sec * 1000);
+    el.pollPill.textContent = `轮询：进行中（每 ${sec}s）`;
+    el.btnTogglePoll.textContent = "停止轮询";
+    log(`已开始轮询（每 ${sec}s）`);
+  }
+
+  function stopPolling() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
-    setPollPill(false);
-    log("已停止轮询");
+    el.pollPill.textContent = "轮询：未启动";
+    el.btnTogglePoll.textContent = "开始轮询";
   }
-  document.addEventListener("visibilitychange", () => { if (pollTimer) startPolling(); });
 
-  async function pollAllOnce(){
-    const apiKey = $("apiKey").value.trim();
-    const baseUrl = $("baseUrl").value.trim();
-    if (!apiKey) return;
-
-    const pending = loadTasks().filter(t => !isTerminal(t.status));
-    for (const t of pending){
-      try{
-        const data = await retrieveVideo({ baseUrl, apiKey, id: t.id });
-        patchTask(t.id, {
-          status: data.status || t.status,
-          progress: data.progress ?? t.progress,
-          lastQueryRaw: data,
-          lastError: null
-        });
-        if (String(data.status||"").toLowerCase() === "completed") {
-          await tryNotify(`Sora 完成：${t.id}`);
-        }
-      }catch(e){
-        patchTask(t.id, { lastError: String(e) });
-        log("轮询失败：" + t.id + " / " + String(e).slice(0,160));
-      }
+  async function enableNotification() {
+    if (!("Notification" in window)) {
+      log("此浏览器不支持 Notification API");
+      return;
     }
-  }
-
-  async function queryOne(id){
-    const apiKey = $("apiKey").value.trim();
-    const baseUrl = $("baseUrl").value.trim();
-    if (!apiKey) return log("请先填写 API Key");
-
-    log("查询任务：" + id);
-    try{
-      const data = await retrieveVideo({ baseUrl, apiKey, id });
-      patchTask(id, { status: data.status, progress: data.progress, lastQueryRaw: data, lastError: null });
-      log("查询成功：" + id + " status=" + (data.status||"--"));
-    }catch(e){
-      patchTask(id, { lastError: String(e) });
-      log("查询失败：" + String(e));
-    }
-  }
-
-  async function downloadOne(id){
-    const apiKey = $("apiKey").value.trim();
-    const baseUrl = $("baseUrl").value.trim();
-    const variant = $("variant").value.trim();
-    if (!apiKey) return log("请先填写 API Key");
-
-    log("下载/预览：" + id + (variant ? ` (variant=${variant})` : ""));
-    try{
-      const r = await downloadContent({ baseUrl, apiKey, id, variant });
-      patchTask(id, { previewUrl: r.localUrl, contentType: r.contentType, lastError: null });
-      log("已获取视频内容，可直接预览/保存");
-      await tryNotify(`已可预览：${id}`);
-    }catch(e){
-      patchTask(id, { lastError: String(e) });
-      log("下载失败：" + String(e));
-    }
-  }
-
-  async function tryNotify(text){
-    if (!("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
-    try{ new Notification(text); }catch{}
-  }
-
-  $("btnNotif").addEventListener("click", async () => {
-    if (!("Notification" in window)) return log("该浏览器不支持 Notification");
     const p = await Notification.requestPermission();
-    log("通知权限：" + p);
-  });
-
-  function persistSettings(){
-    localStorage.setItem(LS_BASE, normalizeBaseUrl($("baseUrl").value));
-    if ($("rememberKey").checked) localStorage.setItem(LS_KEY, $("apiKey").value.trim());
-    else localStorage.removeItem(LS_KEY);
+    notifEnabled = (p === "granted");
+    el.btnNotif.textContent = notifEnabled ? "完成通知：已开启" : "开启完成通知";
+    log(notifEnabled ? "完成通知已开启" : `通知权限：${p}`);
   }
 
-  $("btnCreate").addEventListener("click", async () => {
-    const baseUrl = $("baseUrl").value.trim();
-    const apiKey = $("apiKey").value.trim();
-    const model = $("model").value.trim();
-    const prompt = $("prompt").value.trim();
-    const seconds = $("seconds").value.trim();
-    const size = $("size").value.trim();
-    const refFile = $("refImage").files?.[0] || null;
+  function notifyDone(id) {
+    try {
+      new Notification("Sora 视频生成完成", { body: id });
+    } catch {}
+  }
 
-    if (!apiKey) return log("请先填写 API Key");
-    if (!prompt) return log("请先填写 prompt");
-    persistSettings();
+  function loadSavedKey() {
+    const saved = localStorage.getItem("SORA_DEMO_KEY");
+    const remember = localStorage.getItem("SORA_DEMO_REMEMBER") === "1";
+    el.rememberKey.checked = remember;
+    if (remember && saved) el.apiKey.value = saved;
+  }
 
-    let extraObj = null;
-    try { extraObj = parseExtraJson(); } catch(e){ return log(String(e)); }
+  function saveKeyIfNeeded() {
+    if (el.rememberKey.checked) {
+      localStorage.setItem("SORA_DEMO_REMEMBER", "1");
+      localStorage.setItem("SORA_DEMO_KEY", el.apiKey.value.trim());
+    } else {
+      localStorage.setItem("SORA_DEMO_REMEMBER", "0");
+      localStorage.removeItem("SORA_DEMO_KEY");
+    }
+  }
 
-    log("提交生成中…");
-    try{
-      const data = await createVideo({ baseUrl, apiKey, model, prompt, seconds, size, refFile, extraObj });
-      if (!data.id) return log("创建返回未包含 id：" + JSON.stringify(data).slice(0,500));
+  // UI hooks
+  window.addEventListener("online", setNetPill);
+  window.addEventListener("offline", setNetPill);
 
-      addTask({
-        id: data.id,
-        model: data.model || model,
-        prompt,
-        status: data.status || "queued",
-        progress: data.progress ?? 0,
-        createdAt: nowStr(),
-        lastCreateRaw: data
-      });
+  el.btnNotif.addEventListener("click", enableNotification);
+  el.rememberKey.addEventListener("change", saveKeyIfNeeded);
+  el.apiKey.addEventListener("input", saveKeyIfNeeded);
 
-      log("创建成功：id=" + data.id + "（服务端开始生成）");
-      if (!pollTimer) startPolling();
-    }catch(e){
-      log(String(e));
+  el.model.addEventListener("input", () => {
+    refreshSizeDatalist();
+    ensureSizeAllowedOrFix();
+  });
+
+  el.size.addEventListener("blur", () => {
+    // 离开输入框时自动修正 720×1280 → 720x1280
+    const fixed = normalizeSize(el.size.value);
+    if (fixed) el.size.value = fixed;
+    ensureSizeAllowedOrFix();
+  });
+
+  el.btnCreate.addEventListener("click", async () => {
+    try {
+      el.btnCreate.disabled = true;
+      await createVideo();
+    } catch (e) {
+      log(String(e?.message || e));
+    } finally {
+      el.btnCreate.disabled = false;
     }
   });
 
-  $("btnAddExisting").addEventListener("click", () => {
-    const id = prompt("输入已有 video_id（例如 video_xxx）：");
-    if (!id) return;
-    addTask({ id: id.trim(), model: "(unknown)", prompt: "", status: "unknown", createdAt: nowStr() });
-    log("已添加已有任务：" + id.trim());
+  el.btnTogglePoll.addEventListener("click", () => {
+    if (pollTimer) stopPolling();
+    else startPolling();
   });
 
-  $("btnStartPoll").addEventListener("click", () => { persistSettings(); startPolling(); });
-  $("btnStopPoll").addEventListener("click", stopPolling);
-  $("btnClear").addEventListener("click", clearTasks);
-  $("btnRefresh").addEventListener("click", pollAllOnce);
+  el.btnClear.addEventListener("click", () => {
+    // 释放 blob url
+    tasks.forEach(t => { if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
+    tasks = [];
+    render();
+    log("已清空任务");
+  });
 
-  window.addEventListener("online", setNetworkPill);
-  window.addEventListener("offline", setNetworkPill);
+  // 快捷尺寸按钮（竖屏修复核心：一键填入正确的 size 字符串）
+  el.btnPortraitLow.addEventListener("click", () => { el.size.value = "720x1280"; ensureSizeAllowedOrFix(); });
+  el.btnLandscapeLow.addEventListener("click", () => { el.size.value = "1280x720"; ensureSizeAllowedOrFix(); });
+  el.btnPortraitHi.addEventListener("click", () => { el.size.value = "1024x1792"; ensureSizeAllowedOrFix(); });
+  el.btnLandscapeHi.addEventListener("click", () => { el.size.value = "1792x1024"; ensureSizeAllowedOrFix(); });
 
-  (function init(){
-    const base = localStorage.getItem(LS_BASE); if (base) $("baseUrl").value = base;
-    const key = localStorage.getItem(LS_KEY);
-    if (key){ $("apiKey").value = key; $("rememberKey").checked = true; }
-    setNetworkPill();
-    renderTasks();
-    log("就绪：Model 输入框可直接自定义。");
-  })();
+  // init
+  setNetPill();
+  loadSavedKey();
+  refreshSizeDatalist();
+  render();
+  log("就绪：竖屏请用 720x1280（注意小写 x；会自动把 × 修成 x）");
+})();
 </script>
 </body>
 </html>
