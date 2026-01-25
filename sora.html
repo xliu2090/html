@@ -135,4 +135,1082 @@
       outline:none;
       transition: border .12s ease, background .12s ease;
     }
-    textarea{ min-height:120px; resiz
+    textarea{ min-height:120px; resize:vertical; line-height:1.45; }
+    textarea:focus, input:focus, select:focus{ border-color: rgba(79,140,255,.55); background: rgba(10,14,26,.55); }
+
+    .row2{ display:grid; grid-template-columns: 1fr; gap:10px; }
+    @media (min-width: 560px){ .row2{ grid-template-columns: 1fr 1fr; } }
+
+    .stack{
+      display:flex; flex-wrap:wrap; gap:8px;
+      margin-top:10px;
+    }
+    .chip{
+      display:inline-flex; align-items:center; gap:8px;
+      padding:9px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:13px;
+      cursor:pointer;
+      user-select:none;
+      transition: background .12s ease, transform .08s ease;
+    }
+    .chip:hover{ background: rgba(255,255,255,.09); }
+    .chip:active{ transform: scale(.99); }
+    .chip.primary{
+      background: rgba(79,140,255,.18);
+      border-color: rgba(79,140,255,.34);
+    }
+    .chip.ok{
+      background: rgba(34,197,94,.14);
+      border-color: rgba(34,197,94,.30);
+    }
+    .chip.warn{
+      background: rgba(245,158,11,.12);
+      border-color: rgba(245,158,11,.30);
+    }
+
+    .miniRow{
+      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    }
+    .miniRow .grow{ flex:1 1 auto; min-width:160px; }
+    .miniBtn{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border-radius: 14px;
+      padding:12px 12px;
+      font-size:14px;
+      cursor:pointer;
+      transition: background .12s ease, transform .08s ease;
+    }
+    .miniBtn:hover{ background: rgba(255,255,255,.09); }
+    .miniBtn:active{ transform: scale(.99); }
+
+    .ctaBar{
+      position: sticky;
+      bottom: 10px;
+      z-index: 3;
+      margin-top: 14px;
+      border-radius: 18px;
+      border:1px solid rgba(255,255,255,.14);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      backdrop-filter: blur(16px);
+      box-shadow: 0 20px 60px rgba(0,0,0,.45);
+      padding: 10px;
+      display:flex; gap:10px; align-items:center; justify-content:space-between;
+    }
+    .ctaBar .leftInfo{
+      display:flex; flex-direction:column; gap:2px; min-width:0;
+    }
+    .ctaBar .leftInfo b{
+      font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .ctaBar .leftInfo span{
+      font-size:12px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    }
+    .primaryBtn{
+      border:1px solid rgba(79,140,255,.55);
+      background: linear-gradient(135deg, rgba(79,140,255,.95), rgba(79,140,255,.55));
+      color:#fff;
+      border-radius: 16px;
+      padding: 12px 14px;
+      font-size:14px;
+      font-weight:650;
+      cursor:pointer;
+      min-width: 120px;
+      box-shadow: 0 16px 40px rgba(79,140,255,.22);
+      transition: transform .08s ease, filter .12s ease, opacity .12s ease;
+    }
+    .primaryBtn:active{ transform: scale(.99); }
+    .primaryBtn:disabled{ opacity:.6; cursor:not-allowed; }
+    .ghostBtn{
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border-radius: 16px;
+      padding: 12px 12px;
+      font-size:14px;
+      cursor:pointer;
+    }
+
+    .tasksWrap{ padding: 10px 14px 14px; display:grid; gap:10px; }
+    .task{
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.05);
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .taskTop{
+      display:flex; align-items:flex-start; justify-content:space-between; gap:10px;
+    }
+    .taskId{ font-family: ui-monospace, Menlo, Consolas, monospace; font-size:12px; color: rgba(255,255,255,.82); word-break:break-all; }
+    .taskMeta{ margin-top:6px; font-size:12px; color:var(--muted); line-height:1.35; }
+    .status{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px; border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:12px; color:var(--muted);
+      white-space:nowrap;
+    }
+    .status.good{ border-color: rgba(34,197,94,.35); background: rgba(34,197,94,.10); color: rgba(220,255,234,.92); }
+    .status.bad{ border-color: rgba(239,68,68,.35); background: rgba(239,68,68,.10); color: rgba(255,230,230,.92); }
+    .status.run{ border-color: rgba(79,140,255,.35); background: rgba(79,140,255,.10); color: rgba(230,242,255,.92); }
+    .bar{
+      margin-top:10px;
+      height: 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(0,0,0,.22);
+      overflow:hidden;
+    }
+    .bar > div{
+      height:100%;
+      width:0%;
+      background: linear-gradient(90deg, rgba(79,140,255,.95), rgba(34,197,94,.85));
+      border-radius: 999px;
+      transition: width .25s ease;
+    }
+    .taskBtns{
+      margin-top:10px;
+      display:flex; flex-wrap:wrap; gap:8px;
+    }
+    .taskBtns button{
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      border-radius: 14px;
+      padding:10px 10px;
+      font-size:13px;
+      cursor:pointer;
+    }
+    .taskBtns button:disabled{ opacity:.55; cursor:not-allowed; }
+    .taskBtns .danger{
+      border-color: rgba(239,68,68,.35);
+      background: rgba(239,68,68,.10);
+    }
+    video{
+      width:100%;
+      border-radius: 14px;
+      margin-top:10px;
+      background:#000;
+      border:1px solid rgba(255,255,255,.10);
+    }
+
+    .log{
+      margin-top:12px;
+      font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size:12px;
+      line-height:1.4;
+      color: rgba(255,255,255,.72);
+      border:1px dashed rgba(255,255,255,.16);
+      border-radius: 16px;
+      padding: 10px;
+      background: rgba(0,0,0,.22);
+      max-height: 220px;
+      overflow:auto;
+      white-space: pre-wrap;
+    }
+
+    /* Settings overlay */
+    .overlay{
+      position:fixed; inset:0;
+      background: rgba(0,0,0,.55);
+      display:none;
+      z-index: 50;
+    }
+    .overlay.show{ display:block; }
+    .sheet{
+      position:absolute;
+      left:0; right:0; bottom:0;
+      margin: 0 auto;
+      max-width: 720px;
+      border-radius: 22px 22px 0 0;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(12,16,28,.94);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 -20px 80px rgba(0,0,0,.6);
+      padding: 12px 14px 16px;
+      transform: translateY(8px);
+      animation: rise .18s ease-out forwards;
+    }
+    @keyframes rise { to { transform: translateY(0); } }
+    .sheetHd{
+      display:flex; align-items:center; justify-content:space-between; gap:10px;
+      padding: 6px 2px 10px;
+    }
+    .sheetHd b{ font-size:14px; letter-spacing:.2px; }
+    .closeBtn{
+      width:40px; height:40px; border-radius:14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color: var(--text);
+      cursor:pointer;
+    }
+    .split{
+      height:1px;
+      background: rgba(255,255,255,.10);
+      margin: 10px 0;
+    }
+    .subtle{
+      font-size:12px; color: var(--muted);
+      line-height:1.45;
+    }
+    .dangerText{ color: rgba(255,205,205,.92); }
+    .tiny{ font-size:12px; color: var(--muted2); }
+
+    .listEditor{
+      display:grid; gap:10px;
+      border:1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.04);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    .tags{
+      display:flex; flex-wrap:wrap; gap:8px;
+    }
+    .tag{
+      display:inline-flex; align-items:center; gap:8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      font-size:12px;
+      color: rgba(255,255,255,.82);
+    }
+    .tag button{
+      border:none; background:transparent; color: rgba(255,255,255,.78);
+      cursor:pointer; padding:0; margin:0; font-size:14px; line-height:1;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" aria-hidden="true"></div>
+        <div class="title">
+          <h1>视频生成</h1>
+          <div class="subtitle">精简主界面 · 设置收纳到 ⚙️</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="pill" id="netPill"><span class="dot" id="netDot"></span><span id="netText">网络：--</span></div>
+        <button class="iconBtn" id="btnSettings" type="button" aria-label="设置">
+          <svg class="icon" viewBox="0 0 24 24" fill="none">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M19.4 15a7.97 7.97 0 0 0 .1-1 7.97 7.97 0 0 0-.1-1l2-1.6-2-3.4-2.4 1a8.2 8.2 0 0 0-1.7-1l-.4-2.6H9.1l-.4 2.6a8.2 8.2 0 0 0-1.7 1l-2.4-1-2 3.4 2 1.6a8 8 0 0 0 0 2L2.6 16.6l2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.6h5.8l.4-2.6c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4-2-1.6Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <!-- Generator -->
+      <div class="card">
+        <div class="cardHd">
+          <div class="hdTitle">
+            <b>生成参数</b>
+            <span>只保留与“生成视频”直接相关的内容</span>
+          </div>
+          <div class="pill" id="pollPill"><span class="dot" style="background:rgba(255,255,255,.35)"></span><span>轮询：未启动</span></div>
+        </div>
+
+        <div class="cardBd">
+          <div class="field">
+            <label>
+              <span>Prompt</span>
+              <span class="hint" id="promptHint">写清主体、镜头、动作、风格</span>
+            </label>
+            <textarea id="prompt" placeholder="例如：竖屏短片，一个玻璃质感的小机器人在雨夜霓虹街头奔跑，手持相机跟拍，电影感，高对比"></textarea>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>
+                <span>模型</span>
+                <span class="hint">可自定义下拉</span>
+              </label>
+              <div class="miniRow">
+                <select id="modelSelect" class="grow" aria-label="模型选择"></select>
+                <button class="miniBtn" id="btnAddModel" type="button">+ 添加</button>
+              </div>
+              <div class="tiny" id="modelHint"></div>
+            </div>
+
+            <div class="field">
+              <label>
+                <span>时长（秒）</span>
+                <span class="hint">默认 10 / 15，可自定义</span>
+              </label>
+              <div class="miniRow">
+                <select id="secondsSelect" class="grow" aria-label="时长选择"></select>
+                <button class="miniBtn" id="btnAddSeconds" type="button">+ 添加</button>
+              </div>
+              <div class="tiny" id="secondsHint"></div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>
+                <span>画面尺寸</span>
+                <span class="hint" id="sizeHint">竖屏优先：720x1280</span>
+              </label>
+              <select id="sizeSelect" aria-label="尺寸选择"></select>
+
+              <div class="stack">
+                <div class="chip primary" id="chipP720">竖屏 720×1280</div>
+                <div class="chip" id="chipL720">横屏 1280×720</div>
+                <div class="chip" id="chipPHi">竖屏高清 1024×1792</div>
+                <div class="chip" id="chipLHi">横屏高清 1792×1024</div>
+              </div>
+
+              <div class="tiny" style="margin-top:8px;">
+                参考图建议与目标尺寸一致，否则可能影响效果。1
+              </div>
+            </div>
+
+            <div class="field">
+              <label>
+                <span>参考图片（可选）</span>
+                <span class="hint">input_reference</span>
+              </label>
+              <input id="refImage" type="file" accept="image/*" />
+              <div class="tiny" id="refHint">未选择图片</div>
+            </div>
+          </div>
+
+          <div class="ctaBar">
+            <div class="leftInfo">
+              <b id="summaryLine">准备就绪</b>
+              <span id="summarySub">选择模型/时长/尺寸，然后点击生成</span>
+            </div>
+            <button class="ghostBtn" id="btnTogglePoll" type="button">开始轮询</button>
+            <button class="primaryBtn" id="btnCreate" type="button">生成</button>
+          </div>
+
+          <div class="log" id="log"></div>
+        </div>
+      </div>
+
+      <!-- Tasks -->
+      <div class="card">
+        <div class="cardHd">
+          <div class="hdTitle">
+            <b>任务</b>
+            <span>创建成功后服务端继续生成，可随时回来继续轮询</span>
+          </div>
+          <div class="pill"><span id="taskCount">0</span> 个</div>
+        </div>
+        <div class="tasksWrap" id="tasks"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Overlay -->
+  <div class="overlay" id="settingsOverlay" role="dialog" aria-modal="true" aria-label="设置">
+    <div class="sheet">
+      <div class="sheetHd">
+        <b>设置</b>
+        <button class="closeBtn" id="btnCloseSettings" type="button" aria-label="关闭">✕</button>
+      </div>
+
+      <div class="subtle">
+        这里放置与生成无直接关系的配置（如 Base URL / Key / 轮询策略等）。请勿在生产环境把 Key 暴露到前端。2
+      </div>
+
+      <div class="split"></div>
+
+      <div class="field">
+        <label><span>Base URL</span><span class="hint">直连或代理</span></label>
+        <input id="baseUrl" type="text" value="https://api.openai.com" />
+      </div>
+
+      <div class="field">
+        <label><span>OpenAI API Key（Bearer）</span><span class="hint">仅本地保存可选</span></label>
+        <input id="apiKey" type="password" placeholder="sk-..." />
+        <div class="miniRow" style="margin-top:10px;">
+          <label class="tiny" style="display:flex; align-items:center; gap:10px;">
+            <input id="rememberKey" type="checkbox" />
+            记住 Key（localStorage，慎用）
+          </label>
+          <button class="miniBtn" id="btnNotif" type="button">完成通知：关闭</button>
+        </div>
+      </div>
+
+      <div class="split"></div>
+
+      <div class="row2">
+        <div class="field">
+          <label><span>轮询间隔（秒）</span><span class="hint">建议 10~20</span></label>
+          <input id="pollSec" type="number" min="3" step="1" value="12" />
+        </div>
+        <div class="field">
+          <label><span>并发轮询上限</span><span class="hint">避免过频</span></label>
+          <input id="pollBatch" type="number" min="1" step="1" value="3" />
+        </div>
+      </div>
+
+      <div class="split"></div>
+
+      <div class="listEditor">
+        <div class="subtle"><b>下拉菜单管理</b>（点击 ✕ 删除；新增会自动保存）</div>
+
+        <div>
+          <div class="tiny" style="margin-bottom:8px;">模型列表</div>
+          <div class="tags" id="modelTags"></div>
+        </div>
+
+        <div>
+          <div class="tiny" style="margin-bottom:8px;">秒数列表</div>
+          <div class="tags" id="secondsTags"></div>
+        </div>
+
+        <div class="miniRow">
+          <button class="miniBtn" id="btnResetLists" type="button">恢复默认列表</button>
+          <button class="miniBtn" id="btnClearTasks" type="button">清空任务</button>
+        </div>
+
+        <div class="tiny dangerText">
+          如果你直连官方 API：seconds 官方文档仍是 4/8/12；10/15 需要你自己的代理/自定义模型支持。3
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+
+  const el = {
+    // main
+    prompt: $("prompt"),
+    modelSelect: $("modelSelect"),
+    secondsSelect: $("secondsSelect"),
+    sizeSelect: $("sizeSelect"),
+    sizeHint: $("sizeHint"),
+    modelHint: $("modelHint"),
+    secondsHint: $("secondsHint"),
+    refImage: $("refImage"),
+    refHint: $("refHint"),
+    btnCreate: $("btnCreate"),
+    btnTogglePoll: $("btnTogglePoll"),
+    pollPill: $("pollPill"),
+    netPill: $("netPill"),
+    netText: $("netText"),
+    netDot: $("netDot"),
+    taskCount: $("taskCount"),
+    tasks: $("tasks"),
+    log: $("log"),
+    summaryLine: $("summaryLine"),
+    summarySub: $("summarySub"),
+
+    // chips
+    chipP720: $("chipP720"),
+    chipL720: $("chipL720"),
+    chipPHi: $("chipPHi"),
+    chipLHi: $("chipLHi"),
+
+    // add buttons
+    btnAddModel: $("btnAddModel"),
+    btnAddSeconds: $("btnAddSeconds"),
+
+    // settings
+    btnSettings: $("btnSettings"),
+    settingsOverlay: $("settingsOverlay"),
+    btnCloseSettings: $("btnCloseSettings"),
+    baseUrl: $("baseUrl"),
+    apiKey: $("apiKey"),
+    rememberKey: $("rememberKey"),
+    btnNotif: $("btnNotif"),
+    pollSec: $("pollSec"),
+    pollBatch: $("pollBatch"),
+    modelTags: $("modelTags"),
+    secondsTags: $("secondsTags"),
+    btnResetLists: $("btnResetLists"),
+    btnClearTasks: $("btnClearTasks"),
+  };
+
+  // --- Defaults (user wanted 10/15 as first-class) ---
+  const DEFAULT_MODELS = ["sora-2", "sora-2-pro"];
+  const DEFAULT_SECONDS = [10, 15, 4, 8, 12];
+  const SIZES_ALL = ["720x1280","1280x720","1024x1792","1792x1024"];
+  const SIZES_BY_MODEL = {
+    "sora-2": ["720x1280","1280x720"],
+    "sora-2-pro": ["720x1280","1280x720","1024x1792","1792x1024"]
+  };
+
+  const LS = {
+    models: "SORA_UI_MODELS_V1",
+    seconds: "SORA_UI_SECONDS_V1",
+    key: "SORA_UI_KEY_V1",
+    remember: "SORA_UI_REMEMBER_V1"
+  };
+
+  let modelList = loadList(LS.models, DEFAULT_MODELS);
+  let secondsList = loadList(LS.seconds, DEFAULT_SECONDS);
+  let tasks = []; // {id,status,progress,model,seconds,size,createdAt,lastUpdate,videoUrl}
+  let pollTimer = null;
+  let notifEnabled = false;
+
+  function log(line){
+    const t = new Date().toLocaleTimeString();
+    el.log.textContent = `[${t}] ${line}\n` + el.log.textContent;
+  }
+
+  function loadList(key, fallback){
+    try{
+      const raw = localStorage.getItem(key);
+      if(!raw) return [...fallback];
+      const arr = JSON.parse(raw);
+      if(!Array.isArray(arr) || arr.length === 0) return [...fallback];
+      return arr;
+    }catch{
+      return [...fallback];
+    }
+  }
+  function saveList(key, arr){
+    localStorage.setItem(key, JSON.stringify(arr));
+  }
+
+  function safeBaseUrl(){
+    return (el.baseUrl.value || "").trim().replace(/\/+$/, "");
+  }
+
+  function authHeaders(){
+    const key = (el.apiKey.value || "").trim();
+    if(!key) throw new Error("请到设置里填写 API Key");
+    return { "Authorization": `Bearer ${key}` };
+  }
+
+  function normalizeSize(raw){
+    if(!raw) return "";
+    const s = String(raw).trim()
+      .replace(/×/g,"x")
+      .replace(/X/g,"x")
+      .replace(/\s+/g,"");
+    const m = s.match(/^(\d+)x(\d+)$/);
+    if(!m) return "";
+    return `${Number(m[1])}x${Number(m[2])}`;
+  }
+
+  function currentModel(){
+    return (el.modelSelect.value || "").trim();
+  }
+
+  function resolveAllowedSizes(model){
+    return SIZES_BY_MODEL[model] || SIZES_ALL;
+  }
+
+  function refreshSizeOptions(){
+    const m = currentModel();
+    const allowed = resolveAllowedSizes(m);
+    el.sizeSelect.innerHTML = allowed.map(v => `<option value="${v}">${v}</option>`).join("");
+
+    // keep selection if still allowed, else fallback
+    const cur = normalizeSize(el.sizeSelect.getAttribute("data-cur") || allowed[0]);
+    const pick = allowed.includes(cur) ? cur : allowed[0];
+    el.sizeSelect.value = pick;
+
+    if(m === "sora-2"){
+      el.modelHint.textContent = "提示：sora-2 常见尺寸为 720x1280 / 1280x720。";
+    }else if(m === "sora-2-pro"){
+      el.modelHint.textContent = "提示：sora-2-pro 支持高清尺寸 1024x1792 / 1792x1024。";
+    }else{
+      el.modelHint.textContent = "提示：自定义模型将不做严格尺寸白名单。";
+    }
+
+    el.sizeHint.textContent = `可用：${allowed.join(" / ")}（竖屏：720x1280）`;
+    updateSummary();
+  }
+
+  function refreshModelOptions(){
+    const selected = el.modelSelect.value || modelList[0] || "sora-2";
+    el.modelSelect.innerHTML = modelList.map(m => `<option value="${m}">${m}</option>`).join("");
+    el.modelSelect.value = modelList.includes(selected) ? selected : (modelList[0] || "sora-2");
+    refreshSizeOptions();
+    renderListEditors();
+    updateSecondsHint();
+  }
+
+  function refreshSecondsOptions(){
+    // sort unique (keep as user order as much as possible)
+    const selected = Number(el.secondsSelect.value || secondsList[0] || 10);
+    el.secondsSelect.innerHTML = secondsList.map(s => `<option value="${s}">${s}s</option>`).join("");
+    el.secondsSelect.value = String(secondsList.includes(selected) ? selected : (secondsList[0] || 10));
+    renderListEditors();
+    updateSecondsHint();
+    updateSummary();
+  }
+
+  function updateSecondsHint(){
+    const m = currentModel();
+    const sec = Number(el.secondsSelect.value || 10);
+    if((m === "sora-2" || m === "sora-2-pro") && ![4,8,12].includes(sec)){
+      el.secondsHint.innerHTML = `⚠️ 直连官方模型时，seconds 可能只接受 4/8/12；你当前选了 ${sec}。`;
+    }else{
+      el.secondsHint.textContent = "已选时长会直接传给 /v1/videos 的 seconds 参数。";
+    }
+  }
+
+  function setNetPill(){
+    const online = navigator.onLine;
+    el.netText.textContent = `网络：${online ? "在线" : "离线"}`;
+    el.netDot.className = "dot " + (online ? "online" : "offline");
+  }
+
+  function openSettings(){
+    el.settingsOverlay.classList.add("show");
+    document.body.style.overflow = "hidden";
+    renderListEditors();
+  }
+  function closeSettings(){
+    el.settingsOverlay.classList.remove("show");
+    document.body.style.overflow = "";
+  }
+
+  function saveKeyIfNeeded(){
+    if(el.rememberKey.checked){
+      localStorage.setItem(LS.remember, "1");
+      localStorage.setItem(LS.key, (el.apiKey.value || "").trim());
+    }else{
+      localStorage.setItem(LS.remember, "0");
+      localStorage.removeItem(LS.key);
+    }
+  }
+  function loadSavedKey(){
+    const remember = localStorage.getItem(LS.remember) === "1";
+    el.rememberKey.checked = remember;
+    if(remember){
+      const key = localStorage.getItem(LS.key);
+      if(key) el.apiKey.value = key;
+    }
+  }
+
+  async function enableNotification(){
+    if(!("Notification" in window)){
+      log("此浏览器不支持 Notification API");
+      return;
+    }
+    const p = await Notification.requestPermission();
+    notifEnabled = (p === "granted");
+    el.btnNotif.textContent = `完成通知：${notifEnabled ? "开启" : "关闭"}`;
+    log(`通知权限：${p}`);
+  }
+  function notifyDone(id){
+    try{ new Notification("视频生成完成", { body: id }); }catch{}
+  }
+
+  function updatePollPill(running){
+    const node = el.pollPill;
+    if(running){
+      node.innerHTML = `<span class="dot" style="background:rgba(79,140,255,.85); box-shadow:0 0 0 3px rgba(79,140,255,.18)"></span><span>轮询：进行中</span>`;
+    }else{
+      node.innerHTML = `<span class="dot" style="background:rgba(255,255,255,.35)"></span><span>轮询：未启动</span>`;
+    }
+  }
+
+  function updateSummary(){
+    const m = currentModel();
+    const sec = Number(el.secondsSelect.value || 10);
+    const size = el.sizeSelect.value || "720x1280";
+    el.summaryLine.textContent = `${m} · ${sec}s · ${size}`;
+    const hasImg = !!(el.refImage.files && el.refImage.files[0]);
+    el.summarySub.textContent = hasImg ? "将使用参考图片引导生成" : "纯文本生成";
+  }
+
+  function renderListEditors(){
+    // tags for models
+    el.modelTags.innerHTML = modelList.map(m => {
+      const safe = escapeHtml(m);
+      return `<span class="tag">${safe}<button type="button" data-del-model="${safe}" aria-label="删除模型">✕</button></span>`;
+    }).join("");
+
+    el.secondsTags.innerHTML = secondsList.map(s => {
+      return `<span class="tag">${s}s<button type="button" data-del-sec="${s}" aria-label="删除秒数">✕</button></span>`;
+    }).join("");
+
+    // bind delete
+    el.modelTags.querySelectorAll("button[data-del-model]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const val = btn.getAttribute("data-del-model");
+        modelList = modelList.filter(x => x !== val);
+        if(modelList.length === 0) modelList = [...DEFAULT_MODELS];
+        saveList(LS.models, modelList);
+        refreshModelOptions();
+      });
+    });
+    el.secondsTags.querySelectorAll("button[data-del-sec]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const val = Number(btn.getAttribute("data-del-sec"));
+        secondsList = secondsList.filter(x => Number(x) !== val);
+        if(secondsList.length === 0) secondsList = [...DEFAULT_SECONDS];
+        saveList(LS.seconds, secondsList);
+        refreshSecondsOptions();
+      });
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  function taskStatusClass(status){
+    if(status === "completed") return "good";
+    if(status === "failed") return "bad";
+    return "run";
+  }
+
+  function renderTasks(){
+    el.taskCount.textContent = String(tasks.length);
+    el.tasks.innerHTML = tasks.map(t => {
+      const cls = taskStatusClass(t.status);
+      const pct = Math.max(0, Math.min(100, Number(t.progress ?? 0)));
+      const btnDlDisabled = (t.status !== "completed");
+      const videoHtml = t.videoUrl ? `<video controls playsinline src="${t.videoUrl}"></video>` : "";
+      const meta = `${t.model} · ${t.seconds}s · ${t.size} · ${new Date(t.createdAt).toLocaleString()}`;
+      return `
+        <div class="task" data-id="${t.id}">
+          <div class="taskTop">
+            <div style="min-width:0;">
+              <div class="taskId">${t.id}</div>
+              <div class="taskMeta">${meta}</div>
+            </div>
+            <div class="status ${cls}">${t.status}${t.status === "completed" ? " ✅" : ""}</div>
+          </div>
+          <div class="bar"><div style="width:${pct}%"></div></div>
+          <div class="taskBtns">
+            <button type="button" data-act="refresh">刷新</button>
+            <button type="button" data-act="copy">复制ID</button>
+            <button type="button" data-act="download" ${btnDlDisabled ? "disabled" : ""}>下载预览</button>
+            <button type="button" class="danger" data-act="remove">移除</button>
+          </div>
+          ${videoHtml}
+        </div>
+      `;
+    }).join("");
+
+    el.tasks.querySelectorAll(".task").forEach(node => {
+      const id = node.getAttribute("data-id");
+      node.querySelectorAll("button[data-act]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const act = btn.getAttribute("data-act");
+          if(act === "remove"){
+            const t = tasks.find(x => x.id === id);
+            if(t?.videoUrl) URL.revokeObjectURL(t.videoUrl);
+            tasks = tasks.filter(x => x.id !== id);
+            renderTasks();
+          }else if(act === "refresh"){
+            await refreshOne(id);
+          }else if(act === "download"){
+            await downloadOne(id);
+          }else if(act === "copy"){
+            try{ await navigator.clipboard.writeText(id); log("已复制任务 ID"); }
+            catch{ log("复制失败（可能未授权剪贴板）"); }
+          }
+        });
+      });
+    });
+  }
+
+  async function createVideo(){
+    const prompt = (el.prompt.value || "").trim();
+    if(!prompt) throw new Error("请填写 Prompt");
+
+    const model = currentModel() || "sora-2";
+    const seconds = String(Number(el.secondsSelect.value || 10));
+    const size = normalizeSize(el.sizeSelect.value || "720x1280");
+    if(!size) throw new Error("尺寸不合法");
+
+    const baseUrl = safeBaseUrl();
+    const file = el.refImage.files && el.refImage.files[0];
+
+    let res;
+    if(file){
+      const fd = new FormData();
+      fd.set("model", model);
+      fd.set("prompt", prompt);
+      fd.set("seconds", seconds);
+      fd.set("size", size);
+      fd.set("input_reference", file, file.name);
+      res = await fetch(`${baseUrl}/v1/videos`, { method:"POST", headers: authHeaders(), body: fd });
+    }else{
+      res = await fetch(`${baseUrl}/v1/videos`, {
+        method:"POST",
+        headers: { ...authHeaders(), "Content-Type":"application/json" },
+        body: JSON.stringify({ model, prompt, seconds, size })
+      });
+    }
+
+    const text = await res.text();
+    let data = {};
+    try{ data = JSON.parse(text); }catch{ data = { raw:text }; }
+
+    if(!res.ok){
+      throw new Error(`创建失败：HTTP ${res.status}\n${JSON.stringify(data, null, 2)}`);
+    }
+    if(!data.id) throw new Error(`创建返回缺少 id：\n${JSON.stringify(data, null, 2)}`);
+
+    tasks.unshift({
+      id: data.id,
+      status: data.status || "queued",
+      progress: data.progress ?? 0,
+      model: data.model || model,
+      seconds: Number(data.seconds || seconds),
+      size: data.size || size,
+      createdAt: Date.now(),
+      lastUpdate: Date.now(),
+      videoUrl: ""
+    });
+
+    log(`创建成功：${data.id}`);
+    renderTasks();
+    updateSummary();
+    // create then refresh once
+    await refreshOne(data.id);
+  }
+
+  async function refreshOne(id){
+    const baseUrl = safeBaseUrl();
+    let res;
+    try{
+      res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}`, {
+        method:"GET",
+        headers: authHeaders()
+      });
+    }catch(e){
+      log(`刷新失败（网络/CORS）：${String(e?.message || e)}`);
+      return;
+    }
+
+    let data = {};
+    try{ data = await res.json(); }catch{ data = {}; }
+
+    if(!res.ok){
+      log(`刷新失败：HTTP ${res.status} ${res.statusText}`);
+      return;
+    }
+    const t = tasks.find(x => x.id === id);
+    if(!t) return;
+
+    const prevStatus = t.status;
+    t.status = data.status || t.status;
+    t.progress = data.progress ?? t.progress;
+    t.lastUpdate = Date.now();
+
+    renderTasks();
+    log(`状态更新：${id} -> ${t.status}（${t.progress ?? 0}%）`);
+
+    if(notifEnabled && prevStatus !== "completed" && t.status === "completed"){
+      notifyDone(id);
+    }
+  }
+
+  async function downloadOne(id){
+    const baseUrl = safeBaseUrl();
+    let res;
+    try{
+      res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}/content`, {
+        method:"GET",
+        headers: authHeaders()
+      });
+    }catch(e){
+      log(`下载失败（网络/CORS）：${String(e?.message || e)}`);
+      return;
+    }
+
+    if(!res.ok){
+      const txt = await res.text().catch(()=>"");
+      log(`下载失败：HTTP ${res.status} ${res.statusText} ${txt}`);
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    const t = tasks.find(x => x.id === id);
+    if(t){
+      if(t.videoUrl) URL.revokeObjectURL(t.videoUrl);
+      t.videoUrl = url;
+    }
+    renderTasks();
+    log(`已下载并可预览：${id}`);
+  }
+
+  async function pollTick(){
+    const running = tasks.filter(t => t.status !== "completed" && t.status !== "failed");
+    if(running.length === 0) return;
+    const batch = Math.max(1, Number(el.pollBatch.value || 3));
+    for(const t of running.slice(0, batch)){
+      await refreshOne(t.id);
+    }
+  }
+
+  function startPolling(){
+    const sec = Math.max(3, Number(el.pollSec.value || 12));
+    stopPolling();
+    pollTimer = setInterval(pollTick, sec * 1000);
+    updatePollPill(true);
+    el.btnTogglePoll.textContent = "停止轮询";
+    log(`已开始轮询（每 ${sec}s）`);
+  }
+  function stopPolling(){
+    if(pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+    updatePollPill(false);
+    el.btnTogglePoll.textContent = "开始轮询";
+  }
+
+  // --- UI events ---
+  window.addEventListener("online", setNetPill);
+  window.addEventListener("offline", setNetPill);
+
+  el.btnSettings.addEventListener("click", openSettings);
+  el.btnCloseSettings.addEventListener("click", closeSettings);
+  el.settingsOverlay.addEventListener("click", (e) => {
+    if(e.target === el.settingsOverlay) closeSettings();
+  });
+
+  el.btnNotif.addEventListener("click", enableNotification);
+  el.rememberKey.addEventListener("change", saveKeyIfNeeded);
+  el.apiKey.addEventListener("input", saveKeyIfNeeded);
+
+  el.modelSelect.addEventListener("change", () => {
+    refreshSizeOptions();
+    updateSecondsHint();
+    updateSummary();
+  });
+
+  el.secondsSelect.addEventListener("change", () => {
+    updateSecondsHint();
+    updateSummary();
+  });
+
+  el.sizeSelect.addEventListener("change", () => {
+    const v = normalizeSize(el.sizeSelect.value);
+    el.sizeSelect.setAttribute("data-cur", v);
+    updateSummary();
+  });
+
+  el.refImage.addEventListener("change", () => {
+    const f = el.refImage.files && el.refImage.files[0];
+    el.refHint.textContent = f ? `已选择：${f.name}（${Math.round(f.size/1024)}KB）` : "未选择图片";
+    updateSummary();
+  });
+
+  // quick size chips
+  el.chipP720.addEventListener("click", () => { pickSize("720x1280"); });
+  el.chipL720.addEventListener("click", () => { pickSize("1280x720"); });
+  el.chipPHi.addEventListener("click", () => { pickSize("1024x1792"); });
+  el.chipLHi.addEventListener("click", () => { pickSize("1792x1024"); });
+
+  function pickSize(size){
+    const s = normalizeSize(size);
+    const allowed = resolveAllowedSizes(currentModel());
+    if(!allowed.includes(s)){
+      log(`当前模型不支持尺寸 ${s}，已忽略`);
+      return;
+    }
+    el.sizeSelect.value = s;
+    el.sizeSelect.setAttribute("data-cur", s);
+    updateSummary();
+  }
+
+  el.btnCreate.addEventListener("click", async () => {
+    try{
+      el.btnCreate.disabled = true;
+      await createVideo();
+      // 如果用户未开轮询，但已经有任务在跑，自动提醒
+      if(!pollTimer){
+        log("提示：可点击“开始轮询”追踪进度（或在设置里调整轮询策略）");
+      }
+    }catch(e){
+      log(String(e?.message || e));
+    }finally{
+      el.btnCreate.disabled = false;
+    }
+  });
+
+  el.btnTogglePoll.addEventListener("click", () => {
+    if(pollTimer) stopPolling();
+    else startPolling();
+  });
+
+  // Add custom model / seconds
+  el.btnAddModel.addEventListener("click", () => {
+    const val = prompt("输入自定义模型名（例如：sora-2 / sora-2-pro / 你的代理模型名）");
+    if(!val) return;
+    const v = val.trim();
+    if(!v) return;
+    if(!modelList.includes(v)){
+      modelList.unshift(v);
+      saveList(LS.models, modelList);
+    }
+    refreshModelOptions();
+    el.modelSelect.value = v;
+    refreshSizeOptions();
+    updateSecondsHint();
+    updateSummary();
+    log(`已添加模型：${v}`);
+  });
+
+  el.btnAddSeconds.addEventListener("click", () => {
+    const val = prompt("输入秒数（整数，例如 10 或 15）");
+    if(!val) return;
+    const n = Number(String(val).trim());
+    if(!Number.isFinite(n) || n <= 0 || n > 300){
+      log("秒数不合法：请输入 1~300 的整数");
+      return;
+    }
+    if(!secondsList.includes(n)){
+      secondsList.unshift(n);
+      saveList(LS.seconds, secondsList);
+    }
+    refreshSecondsOptions();
+    el.secondsSelect.value = String(n);
+    updateSecondsHint();
+    updateSummary();
+    log(`已添加秒数：${n}s`);
+  });
+
+  el.btnResetLists.addEventListener("click", () => {
+    modelList = [...DEFAULT_MODELS];
+    secondsList = [...DEFAULT_SECONDS];
+    saveList(LS.models, modelList);
+    saveList(LS.seconds, secondsList);
+    refreshModelOptions();
+    refreshSecondsOptions();
+    log("已恢复默认下拉列表");
+  });
+
+  el.btnClearTasks.addEventListener("click", () => {
+    tasks.forEach(t => { if(t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
+    tasks = [];
+    renderTasks();
+    log("已清空任务");
+  });
+
+  // init
+  setNetPill();
+  loadSavedKey();
+  notifEnabled = false;
+  el.btnNotif.textContent = "完成通知：关闭";
+
+  refreshModelOptions();
+  refreshSecondsOptions();
+  renderTasks();
+  updatePollPill(false);
+
+  // default pick portrait
+  el.sizeSelect.setAttribute("data-cur", "720x1280");
+  updateSummary();
+  log("就绪：主界面已隐藏 Base URL / Key；请点右上角 ⚙️ 设置填写 Key。");
+})();
+</script>
+</body>
+</html>
