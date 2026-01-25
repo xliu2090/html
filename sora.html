@@ -4,397 +4,756 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#111111" />
-  <title>AI Video Generator</title>
+  <title>Sora 视频生成工具</title>
   <style>
-    :root {
-      --bg-body: #f9fafb;
-      --bg-card: #ffffff;
-      --text-main: #111827;
-      --text-sub: #6b7280;
-      --border: #e5e7eb;
+    :root { 
+      color-scheme: light dark;
       --primary: #2563eb;
-      --primary-hover: #1d4ed8;
       --danger: #ef4444;
-      --radius: 12px;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --border: rgba(127,127,127,.25);
+      --bg-card: rgba(127,127,127,.06);
     }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg-body: #111111;
-        --bg-card: #1f1f1f;
-        --text-main: #f3f4f6;
-        --text-sub: #9ca3af;
-        --border: #374151;
-      }
-    }
-    
-    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,PingFang SC,"Helvetica Neue",Arial; background: var(--bg-body); color: var(--text-main); -webkit-tap-highlight-color: transparent; }
-    .wrap{ max-width: 600px; margin:0 auto; padding: 20px 16px; position: relative; }
-    
-    /* Header & Icons */
-    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    h1 { font-size: 20px; font-weight: 700; margin: 0; }
-    .icon-btn { background: none; border: none; padding: 8px; cursor: pointer; color: var(--text-main); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background .2s; }
-    .icon-btn:hover { background: rgba(127,127,127,0.1); }
-    svg { width: 24px; height: 24px; fill: currentColor; }
-
-    /* Forms */
-    .card { background: var(--bg-card); border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border); margin-bottom: 16px; }
-    label { display: block; font-size: 13px; font-weight: 500; color: var(--text-sub); margin-bottom: 6px; }
-    
-    input, textarea, select {
-      width: 100%; box-sizing: border-box; border: 1px solid var(--border);
-      border-radius: 8px; padding: 10px; font-size: 15px;
-      background: var(--bg-body); color: var(--text-main);
-      transition: border-color .2s;
-    }
-    input:focus, textarea:focus { outline: none; border-color: var(--primary); }
-    textarea { min-height: 100px; resize: vertical; line-height: 1.5; }
-
-    /* Grid Layout for Controls */
-    .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-    
-    /* Buttons */
-    .btn {
-      width: 100%; border: none; padding: 12px; border-radius: 8px;
-      font-size: 15px; font-weight: 600; cursor: pointer;
-      display: flex; align-items: center; justify-content: center; gap: 6px;
-      transition: opacity .2s;
-    }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    
-    /* Task List */
-    .task { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 12px; animation: fadeIn 0.3s ease; }
-    .task-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-    .status-badge { font-size: 12px; padding: 4px 8px; border-radius: 99px; background: rgba(127,127,127,0.1); font-weight: 500; }
-    .status-badge.processing { color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
-    .status-badge.success { color: #10b981; background: rgba(16, 185, 129, 0.1); }
-    .status-badge.failed { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
-    
-    video { width: 100%; border-radius: 8px; background: #000; margin-top: 8px; display: block; }
-    .task-meta { font-size: 12px; color: var(--text-sub); margin-top: 6px; font-family: monospace; }
-    
-    /* Modal (Settings) */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
-      z-index: 99; display: none; align-items: center; justify-content: center;
+    * { box-sizing: border-box; }
+    body { 
+      margin:0; 
+      font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,PingFang SC,"Helvetica Neue",Arial;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
       padding: 20px;
     }
-    .modal-overlay.show { display: flex; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .header {
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 24px;
+      margin-bottom: 20px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+    }
+    .header h1 { 
+      margin: 0 0 8px; 
+      font-size: 28px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-top: 16px;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 500;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+    .main-card {
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+      margin-bottom: 20px;
+    }
+    .form-group { margin-bottom: 20px; }
+    label { 
+      display: block; 
+      font-size: 14px; 
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+    input, textarea, select {
+      width: 100%;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-size: 15px;
+      background: #fff;
+      transition: all .2s;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+    }
+    textarea { min-height: 100px; resize: vertical; font-family: inherit; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .size-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .size-btn {
+      padding: 12px;
+      border: 2px solid var(--border);
+      background: #fff;
+      border-radius: 12px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all .2s;
+      font-weight: 500;
+    }
+    .size-btn:hover { border-color: var(--primary); background: rgba(37,99,235,.05); }
+    .size-btn.active { border-color: var(--primary); background: rgba(37,99,235,.1); color: var(--primary); }
+    .action-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+    }
+    button {
+      flex: 1;
+      padding: 14px 20px;
+      border: none;
+      border-radius: 12px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    button.primary { 
+      background: var(--primary); 
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(37,99,235,.3);
+    }
+    button.primary:hover { 
+      background: #1d4ed8;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(37,99,235,.4);
+    }
+    button.secondary { background: #f3f4f6; color: #374151; }
+    button.secondary:hover { background: #e5e7eb; }
+    button.danger { background: rgba(239,68,68,.1); color: var(--danger); border: 2px solid var(--danger); }
+    button:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+    .settings-btn {
+      padding: 10px 20px;
+      background: rgba(255,255,255,.9);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all .2s;
+    }
+    .settings-btn:hover { background: #fff; border-color: var(--primary); }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,.5);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .modal.show { display: flex; align-items: center; justify-content: center; }
     .modal-content {
-      background: var(--bg-card); width: 100%; max-width: 400px;
-      border-radius: 16px; padding: 20px;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-      max-height: 80vh; overflow-y: auto;
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,.3);
     }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
-    .modal-title { font-weight: 700; font-size: 16px; }
-    .close-btn { font-size: 24px; line-height: 1; cursor: pointer; background: none; border: none; color: var(--text-sub); padding: 0; }
-
-    /* Log Box in Settings */
-    .log-box {
-      margin-top: 10px; background: #000; color: #0f0;
-      font-family: monospace; font-size: 11px; padding: 10px;
-      border-radius: 6px; height: 120px; overflow: auto;
-      white-space: pre-wrap;
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
     }
-
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .modal-header h2 { margin: 0; font-size: 22px; }
+    .close-btn {
+      background: none;
+      border: none;
+      font-size: 28px;
+      cursor: pointer;
+      color: #9ca3af;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+    }
+    .close-btn:hover { background: #f3f4f6; color: #374151; }
+    .tasks-card {
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,.1);
+    }
+    .tasks-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .tasks-header h2 { margin: 0; font-size: 20px; }
+    .task {
+      background: #fff;
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 16px;
+      transition: all .2s;
+    }
+    .task:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    .task-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .task-id {
+      font-family: ui-monospace, monospace;
+      font-size: 13px;
+      color: #6b7280;
+      word-break: break-all;
+    }
+    .task-meta {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    .task-status {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .task-status.completed { background: rgba(34,197,94,.1); color: var(--success); }
+    .task-status.processing { background: rgba(245,158,11,.1); color: var(--warning); }
+    .task-status.queued { background: rgba(156,163,175,.1); color: #6b7280; }
+    .task-status.failed { background: rgba(239,68,68,.1); color: var(--danger); }
+    .task-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .task-actions button { 
+      flex: none;
+      padding: 8px 16px;
+      font-size: 13px;
+    }
+    video {
+      width: 100%;
+      border-radius: 12px;
+      margin-top: 12px;
+      background: #000;
+    }
+    .log {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 16px;
+      border-radius: 12px;
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 20px;
+    }
+    .hint { 
+      font-size: 13px; 
+      color: #6b7280; 
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 400;
+      margin-top: 12px;
+      cursor: pointer;
+    }
+    .checkbox-label input { width: auto; margin: 0; }
+    @media (max-width: 640px) {
+      .row { grid-template-columns: 1fr; }
+      .header-actions { flex-wrap: wrap; }
+      .action-buttons { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
-
-<div class="wrap">
-  <header>
-    <h1>AI Video Gen</h1>
-    <button class="icon-btn" onclick="toggleSettings()">
-      <svg viewBox="0 0 24 24"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
-    </button>
-  </header>
-
-  <div class="card">
-    <label>Prompt (提示词)</label>
-    <textarea id="prompt" placeholder="Describe the video you want to generate..."></textarea>
-
-    <div class="controls-grid">
-      <div>
-        <label>Model</label>
-        <input id="model" list="modelList" type="text" value="sora-1.0-turbo" placeholder="Select or type..." />
-        <datalist id="modelList">
-          <option value="sora-1.0-turbo"></option>
-          <option value="sora-2.0"></option>
-          <option value="kling-v1"></option>
-        </datalist>
+<div class="container">
+  <div class="header">
+    <h1>🎬 Sora 视频生成工具</h1>
+    <p style="margin: 0; color: #6b7280; font-size: 14px;">基于 OpenAI Sora API 的视频创作平台</p>
+    <div class="header-actions">
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span id="pollStatus">就绪</span>
       </div>
-
-      <div>
-        <label>Duration (s)</label>
-        <input id="seconds" list="secondsList" type="number" value="10" placeholder="Seconds" />
-        <datalist id="secondsList">
-          <option value="5"></option>
-          <option value="10"></option>
-          <option value="15"></option>
-        </datalist>
+      <div class="status-badge">
+        <span>📡</span>
+        <span id="netStatus">在线</span>
       </div>
-    </div>
-
-    <div class="controls-grid">
-       <div style="grid-column: span 2;">
-        <label>Size</label>
-        <input id="size" list="sizeList" type="text" value="720x1280" placeholder="WidthxHeight" />
-        <datalist id="sizeList">
-          <option value="720x1280">竖屏 9:16</option>
-          <option value="1280x720">横屏 16:9</option>
-          <option value="1024x1024">方图 1:1</option>
-        </datalist>
-      </div>
-    </div>
-
-    <div style="margin-top: 16px;">
-      <button id="btnGen" class="btn btn-primary" type="button">
-        <svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-        Generate Video
-      </button>
+      <button class="settings-btn" onclick="openSettings()">⚙️ 设置</button>
     </div>
   </div>
 
-  <div id="taskList" class="tasks"></div>
+  <div class="main-card">
+    <div class="form-group">
+      <label>模型选择</label>
+      <select id="model" onchange="onModelChange()">
+        <option value="sora-2">Sora 2 - 标准版</option>
+        <option value="sora-2-pro">Sora 2 Pro - 专业版</option>
+        <option value="custom">自定义模型...</option>
+      </select>
+      <input id="customModel" type="text" placeholder="输入自定义模型名称" style="display:none; margin-top:8px;" />
+      <div class="hint" id="modelHint">Sora 2 支持基础分辨率，适合快速生成</div>
+    </div>
+
+    <div class="form-group">
+      <label>视频描述 (Prompt)</label>
+      <textarea id="prompt" placeholder="例如：一只三花猫在舞台上弹钢琴，聚光灯照射，电影质感，4K画质"></textarea>
+    </div>
+
+    <div class="row">
+      <div class="form-group">
+        <label>视频时长</label>
+        <select id="seconds">
+          <option value="4">4 秒</option>
+          <option value="8" selected>8 秒</option>
+          <option value="10">10 秒</option>
+          <option value="12">12 秒</option>
+          <option value="15">15 秒</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>视频方向</label>
+        <select id="orientation" onchange="onOrientationChange()">
+          <option value="portrait">竖屏 (9:16)</option>
+          <option value="landscape">横屏 (16:9)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>分辨率</label>
+      <div class="size-buttons" id="sizeButtons"></div>
+      <input id="size" type="hidden" value="720x1280" />
+    </div>
+
+    <div class="form-group">
+      <label>参考图片 (可选)</label>
+      <input id="refImage" type="file" accept="image/*" />
+    </div>
+
+    <div class="action-buttons">
+      <button class="primary" id="btnCreate" onclick="createVideo()">🎬 开始生成</button>
+      <button class="secondary" id="btnTogglePoll" onclick="togglePoll()">▶️ 开始轮询</button>
+    </div>
+
+    <div class="log" id="log" style="display:none;"></div>
+  </div>
+
+  <div class="tasks-card">
+    <div class="tasks-header">
+      <h2>任务列表</h2>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <span class="status-badge" id="taskCount">0 个任务</span>
+        <button class="danger" onclick="clearTasks()" style="flex:none; padding:8px 16px; font-size:13px;">清空</button>
+      </div>
+    </div>
+    <div id="tasks"></div>
+  </div>
 </div>
 
-<div id="settingsModal" class="modal-overlay">
+<!-- Settings Modal -->
+<div class="modal" id="settingsModal">
   <div class="modal-content">
     <div class="modal-header">
-      <span class="modal-title">Settings</span>
-      <button class="close-btn" onclick="toggleSettings()">&times;</button>
+      <h2>⚙️ 设置</h2>
+      <button class="close-btn" onclick="closeSettings()">×</button>
     </div>
     
-    <label>API Host (Base URL)</label>
-    <input id="baseUrl" type="text" value="https://api.openai.com" placeholder="https://..." />
-    
-    <label style="margin-top:12px;">API Key</label>
-    <input id="apiKey" type="password" placeholder="sk-..." />
-    
-    <div style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-      <input id="rememberKey" type="checkbox" style="width:auto; margin:0;" />
-      <span style="font-size:13px; color:var(--text-sub);">Save Key locally</span>
+    <div class="form-group">
+      <label>API Base URL</label>
+      <input id="baseUrl" type="text" value="https://api.openai.com" />
+      <div class="hint">OpenAI 官方地址或自定义代理地址</div>
     </div>
 
-    <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;">
-    
-    <label>System Log</label>
-    <div id="logArea" class="log-box"></div>
-    
-    <button class="btn btn-primary" style="margin-top:16px;" onclick="toggleSettings()">Save & Close</button>
+    <div class="form-group">
+      <label>API Key</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+      <label class="checkbox-label">
+        <input id="rememberKey" type="checkbox" />
+        <span>记住 API Key (保存在本地)</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label>轮询间隔 (秒)</label>
+      <select id="pollSec">
+        <option value="5">5 秒</option>
+        <option value="10" selected>10 秒</option>
+        <option value="15">15 秒</option>
+        <option value="20">20 秒</option>
+        <option value="30">30 秒</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>并发轮询数量</label>
+      <select id="pollBatch">
+        <option value="1">1 个</option>
+        <option value="2">2 个</option>
+        <option value="3" selected>3 个</option>
+        <option value="5">5 个</option>
+      </select>
+    </div>
+
+    <label class="checkbox-label">
+      <input id="enableNotif" type="checkbox" />
+      <span>完成后发送通知</span>
+    </label>
+
+    <div class="action-buttons" style="margin-top:24px;">
+      <button class="primary" onclick="saveSettings()">保存设置</button>
+      <button class="secondary" onclick="closeSettings()">取消</button>
+    </div>
   </div>
 </div>
 
 <script>
-// --- Utils ---
-const $ = (s) => document.querySelector(s);
-const log = (msg) => {
-  const box = $('#logArea');
-  const time = new Date().toLocaleTimeString();
-  box.innerHTML = `[${time}] ${msg}\n` + box.innerHTML;
-  console.log(`[${time}]`, msg);
+const SIZE_CONFIG = {
+  "sora-2": {
+    portrait: [{ val: "720x1280", label: "标清 720x1280" }],
+    landscape: [{ val: "1280x720", label: "标清 1280x720" }]
+  },
+  "sora-2-pro": {
+    portrait: [
+      { val: "720x1280", label: "标清 720x1280" },
+      { val: "1024x1792", label: "高清 1024x1792" }
+    ],
+    landscape: [
+      { val: "1280x720", label: "标清 1280x720" },
+      { val: "1792x1024", label: "高清 1792x1024" }
+    ]
+  }
 };
 
-// --- Settings Logic ---
-function toggleSettings() {
-  const modal = $('#settingsModal');
-  const isShow = modal.classList.contains('show');
-  if(isShow) {
-    modal.classList.remove('show');
-    saveConfig(); // Close implies save
+let tasks = [];
+let pollTimer = null;
+let currentModel = "sora-2";
+let currentOrientation = "portrait";
+
+const $ = id => document.getElementById(id);
+
+function log(msg, show = true) {
+  const t = new Date().toLocaleTimeString();
+  $("log").textContent = `[${t}] ${msg}\n` + $("log").textContent;
+  if (show) $("log").style.display = "block";
+}
+
+function updateNetStatus() {
+  $("netStatus").textContent = navigator.onLine ? "在线" : "离线";
+}
+
+function onModelChange() {
+  const model = $("model").value;
+  if (model === "custom") {
+    $("customModel").style.display = "block";
+    $("modelHint").textContent = "自定义模型不限制分辨率，请确认你的 API 支持";
+    currentModel = "custom";
   } else {
-    modal.classList.add('show');
+    $("customModel").style.display = "none";
+    currentModel = model;
+    $("modelHint").textContent = model === "sora-2-pro" 
+      ? "Sora 2 Pro 支持更高分辨率和更好的视频质量" 
+      : "Sora 2 支持基础分辨率，适合快速生成";
   }
+  updateSizeButtons();
 }
 
-function saveConfig() {
-  const remember = $('#rememberKey').checked;
-  if(remember) {
-    localStorage.setItem('sora_baseUrl', $('#baseUrl').value);
-    localStorage.setItem('sora_apiKey', $('#apiKey').value);
-    localStorage.setItem('sora_model', $('#model').value);
-  } else {
-    localStorage.removeItem('sora_apiKey');
-  }
-  localStorage.setItem('sora_remember', remember);
+function onOrientationChange() {
+  currentOrientation = $("orientation").value;
+  updateSizeButtons();
 }
 
-function loadConfig() {
-  const remember = localStorage.getItem('sora_remember') === 'true';
-  $('#rememberKey').checked = remember;
-  if(localStorage.getItem('sora_baseUrl')) $('#baseUrl').value = localStorage.getItem('sora_baseUrl');
-  if(remember && localStorage.getItem('sora_apiKey')) $('#apiKey').value = localStorage.getItem('sora_apiKey');
-  if(localStorage.getItem('sora_model')) $('#model').value = localStorage.getItem('sora_model');
-}
-
-// --- API Logic ---
-async function generateVideo() {
-  const prompt = $('#prompt').value.trim();
-  const model = $('#model').value.trim();
-  const seconds = parseInt($('#seconds').value) || 10; // Default to 10 if parsing fails
-  const size = $('#size').value.trim();
-  const baseUrl = $('#baseUrl').value.replace(/\/$/, '');
-  const apiKey = $('#apiKey').value.trim();
-
-  if (!apiKey) {
-    alert('Please set API Key in Settings first.');
-    toggleSettings();
+function updateSizeButtons() {
+  const config = SIZE_CONFIG[currentModel];
+  const container = $("sizeButtons");
+  
+  if (!config) {
+    container.innerHTML = '<div class="hint">自定义模型请手动输入分辨率</div>';
     return;
   }
-  if (!prompt) return alert('Please enter a prompt');
+  
+  const sizes = config[currentOrientation];
+  container.innerHTML = sizes.map((s, i) => 
+    `<button type="button" class="size-btn ${i === 0 ? 'active' : ''}" onclick="selectSize('${s.val}')">${s.label}</button>`
+  ).join("");
+  
+  $("size").value = sizes[0].val;
+}
 
-  const btn = $('#btnGen');
-  btn.disabled = true;
-  btn.innerHTML = 'Submitting...';
+function selectSize(val) {
+  $("size").value = val;
+  document.querySelectorAll(".size-btn").forEach(btn => {
+    btn.classList.toggle("active", btn.textContent.includes(val));
+  });
+}
 
-  const taskId = 'loc_' + Date.now();
-  createTaskUI(taskId, prompt, model, size, seconds);
-
+async function createVideo() {
   try {
-    // 1. Create Task
-    const res = await fetch(`${baseUrl}/v1/videos`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: model,
-        prompt: prompt,
-        size: size,
-        seconds: seconds // Integer
-      })
-    });
-
-    const json = await res.json();
-    if (json.error) throw new Error(json.error.message || 'API Error');
+    $("btnCreate").disabled = true;
     
-    // Some APIs return id directly, some inside data. Adjust based on provider.
-    // Assuming standard OpenAI-ish: { id: "vid_..." }
-    const videoId = json.id || (json.data && json.data.id);
+    const model = currentModel === "custom" ? $("customModel").value.trim() : currentModel;
+    const prompt = $("prompt").value.trim();
+    const seconds = $("seconds").value;
+    const size = $("size").value;
     
-    if(!videoId) throw new Error('No video_id returned: ' + JSON.stringify(json));
+    if (!model) throw new Error("请选择或输入模型");
+    if (!prompt) throw new Error("请输入视频描述");
     
-    log(`Task created: ${videoId}`);
-    updateTaskUI(taskId, videoId, 'processing');
-    pollStatus(baseUrl, apiKey, videoId, taskId);
-
-  } catch (e) {
-    log(`Error: ${e.message}`);
-    updateTaskUI(taskId, null, 'failed', e.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = `<svg style="width:18px;height:18px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg> Generate Video`;
-  }
-}
-
-async function pollStatus(baseUrl, apiKey, videoId, uiId) {
-  let isFinished = false;
-  let retryCount = 0;
-  
-  while (!isFinished) {
-    await new Promise(r => setTimeout(r, 3000)); // Poll every 3s
+    const baseUrl = $("baseUrl").value.trim().replace(/\/+$/, "");
+    const apiKey = $("apiKey").value.trim();
+    if (!apiKey) throw new Error("请在设置中填写 API Key");
     
-    try {
-      const res = await fetch(`${baseUrl}/v1/videos/${videoId}`, {
-        headers: { 'Authorization': `Bearer ${apiKey}` }
+    const file = $("refImage").files[0];
+    let res, data;
+    
+    if (file) {
+      const fd = new FormData();
+      fd.set("model", model);
+      fd.set("prompt", prompt);
+      fd.set("seconds", seconds);
+      fd.set("size", size);
+      fd.set("input_reference", file);
+      
+      res = await fetch(`${baseUrl}/v1/videos`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${apiKey}` },
+        body: fd
       });
-      const json = await res.json();
-      
-      // Adaptation for different schema variants
-      // 1. Direct status: { status: 'succeeded', url: '...' }
-      // 2. Wrapped: { data: { status: '...', url: '...' } }
-      const data = json.data || json;
-      const status = data.status; // 'processing', 'succeeded', 'failed'
-      
-      log(`Poll ${videoId}: ${status}`);
-
-      if (status === 'succeeded' || status === 'completed') {
-        const videoUrl = data.url || (data.video && data.video.url);
-        updateTaskUI(uiId, videoId, 'success', null, videoUrl);
-        isFinished = true;
-      } else if (status === 'failed') {
-        updateTaskUI(uiId, videoId, 'failed', data.error?.message || 'Server reported failure');
-        isFinished = true;
-      }
-      
-    } catch (e) {
-      console.error(e);
-      retryCount++;
-      if(retryCount > 10) isFinished = true; // Stop after connection fails 10 times
+    } else {
+      res = await fetch(`${baseUrl}/v1/videos`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ model, prompt, seconds, size })
+      });
     }
+    
+    data = await res.json();
+    if (!res.ok) throw new Error(`创建失败: ${data.error?.message || res.statusText}`);
+    if (!data.id) throw new Error("返回数据缺少 ID");
+    
+    tasks.unshift({
+      id: data.id,
+      status: data.status || "queued",
+      progress: data.progress || 0,
+      model, size, seconds,
+      createdAt: Date.now(),
+      videoUrl: ""
+    });
+    
+    log(`✅ 任务创建成功: ${data.id}`);
+    renderTasks();
+    refreshOne(data.id);
+    
+  } catch (e) {
+    log(`❌ ${e.message}`);
+  } finally {
+    $("btnCreate").disabled = false;
   }
 }
 
-// --- UI Logic ---
-function createTaskUI(uiId, prompt, model, size, sec) {
-  const div = document.createElement('div');
-  div.className = 'task';
-  div.id = uiId;
-  div.innerHTML = `
-    <div class="task-header">
-      <span class="status-badge processing">Submitting...</span>
-      <small style="opacity:0.5">Wait...</small>
-    </div>
-    <div style="font-weight:500; font-size:14px; margin-bottom:4px;">${escapeHtml(prompt)}</div>
-    <div class="task-meta">${model} · ${size} · ${sec}s</div>
-  `;
-  $('#taskList').prepend(div);
+async function refreshOne(id) {
+  try {
+    const baseUrl = $("baseUrl").value.trim().replace(/\/+$/, "");
+    const apiKey = $("apiKey").value.trim();
+    
+    const res = await fetch(`${baseUrl}/v1/videos/${id}`, {
+      headers: { "Authorization": `Bearer ${apiKey}` }
+    });
+    
+    const data = await res.json();
+    const task = tasks.find(t => t.id === id);
+    if (!task) return;
+    
+    const prevStatus = task.status;
+    task.status = data.status || task.status;
+    task.progress = data.progress || task.progress;
+    
+    renderTasks();
+    
+    if (prevStatus !== "completed" && task.status === "completed") {
+      log(`🎉 任务完成: ${id}`);
+      if ($("enableNotif").checked) {
+        new Notification("视频生成完成", { body: id });
+      }
+    }
+  } catch (e) {
+    log(`刷新失败 ${id}: ${e.message}`, false);
+  }
 }
 
-function updateTaskUI(uiId, remoteId, status, errorMsg, videoUrl) {
-  const card = document.getElementById(uiId);
-  if (!card) return;
+async function downloadOne(id) {
+  try {
+    const baseUrl = $("baseUrl").value.trim().replace(/\/+$/, "");
+    const apiKey = $("apiKey").value.trim();
+    
+    const res = await fetch(`${baseUrl}/v1/videos/${id}/content`, {
+      headers: { "Authorization": `Bearer ${apiKey}` }
+    });
+    
+    if (!res.ok) throw new Error(`下载失败: ${res.statusText}`);
+    
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const task = tasks.find(t => t.id === id);
+    
+    if (task) {
+      if (task.videoUrl) URL.revokeObjectURL(task.videoUrl);
+      task.videoUrl = url;
+    }
+    
+    renderTasks();
+    log(`📥 下载成功: ${id}`);
+  } catch (e) {
+    log(`❌ ${e.message}`);
+  }
+}
+
+function removeTask(id) {
+  const task = tasks.find(t => t.id === id);
+  if (task?.videoUrl) URL.revokeObjectURL(task.videoUrl);
+  tasks = tasks.filter(t => t.id !== id);
+  renderTasks();
+  log(`🗑️ 已移除任务: ${id}`);
+}
+
+function renderTasks() {
+  $("taskCount").textContent = `${tasks.length} 个任务`;
   
-  let badgeHtml = '';
-  let contentHtml = '';
+  if (tasks.length === 0) {
+    $("tasks").innerHTML = '<div class="hint" style="text-align:center; padding:40px;">暂无任务</div>';
+    return;
+  }
   
-  if (status === 'processing') {
-    badgeHtml = `<span class="status-badge processing">Generating...</span>`;
-    contentHtml = `<small style="opacity:0.5">ID: ${remoteId}</small>`;
-  } else if (status === 'success') {
-    badgeHtml = `<span class="status-badge success">Success</span>`;
-    contentHtml = `
-      <video src="${videoUrl}" controls loop playsinline autoplay muted></video>
-      <div style="margin-top:8px; display:flex; gap:8px;">
-        <a href="${videoUrl}" target="_blank" download class="btn" style="background:var(--border); font-size:12px; padding:6px;">Download</a>
+  $("tasks").innerHTML = tasks.map(t => {
+    const statusClass = t.status === "completed" ? "completed" : 
+                       t.status === "failed" ? "failed" :
+                       t.status === "processing" ? "processing" : "queued";
+    
+    return `
+      <div class="task">
+        <div class="task-header">
+          <div>
+            <div class="task-id">${t.id}</div>
+            <div class="task-meta">${t.model} · ${t.size} · ${t.seconds}s</div>
+          </div>
+          <span class="task-status ${statusClass}">${t.status} ${t.progress}%</span>
+        </div>
+        <div class="task-actions">
+          <button class="secondary" onclick="refreshOne('${t.id}')">🔄 刷新</button>
+          <button class="secondary" onclick="downloadOne('${t.id}')" ${t.status !== 'completed' ? 'disabled' : ''}>📥 下载</button>
+          <button class="danger" onclick="removeTask('${t.id}')">🗑️ 删除</button>
+        </div>
+        ${t.videoUrl ? `<video controls playsinline src="${t.videoUrl}"></video>` : ''}
       </div>
     `;
-  } else if (status === 'failed') {
-    badgeHtml = `<span class="status-badge failed">Failed</span>`;
-    contentHtml = `<div style="color:var(--danger); font-size:12px; margin-top:8px;">${errorMsg || 'Unknown error'}</div>`;
-  }
+  }).join("");
+}
 
-  const header = card.querySelector('.task-header');
-  header.innerHTML = `${badgeHtml} <small style="opacity:0.5">${remoteId || ''}</small>`;
+async function pollTick() {
+  const running = tasks.filter(t => t.status !== "completed" && t.status !== "failed");
+  if (running.length === 0) return;
   
-  if(videoUrl || errorMsg) {
-    // Append content if not exists or replace body
-    const existingVid = card.querySelector('video');
-    const existingErr = card.querySelector('.err');
-    if(!existingVid && !existingErr) {
-       const body = document.createElement('div');
-       body.innerHTML = contentHtml;
-       card.appendChild(body);
-    }
+  const batch = parseInt($("pollBatch").value);
+  for (const t of running.slice(0, batch)) {
+    await refreshOne(t.id);
   }
 }
 
-function escapeHtml(text) {
-  if (!text) return '';
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+function togglePoll() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+    $("pollStatus").textContent = "已停止";
+    $("btnTogglePoll").innerHTML = "▶️ 开始轮询";
+    log("⏸️ 轮询已停止");
+  } else {
+    const sec = parseInt($("pollSec").value);
+    pollTimer = setInterval(pollTick, sec * 1000);
+    $("pollStatus").textContent = `轮询中 (${sec}s)`;
+    $("btnTogglePoll").innerHTML = "⏸️ 停止轮询";
+    log(`▶️ 开始轮询 (每${sec}秒)`);
+  }
+}
+
+function clearTasks() {
+  if (!confirm("确定要清空所有任务吗？")) return;
+  tasks.forEach(t => { if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
+  tasks = [];
+  renderTasks();
+  log("🗑️ 已清空所有任务");
+}
+
+function openSettings() {
+  $("settingsModal").classList.add("show");
+}
+
+function closeSettings() {
+  $("settingsModal").classList.remove("show");
+}
+
+function saveSettings() {
+  if ($("rememberKey").checked) {
+    localStorage.setItem("SORA_API_KEY", $("apiKey").value);
+    localStorage.setItem("SORA_REMEMBER", "1");
+  } else {
+    localStorage.removeItem("SORA_API_KEY");
+    localStorage.setItem("SORA_REMEMBER", "0");
+  }
+  
+  if ($("enableNotif").checked && "Notification" in window) {
+    Notification.requestPermission();
+  }
+  
+  closeSettings();
+  log("💾 设置已保存");
 }
 
 // Init
-window.addEventListener('load', () => {
-  loadConfig();
-  $('#btnGen').addEventListener('click', generateVideo);
-});
-</script>
-</body>
-</html>
+window.addEventListener("online", updateNetStatus);
+window.addEventListener("offline", updateNetStatus);
+
+if (localStorage.getItem("SORA_REMEMBER") === "1") {
+  const saved = localStorage.getItem("SORA_API_KEY");
+  if (saved) {
+    $("apiKey").value = saved;
