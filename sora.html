@@ -3,704 +3,559 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0f172a" />
-  <title>Sora 视频生成</title>
+  <meta name="theme-color" content="#111111" />
+  <title>Sora Mobile (OpenAI /v1/videos) - Custom Model</title>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root { 
-      --bg-main: #f8fafc;
-      --bg-card: #ffffff;
-      --bg-input: #f1f5f9;
-      --border: #e2e8f0;
-      --text: #0f172a;
-      --text-dim: #64748b;
-      --primary: #3b82f6;
-      --primary-hover: #2563eb;
-      --success: #22c55e;
-      --warning: #f59e0b;
-      --danger: #ef4444;
+    :root { color-scheme: light dark; }
+    body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,PingFang SC,"Helvetica Neue",Arial; }
+    .wrap{ max-width:980px; margin:0 auto; padding:16px; }
+    h1{ font-size:18px; margin:0 0 10px; }
+    .note{ font-size:13px; opacity:.85; line-height:1.45; }
+    .grid{ display:grid; grid-template-columns:1fr; gap:12px; margin-top:12px; }
+    @media (min-width: 860px){ .grid{ grid-template-columns:1fr 1fr; } }
+    .card{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:12px; background:rgba(127,127,127,.06); }
+    label{ display:block; font-size:13px; margin:10px 0 6px; opacity:.9; }
+    input, textarea{
+      width:100%; box-sizing:border-box; border:1px solid rgba(127,127,127,.35);
+      border-radius:10px; padding:10px; font-size:14px; background:transparent;
     }
-    body { 
-      background: var(--bg-main);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
+    textarea{ min-height:92px; resize:vertical; }
+    .row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .btns{ display:flex; flex-wrap:wrap; gap:10px; margin-top:12px; }
+    button{
+      border:1px solid rgba(127,127,127,.35); background:rgba(127,127,127,.10);
+      padding:10px 12px; border-radius:12px; font-size:14px; cursor:pointer;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-    .header { 
-      display: flex; 
-      justify-content: space-between; 
-      align-items: center;
-      margin-bottom: 24px;
-      padding: 16px;
-      background: var(--bg-card);
-      border-radius: 16px;
-    }
-    h1 { font-size: 24px; font-weight: 600; }
-    .settings-btn {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 10px 16px;
-      border-radius: 12px;
-      cursor: pointer;
-      font-size: 14px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-    .settings-btn:hover { background: var(--border); }
-    .settings-modal {
-      display: none;
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.7);
-      z-index: 1000;
-      align-items: center;
-      justify-content: center;
-    }
-    .settings-modal.active { display: flex; }
-    .settings-content {
-      background: var(--bg-card);
-      padding: 24px;
-      border-radius: 20px;
-      max-width: 500px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-    }
-    .settings-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .close-btn {
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-size: 24px;
-      cursor: pointer;
-      padding: 4px 8px;
-    }
-    .grid { 
-      display: grid; 
-      grid-template-columns: 1fr;
-      gap: 20px;
-    }
-    @media (min-width: 900px) { 
-      .grid { grid-template-columns: 1fr 1fr; }
-    }
-    .card {
-      background: var(--bg-card);
-      border-radius: 16px;
-      padding: 20px;
-      border: 1px solid var(--border);
-    }
-    .card-title {
-      font-size: 18px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    label {
-      display: block;
-      font-size: 14px;
-      color: var(--text-dim);
-      margin: 16px 0 8px;
-    }
-    input, textarea, select {
-      width: 100%;
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 12px;
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-    input:focus, textarea:focus, select:focus {
-      border-color: var(--primary);
-    }
-    textarea { min-height: 100px; resize: vertical; font-family: inherit; }
-    select {
-      cursor: pointer;
-      appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 12px center;
-      padding-right: 36px;
-    }
-    .size-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .size-btn {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 13px;
-      transition: all 0.2s;
-    }
-    .size-btn:hover {
-      background: var(--border);
-      border-color: var(--primary);
-    }
-    .btn {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 14px 24px;
-      border-radius: 12px;
-      font-size: 15px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      width: 100%;
-      margin-top: 20px;
-    }
-    .btn:hover { background: var(--primary-hover); }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .btn.secondary {
-      background: var(--bg-input);
-      border: 1px solid var(--border);
-    }
-    .btn.danger {
-      background: var(--danger);
-    }
-    .status-pills {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      margin-bottom: 16px;
-    }
-    .pill {
-      background: var(--bg-input);
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      color: var(--text-dim);
-      border: 1px solid var(--border);
-    }
-    .pill.active { background: var(--primary); color: white; border-color: var(--primary); }
-    .task-list { display: grid; gap: 16px; margin-top: 16px; }
-    .task {
-      background: var(--bg-input);
-      padding: 16px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-    }
-    .task-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 12px;
-    }
-    .task-id {
-      font-family: monospace;
-      font-size: 12px;
-      color: var(--text-dim);
-      word-break: break-all;
-    }
-    .task-meta {
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-top: 8px;
-    }
-    .task-buttons {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-top: 12px;
-    }
-    .task-buttons button {
-      padding: 8px 14px;
-      font-size: 13px;
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      border-radius: 8px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .task-buttons button:hover { background: var(--border); }
-    .task-buttons button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .task-buttons button.danger { color: var(--danger); }
-    video {
-      width: 100%;
-      border-radius: 10px;
-      margin-top: 12px;
-      background: #000;
-    }
-    .log {
-      background: var(--bg-input);
-      padding: 12px;
-      border-radius: 10px;
-      font-family: monospace;
-      font-size: 12px;
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      color: var(--text-dim);
-      margin-top: 16px;
-    }
-    .hint {
-      font-size: 12px;
-      color: var(--text-dim);
-      margin-top: 6px;
-      line-height: 1.4;
-    }
-    .hint.warning { color: var(--warning); }
-    input[type="checkbox"] {
-      width: auto;
-      margin-right: 6px;
-    }
+    button.primary{ background:#2563eb; border-color:#2563eb; color:#fff; }
+    button.danger{ background:rgba(239,68,68,.12); border-color:rgba(239,68,68,.5); }
+    button:disabled{ opacity:.6; cursor:not-allowed; }
+    .pill{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:6px 10px; border-radius:999px; border:1px solid rgba(127,127,127,.35); }
+    .log{ white-space:pre-wrap; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; line-height:1.35;
+      padding:10px; border-radius:12px; border:1px dashed rgba(127,127,127,.35); max-height:240px; overflow:auto; }
+    .tasks{ display:grid; gap:10px; margin-top:10px; }
+    .task{ border:1px solid rgba(127,127,127,.35); border-radius:14px; padding:10px; background:rgba(127,127,127,.05); }
+    .taskHead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+    .mono{ font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; word-break:break-all; }
+    .meta{ font-size:12px; opacity:.85; margin-top:4px; }
+    .taskBtns{ display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+    video{ width:100%; border-radius:12px; margin-top:10px; background:#000; }
+    .small{ font-size:12px; opacity:.8; }
+    .inline{ display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    .hr{ height:1px; background:rgba(127,127,127,.25); margin:10px 0; }
+    .warn{ color: #f59e0b; }
+    .ok{ color: #22c55e; }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <h1>🎬 Sora 视频生成</h1>
-    <button class="settings-btn" id="settingsBtn">
-      <span>⚙️</span>
-      <span>设置</span>
-    </button>
+<div class="wrap">
+  <h1>OpenAI Sora（/v1/videos）手机端 Demo（支持自定义模型）</h1>
+  <div class="note">
+    ✅ 创建成功拿到 <code>video_id</code> 后，任务在服务端继续生成：切后台/刷新不会中断服务端生成；回来继续轮询即可。<br>
+    ⚠️ 生产环境请别把 Key 放前端：不要在浏览器/APP 暴露 API Key。<br>
+    ℹ️ 官方 <code>size</code> 是字符串 <code>widthxheight</code>，例如竖屏 <code>720x1280</code>。2
   </div>
 
   <div class="grid">
     <div class="card">
-      <div class="card-title">创建视频</div>
-      
-      <label>模型</label>
-      <select id="model">
-        <option value="sora-2">Sora 2 (标准)</option>
-        <option value="sora-2-pro">Sora 2 Pro (高清)</option>
-        <option value="custom">自定义模型...</option>
-      </select>
-      <input id="customModel" type="text" placeholder="输入自定义模型名" style="display:none; margin-top:8px;">
-
-      <label>视频描述 (Prompt)</label>
-      <textarea id="prompt" placeholder="描述你想要生成的视频场景，例如：一只三花猫在舞台上弹钢琴，聚光灯，电影感"></textarea>
-
-      <label>时长 (秒)</label>
-      <select id="seconds">
-        <option value="4">4 秒</option>
-        <option value="8">8 秒</option>
-        <option value="10">10 秒</option>
-        <option value="12">12 秒</option>
-        <option value="15">15 秒</option>
-      </select>
-
-      <label>尺寸</label>
-      <div class="size-grid">
-        <button type="button" class="size-btn" data-size="720x1280">📱 竖屏 720p</button>
-        <button type="button" class="size-btn" data-size="1280x720">🖥️ 横屏 720p</button>
-        <button type="button" class="size-btn" data-size="1024x1792">📱 竖屏 HD</button>
-        <button type="button" class="size-btn" data-size="1792x1024">🖥️ 横屏 HD</button>
+      <div class="inline" style="justify-content:space-between;">
+        <div class="pill" id="pollPill">轮询：未启动</div>
+        <div class="pill" id="netPill">网络：--</div>
       </div>
-      <input id="size" type="text" value="720x1280" readonly style="margin-top:12px; cursor:pointer;">
-      <div class="hint" id="sizeHint"></div>
 
-      <label>参考图片 (可选)</label>
-      <input id="refImage" type="file" accept="image/*">
+      <label>Base URL（直连 OpenAI / 或填你的代理域名）</label>
+      <input id="baseUrl" type="text" value="https://api.openai.com" />
 
-      <button class="btn" id="createBtn">🚀 生成视频</button>
+      <label>OpenAI API Key（Bearer）</label>
+      <input id="apiKey" type="password" placeholder="sk-..." />
+      <div class="inline" style="margin-top:8px;">
+        <label class="small"><input id="rememberKey" type="checkbox" /> 记住 Key（localStorage，慎用）</label>
+        <button id="btnNotif" type="button">开启完成通知</button>
+      </div>
 
-      <div class="log" id="log"></div>
+      <div class="hr"></div>
+
+      <label>Model（可手动输入）</label>
+      <input id="model" list="modelList" type="text" value="sora-2" placeholder="例如：sora-2 / sora-2-pro / 你的代理自定义模型名" />
+      <datalist id="modelList">
+        <option value="sora-2"></option>
+        <option value="sora-2-pro"></option>
+      </datalist>
+      <div class="small" id="modelHint"></div>
+
+      <label>Prompt</label>
+      <textarea id="prompt" placeholder="例如：一只三花猫在舞台上弹钢琴，聚光灯，电影感"></textarea>
+
+      <div class="row">
+        <div>
+          <label>Seconds（4/8/12）</label>
+          <input id="seconds" type="text" value="8" placeholder="4 或 8 或 12" />
+        </div>
+        <div>
+          <label>Size（例如：竖屏 720x1280）</label>
+          <input id="size" list="sizeList" type="text" value="720x1280" placeholder="720x1280 / 1280x720 / 1024x1792 / 1792x1024" />
+          <datalist id="sizeList"></datalist>
+          <div class="small" id="sizeHint"></div>
+        </div>
+      </div>
+
+      <div class="inline" style="margin-top:8px;">
+        <button type="button" id="btnPortraitLow">竖屏 720x1280</button>
+        <button type="button" id="btnLandscapeLow">横屏 1280x720</button>
+        <button type="button" id="btnPortraitHi">竖屏高清 1024x1792</button>
+        <button type="button" id="btnLandscapeHi">横屏高清 1792x1024</button>
+      </div>
+
+      <label>参考图片 input_reference（可选）</label>
+      <input id="refImage" type="file" accept="image/*" />
+
+      <div class="row">
+        <div>
+          <label>轮询间隔（秒，建议 10~20）</label>
+          <input id="pollSec" type="number" min="3" step="1" value="12" />
+        </div>
+        <div>
+          <label>并发轮询上限（避免太频繁）</label>
+          <input id="pollBatch" type="number" min="1" step="1" value="3" />
+        </div>
+      </div>
+
+      <div class="btns">
+        <button class="primary" id="btnCreate" type="button">创建任务</button>
+        <button id="btnTogglePoll" type="button">开始轮询</button>
+        <button class="danger" id="btnClear" type="button">清空任务</button>
+      </div>
+
+      <div style="margin-top:10px" class="log" id="log"></div>
     </div>
 
     <div class="card">
-      <div class="card-title">任务列表</div>
-      <div class="status-pills">
-        <div class="pill" id="taskCount">0 个任务</div>
-        <div class="pill" id="pollStatus">轮询未启动</div>
+      <div class="inline" style="justify-content:space-between;">
+        <div class="pill">任务列表</div>
+        <div class="pill"><span id="taskCount">0</span> 个</div>
       </div>
-      
-      <div style="display:flex; gap:10px;">
-        <button class="btn secondary" id="togglePollBtn" style="margin-top:0;">开始轮询</button>
-        <button class="btn danger" id="clearBtn" style="margin-top:0;">清空</button>
+      <div class="tasks" id="tasks"></div>
+      <div class="small" style="margin-top:10px;">
+        下载走 <code>GET /v1/videos/{video_id}/content</code>。3
       </div>
-
-      <div class="task-list" id="taskList"></div>
-    </div>
-  </div>
-</div>
-
-<div class="settings-modal" id="settingsModal">
-  <div class="settings-content">
-    <div class="settings-header">
-      <h2>设置</h2>
-      <button class="close-btn" id="closeSettings">×</button>
-    </div>
-
-    <label>Base URL</label>
-    <input id="baseUrl" type="text" value="https://api.openai.com">
-    <div class="hint">直连 OpenAI 或填写代理域名</div>
-
-    <label>API Key</label>
-    <input id="apiKey" type="password" placeholder="sk-...">
-    <div style="margin-top:12px;">
-      <label style="display:inline-flex; align-items:center; margin:0;">
-        <input id="rememberKey" type="checkbox">
-        <span>记住 API Key (存储在本地)</span>
-      </label>
-    </div>
-
-    <label>轮询间隔 (秒)</label>
-    <input id="pollInterval" type="number" min="5" value="12">
-
-    <label>并发轮询数</label>
-    <input id="pollBatch" type="number" min="1" value="3">
-
-    <div style="margin-top:20px;">
-      <button class="btn secondary" id="enableNotif">开启完成通知</button>
     </div>
   </div>
 </div>
 
 <script>
 (() => {
-  const $ = id => document.getElementById(id);
-  
+  const $ = (id) => document.getElementById(id);
+
   const el = {
-    model: $('model'),
-    customModel: $('customModel'),
-    prompt: $('prompt'),
-    seconds: $('seconds'),
-    size: $('size'),
-    sizeHint: $('sizeHint'),
-    refImage: $('refImage'),
-    createBtn: $('createBtn'),
-    taskList: $('taskList'),
-    taskCount: $('taskCount'),
-    pollStatus: $('pollStatus'),
-    togglePollBtn: $('togglePollBtn'),
-    clearBtn: $('clearBtn'),
-    log: $('log'),
-    settingsBtn: $('settingsBtn'),
-    settingsModal: $('settingsModal'),
-    closeSettings: $('closeSettings'),
-    baseUrl: $('baseUrl'),
-    apiKey: $('apiKey'),
-    rememberKey: $('rememberKey'),
-    pollInterval: $('pollInterval'),
-    pollBatch: $('pollBatch'),
-    enableNotif: $('enableNotif')
+    baseUrl: $("baseUrl"),
+    apiKey: $("apiKey"),
+    rememberKey: $("rememberKey"),
+    btnNotif: $("btnNotif"),
+    model: $("model"),
+    modelHint: $("modelHint"),
+    prompt: $("prompt"),
+    seconds: $("seconds"),
+    size: $("size"),
+    sizeList: $("sizeList"),
+    sizeHint: $("sizeHint"),
+    refImage: $("refImage"),
+    pollSec: $("pollSec"),
+    pollBatch: $("pollBatch"),
+    btnCreate: $("btnCreate"),
+    btnTogglePoll: $("btnTogglePoll"),
+    btnClear: $("btnClear"),
+    pollPill: $("pollPill"),
+    netPill: $("netPill"),
+    log: $("log"),
+    tasks: $("tasks"),
+    taskCount: $("taskCount"),
+    btnPortraitLow: $("btnPortraitLow"),
+    btnLandscapeLow: $("btnLandscapeLow"),
+    btnPortraitHi: $("btnPortraitHi"),
+    btnLandscapeHi: $("btnLandscapeHi"),
   };
 
-  let tasks = [];
+  // 官方允许值（整体），但不同 model 可能子集。4
+  const SIZES_ALL = ["720x1280","1280x720","1024x1792","1792x1024"];
+  const SIZES_BY_MODEL = {
+    "sora-2": ["720x1280","1280x720"],
+    "sora-2-pro": ["720x1280","1280x720","1024x1792","1792x1024"]
+  };
+
+  let tasks = []; // { id, status, progress, model, size, seconds, createdAt, lastUpdate, videoUrl }
   let pollTimer = null;
   let notifEnabled = false;
-  let selectedSize = '720x1280';
 
-  const SIZES_BY_MODEL = {
-    'sora-2': ['720x1280', '1280x720'],
-    'sora-2-pro': ['720x1280', '1280x720', '1024x1792', '1792x1024']
-  };
-
-  function log(msg) {
-    const time = new Date().toLocaleTimeString();
-    el.log.textContent = `[${time}] ${msg}\n` + el.log.textContent;
+  function log(line) {
+    const t = new Date().toLocaleTimeString();
+    el.log.textContent = `[${t}] ${line}\n` + el.log.textContent;
   }
 
-  function getModelName() {
-    return el.model.value === 'custom' ? el.customModel.value.trim() : el.model.value;
+  function setNetPill() {
+    const online = navigator.onLine;
+    el.netPill.textContent = `网络：${online ? "在线" : "离线"}`;
   }
 
-  function updateSizeHint() {
-    const model = getModelName();
-    const allowed = SIZES_BY_MODEL[model] || Object.values(SIZES_BY_MODEL).flat();
-    const sizeMap = {
-      '720x1280': '竖屏 720p',
-      '1280x720': '横屏 720p',
-      '1024x1792': '竖屏高清',
-      '1792x1024': '横屏高清'
-    };
-    el.sizeHint.textContent = `当前模型支持: ${allowed.map(s => sizeMap[s] || s).join(', ')}`;
-    
-    // 更新按钮状态
-    document.querySelectorAll('.size-btn').forEach(btn => {
-      const size = btn.getAttribute('data-size');
-      btn.style.opacity = allowed.includes(size) ? '1' : '0.5';
-      btn.disabled = !allowed.includes(size);
-    });
+  // 关键修复：把 720×1280 / 720X1280 / " 720 x 1280 " 统一成 720x1280
+  function normalizeSize(raw) {
+    if (!raw) return "";
+    const s = String(raw).trim()
+      .replace(/×/g, "x")
+      .replace(/X/g, "x")
+      .replace(/\s+/g, "");
+    // 只允许形如 123x456
+    const m = s.match(/^(\d+)x(\d+)$/);
+    if (!m) return "";
+    return `${Number(m[1])}x${Number(m[2])}`;
+  }
+
+  function normalizeSeconds(raw) {
+    const s = String(raw ?? "").trim();
+    // 官方是字符串 4/8/12。5
+    if (["4","8","12"].includes(s)) return s;
+    const n = Number(s);
+    if ([4,8,12].includes(n)) return String(n);
+    return "";
+  }
+
+  function resolveAllowedSizes(modelName) {
+    // 自定义模型（代理）不一定严格限制；这里：若匹配 sora-2 / sora-2-pro 就按官方限制，否则放开但仍校验格式。
+    const m = (modelName || "").trim();
+    return SIZES_BY_MODEL[m] || SIZES_ALL;
+  }
+
+  function refreshSizeDatalist() {
+    const allowed = resolveAllowedSizes(el.model.value);
+    el.sizeList.innerHTML = allowed.map(v => `<option value="${v}"></option>`).join("");
+    el.sizeHint.innerHTML = `可用尺寸：${allowed.map(v => `<code>${v}</code>`).join(" / ")}（竖屏示例：<code>720x1280</code>）`;
+    const m = (el.model.value || "").trim();
+    if (m === "sora-2") {
+      el.modelHint.innerHTML = `提示：<code>sora-2</code> 通常只支持 <code>720x1280</code> / <code>1280x720</code>。`;
+    } else if (m === "sora-2-pro") {
+      el.modelHint.innerHTML = `提示：<code>sora-2-pro</code> 支持包含 <code>1024x1792</code> 的高清尺寸。`;
+    } else {
+      el.modelHint.innerHTML = `提示：自定义模型名将不做严格尺寸白名单，但会修正输入格式（如 <code>×</code> → <code>x</code>）。`;
+    }
+  }
+
+  function ensureSizeAllowedOrFix() {
+    const allowed = resolveAllowedSizes(el.model.value);
+    const normalized = normalizeSize(el.size.value);
+    if (!normalized) {
+      el.sizeHint.innerHTML = `<span class="warn">尺寸格式不合法：请用类似 <code>720x1280</code>（注意是小写 x）。</span>`;
+      return { ok:false, size:"" };
+    }
+    // 如果是官方模型，则必须在 allowed 里；避免“竖屏失败”其实是“选了 pro 尺寸”。
+    const m = (el.model.value || "").trim();
+    if (m === "sora-2" || m === "sora-2-pro") {
+      if (!allowed.includes(normalized)) {
+        // 自动回落到同方向的第一个可用值
+        const [w,h] = normalized.split("x").map(Number);
+        const wantPortrait = h > w;
+        const fallback = allowed.find(v => {
+          const [aw,ah] = v.split("x").map(Number);
+          return wantPortrait ? (ah > aw) : (aw > ah);
+        }) || allowed[0];
+        el.size.value = fallback;
+        log(`尺寸 ${normalized} 不被 ${m} 支持，已自动改为 ${fallback}`);
+        return { ok:true, size:fallback };
+      }
+    }
+    el.size.value = normalized;
+    return { ok:true, size:normalized };
   }
 
   function render() {
-    el.taskCount.textContent = `${tasks.length} 个任务`;
-    el.taskList.innerHTML = tasks.map(t => {
-      const statusColor = t.status === 'completed' ? 'var(--success)' : 
-                         t.status === 'failed' ? 'var(--danger)' : 'var(--warning)';
-      const videoHtml = t.videoUrl ? `<video controls playsinline src="${t.videoUrl}"></video>` : '';
-      
+    el.taskCount.textContent = String(tasks.length);
+    el.tasks.innerHTML = tasks.map(t => {
+      const meta = [
+        `model=${t.model}`,
+        `size=${t.size}`,
+        `seconds=${t.seconds}`,
+        `status=${t.status}`,
+        `progress=${t.progress ?? 0}%`
+      ].join(" · ");
+      const videoHtml = t.videoUrl ? `<video controls playsinline src="${t.videoUrl}"></video>` : "";
+      const btnDlDisabled = t.status !== "completed";
       return `
-        <div class="task">
-          <div class="task-header">
-            <div style="flex:1;">
-              <div class="task-id">${t.id}</div>
-              <div class="task-meta">
-                <span style="color:${statusColor}">● ${t.status}</span> · 
-                ${t.progress ?? 0}% · 
-                ${t.model} · ${t.size} · ${t.seconds}s
-              </div>
+        <div class="task" data-id="${t.id}">
+          <div class="taskHead">
+            <div>
+              <div class="mono">${t.id}</div>
+              <div class="meta">${meta}</div>
             </div>
+            <div class="meta">${new Date(t.createdAt).toLocaleString()}</div>
           </div>
-          <div class="task-buttons">
-            <button data-id="${t.id}" data-action="refresh">刷新</button>
-            <button data-id="${t.id}" data-action="download" ${t.status !== 'completed' ? 'disabled' : ''}>下载</button>
-            <button class="danger" data-id="${t.id}" data-action="remove">删除</button>
+          <div class="taskBtns">
+            <button type="button" data-act="refresh">刷新状态</button>
+            <button type="button" data-act="download" ${btnDlDisabled ? "disabled" : ""}>下载并预览</button>
+            <button type="button" class="danger" data-act="remove">移除</button>
           </div>
           ${videoHtml}
         </div>
       `;
-    }).join('');
+    }).join("");
 
-    // 绑定事件
-    el.taskList.querySelectorAll('button[data-action]').forEach(btn => {
-      btn.onclick = async () => {
-        const id = btn.getAttribute('data-id');
-        const action = btn.getAttribute('data-action');
-        if (action === 'refresh') await refreshTask(id);
-        else if (action === 'download') await downloadTask(id);
-        else if (action === 'remove') removeTask(id);
-      };
+    // bind
+    el.tasks.querySelectorAll(".task").forEach(node => {
+      const id = node.getAttribute("data-id");
+      node.querySelectorAll("button[data-act]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+          const act = btn.getAttribute("data-act");
+          if (act === "remove") {
+            tasks = tasks.filter(x => x.id !== id);
+            render();
+          } else if (act === "refresh") {
+            await refreshOne(id);
+          } else if (act === "download") {
+            await downloadOne(id);
+          }
+        });
+      });
     });
   }
 
+  function authHeaders() {
+    const key = el.apiKey.value.trim();
+    if (!key) throw new Error("请先填写 API Key");
+    return {
+      "Authorization": `Bearer ${key}`
+    };
+  }
+
+  function safeBaseUrl() {
+    return el.baseUrl.value.trim().replace(/\/+$/, "");
+  }
+
   async function createVideo() {
-    const model = getModelName();
+    const baseUrl = safeBaseUrl();
+    const model = el.model.value.trim() || "sora-2";
     const prompt = el.prompt.value.trim();
-    const seconds = el.seconds.value;
-    const size = selectedSize;
+    const seconds = normalizeSeconds(el.seconds.value);
+    if (!prompt) throw new Error("请填写 Prompt");
+    if (!seconds) throw new Error("Seconds 只允许 4 / 8 / 12");
 
-    if (!prompt) throw new Error('请输入视频描述');
-    if (!model) throw new Error('请选择或输入模型名');
+    const { ok, size } = ensureSizeAllowedOrFix();
+    if (!ok) throw new Error("Size 不合法，请修正后重试");
 
-    const baseUrl = el.baseUrl.value.trim().replace(/\/+$/, '');
-    const apiKey = el.apiKey.value.trim();
-    if (!apiKey) throw new Error('请先在设置中填写 API Key');
+    const file = el.refImage.files && el.refImage.files[0];
 
-    const file = el.refImage.files?.[0];
-    let res;
-
+    let res, data;
     if (file) {
+      // 有 input_reference 必须用 multipart/form-data（FormData），不要手动设 Content-Type
       const fd = new FormData();
-      fd.set('model', model);
-      fd.set('prompt', prompt);
-      fd.set('seconds', seconds);
-      fd.set('size', size);
-      fd.set('input_reference', file);
+      fd.set("model", model);
+      fd.set("prompt", prompt);
+      fd.set("seconds", seconds);
+      fd.set("size", size);
+      fd.set("input_reference", file, file.name);
 
       res = await fetch(`${baseUrl}/v1/videos`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${apiKey}` },
+        method: "POST",
+        headers: authHeaders(),
         body: fd
       });
     } else {
+      // 没有文件时，用 JSON 更稳（也能避免部分代理对 multipart 的兼容问题）
       res = await fetch(`${baseUrl}/v1/videos`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
+          ...authHeaders(),
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ model, prompt, seconds, size })
       });
     }
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(`创建失败: ${data.error?.message || res.statusText}`);
-    if (!data.id) throw new Error('返回数据缺少 id');
+    const text = await res.text();
+    try { data = JSON.parse(text); } catch { data = { raw: text }; }
+
+    if (!res.ok) {
+      throw new Error(`创建失败：HTTP ${res.status} ${res.statusText}\n${JSON.stringify(data, null, 2)}`);
+    }
+    if (!data.id) throw new Error(`创建返回缺少 id：\n${JSON.stringify(data, null, 2)}`);
 
     tasks.unshift({
       id: data.id,
-      status: data.status || 'queued',
+      status: data.status || "queued",
       progress: data.progress ?? 0,
       model: data.model || model,
       size: data.size || size,
       seconds: data.seconds || seconds,
       createdAt: Date.now(),
-      videoUrl: ''
+      lastUpdate: Date.now(),
+      videoUrl: ""
     });
 
-    log(`✅ 创建成功: ${data.id}`);
+    log(`创建成功：${data.id}（${size}）`);
     render();
-    await refreshTask(data.id);
+    // 创建后立刻刷新一次状态
+    await refreshOne(data.id);
   }
 
-  async function refreshTask(id) {
-    const baseUrl = el.baseUrl.value.trim().replace(/\/+$/, '');
-    const apiKey = el.apiKey.value.trim();
-
+  async function refreshOne(id) {
+    const baseUrl = safeBaseUrl();
     const res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+      method: "GET",
+      headers: authHeaders()
     });
-
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      log(`❌ 刷新失败 ${id}: ${res.statusText}`);
+      log(`刷新失败 ${id}：HTTP ${res.status} ${res.statusText}`);
       return;
     }
-
-    const task = tasks.find(t => t.id === id);
-    if (!task) return;
-
-    const prevStatus = task.status;
-    task.status = data.status || task.status;
-    task.progress = data.progress ?? task.progress;
-    
+    const t = tasks.find(x => x.id === id);
+    if (!t) return;
+    const prevStatus = t.status;
+    t.status = data.status || t.status;
+    t.progress = data.progress ?? t.progress;
+    t.lastUpdate = Date.now();
     render();
-    log(`🔄 ${id}: ${task.status} (${task.progress}%)`);
+    log(`状态更新 ${id}：${t.status}（${t.progress ?? 0}%）`);
 
-    if (notifEnabled && prevStatus !== 'completed' && task.status === 'completed') {
-      new Notification('Sora 视频完成', { body: id });
+    if (notifEnabled && prevStatus !== "completed" && t.status === "completed") {
+      notifyDone(id);
     }
   }
 
-  async function downloadTask(id) {
-    const baseUrl = el.baseUrl.value.trim().replace(/\/+$/, '');
-    const apiKey = el.apiKey.value.trim();
-
+  async function downloadOne(id) {
+    const baseUrl = safeBaseUrl();
+    // 默认返回 MP4；也可加 ?variant=xxx，官方说明 variant 可选。6
     const res = await fetch(`${baseUrl}/v1/videos/${encodeURIComponent(id)}/content`, {
-      headers: { 'Authorization': `Bearer ${apiKey}` }
+      method: "GET",
+      headers: authHeaders()
     });
-
     if (!res.ok) {
-      log(`❌ 下载失败 ${id}`);
+      const txt = await res.text().catch(() => "");
+      log(`下载失败 ${id}：HTTP ${res.status} ${res.statusText} ${txt}`);
       return;
     }
-
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    const task = tasks.find(t => t.id === id);
-    if (task) {
-      if (task.videoUrl) URL.revokeObjectURL(task.videoUrl);
-      task.videoUrl = url;
+    const t = tasks.find(x => x.id === id);
+    if (t) {
+      // 释放旧的
+      if (t.videoUrl) URL.revokeObjectURL(t.videoUrl);
+      t.videoUrl = url;
     }
     render();
-    log(`✅ 下载完成: ${id}`);
+    log(`已下载并可预览：${id}`);
   }
 
-  function removeTask(id) {
-    const task = tasks.find(t => t.id === id);
-    if (task?.videoUrl) URL.revokeObjectURL(task.videoUrl);
-    tasks = tasks.filter(t => t.id !== id);
-    render();
+  async function pollTick() {
+    const running = tasks.filter(t => t.status !== "completed" && t.status !== "failed");
+    if (running.length === 0) return;
+    const batch = Math.max(1, Number(el.pollBatch.value || 3));
+    for (const t of running.slice(0, batch)) {
+      await refreshOne(t.id);
+    }
   }
 
   function startPolling() {
-    const interval = Math.max(5, Number(el.pollInterval.value)) * 1000;
+    const sec = Math.max(3, Number(el.pollSec.value || 12));
     stopPolling();
-    pollTimer = setInterval(async () => {
-      const running = tasks.filter(t => t.status !== 'completed' && t.status !== 'failed');
-      const batch = Math.max(1, Number(el.pollBatch.value));
-      for (const t of running.slice(0, batch)) {
-        await refreshTask(t.id);
-      }
-    }, interval);
-    el.pollStatus.textContent = '轮询进行中';
-    el.pollStatus.classList.add('active');
-    el.togglePollBtn.textContent = '停止轮询';
-    log('▶️ 轮询已启动');
+    pollTimer = setInterval(pollTick, sec * 1000);
+    el.pollPill.textContent = `轮询：进行中（每 ${sec}s）`;
+    el.btnTogglePoll.textContent = "停止轮询";
+    log(`已开始轮询（每 ${sec}s）`);
   }
 
   function stopPolling() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
-    el.pollStatus.textContent = '轮询未启动';
-    el.pollStatus.classList.remove('active');
-    el.togglePollBtn.textContent = '开始轮询';
+    el.pollPill.textContent = "轮询：未启动";
+    el.btnTogglePoll.textContent = "开始轮询";
   }
 
-  // 事件绑定
-  el.settingsBtn.onclick = () => el.settingsModal.classList.add('active');
-  el.closeSettings.onclick = () => el.settingsModal.classList.remove('active');
-  el.settingsModal.onclick = (e) => {
-    if (e.target === el.settingsModal) el.settingsModal.classList.remove('active');
-  };
+  async function enableNotification() {
+    if (!("Notification" in window)) {
+      log("此浏览器不支持 Notification API");
+      return;
+    }
+    const p = await Notification.requestPermission();
+    notifEnabled = (p === "granted");
+    el.btnNotif.textContent = notifEnabled ? "完成通知：已开启" : "开启完成通知";
+    log(notifEnabled ? "完成通知已开启" : `通知权限：${p}`);
+  }
 
-  el.model.onchange = () => {
-    el.customModel.style.display = el.model.value === 'custom' ? 'block' : 'none';
-    updateSizeHint();
-  };
+  function notifyDone(id) {
+    try {
+      new Notification("Sora 视频生成完成", { body: id });
+    } catch {}
+  }
 
-  document.querySelectorAll('.size-btn').forEach(btn => {
-    btn.onclick = () => {
-      selectedSize = btn.getAttribute('data-size');
-      el.size.value = selectedSize;
-      document.querySelectorAll('.size-btn').forEach(b => b.style.background = 'var(--bg-input)');
-      btn.style.background = 'var(--border)';
-    };
+  function loadSavedKey() {
+    const saved = localStorage.getItem("SORA_DEMO_KEY");
+    const remember = localStorage.getItem("SORA_DEMO_REMEMBER") === "1";
+    el.rememberKey.checked = remember;
+    if (remember && saved) el.apiKey.value = saved;
+  }
+
+  function saveKeyIfNeeded() {
+    if (el.rememberKey.checked) {
+      localStorage.setItem("SORA_DEMO_REMEMBER", "1");
+      localStorage.setItem("SORA_DEMO_KEY", el.apiKey.value.trim());
+    } else {
+      localStorage.setItem("SORA_DEMO_REMEMBER", "0");
+      localStorage.removeItem("SORA_DEMO_KEY");
+    }
+  }
+
+  // UI hooks
+  window.addEventListener("online", setNetPill);
+  window.addEventListener("offline", setNetPill);
+
+  el.btnNotif.addEventListener("click", enableNotification);
+  el.rememberKey.addEventListener("change", saveKeyIfNeeded);
+  el.apiKey.addEventListener("input", saveKeyIfNeeded);
+
+  el.model.addEventListener("input", () => {
+    refreshSizeDatalist();
+    ensureSizeAllowedOrFix();
   });
 
-  el.createBtn.onclick = async () => {
+  el.size.addEventListener("blur", () => {
+    // 离开输入框时自动修正 720×1280 → 720x1280
+    const fixed = normalizeSize(el.size.value);
+    if (fixed) el.size.value = fixed;
+    ensureSizeAllowedOrFix();
+  });
+
+  el.btnCreate.addEventListener("click", async () => {
     try {
-      el.createBtn.disabled = true;
+      el.btnCreate.disabled = true;
       await createVideo();
     } catch (e) {
-      log(`❌ ${e.message}`);
+      log(String(e?.message || e));
     } finally {
-      el.createBtn.disabled = false;
+      el.btnCreate.disabled = false;
     }
-  };
+  });
 
-  el.togglePollBtn.onclick = () => pollTimer ? stopPolling() : startPolling();
+  el.btnTogglePoll.addEventListener("click", () => {
+    if (pollTimer) stopPolling();
+    else startPolling();
+  });
 
-  el.clearBtn.onclick = () => {
-    if (confirm('确定清空所有任务？')) {
-      tasks.forEach(t => t.videoUrl && URL.revokeObjectURL(t.videoUrl));
-      tasks = [];
-      render();
-      log('🗑️ 已清空');
-    }
-  };
+  el.btnClear.addEventListener("click", () => {
+    // 释放 blob url
+    tasks.forEach(t => { if (t.videoUrl) URL.revokeObjectURL(t.videoUrl); });
+    tasks = [];
+    render();
+    log("已清空任务");
+  });
 
-  el.enableNotif.onclick = async () => {
-    if ('Notification' in window) {
-      const perm = await Notification.requestPermission();
-      notifEnabled = perm === 'granted';
-      el.enableNotif.textContent = notifEnabled ? '✅ 通知已开启' : '开启完成通知';
-      log(notifEnabled ? '✅ 通知已开启' : '❌ 通知权限被拒绝');
-    }
-  };
+  // 快捷尺寸按钮（竖屏修复核心：一键填入正确的 size 字符串）
+  el.btnPortraitLow.addEventListener("click", () => { el.size.value = "720x1280"; ensureSizeAllowedOrFix(); });
+  el.btnLandscapeLow.addEventListener("click", () => { el.size.value = "1280x720"; ensureSizeAllowedOrFix(); });
+  el.btnPortraitHi.addEventListener("click", () => { el.size.value = "1024x1792"; ensureSizeAllowedOrFix(); });
+  el.btnLandscapeHi.addEventListener("click", () => { el.size.value = "1792x1024"; ensureSizeAllowedOrFix(); });
 
-  el.rememberKey.onchange = () => {
-    if (el.rememberKey.checked) {
-      localStorage.setItem('SORA_KEY', el.apiKey.value);
-      localStorage.setItem('SORA_REMEMBER', '1');
-    } else {
-      localStorage.removeItem('SORA_KEY');
-      localStorage.removeItem('SORA_REMEMBER');
-    }
-  };
-
-  el.apiKey.oninput = () => {
-    if (el.rememberKey.checked) {
-      localStorage.setItem('SORA_KEY', el.apiKey.value);
-    }
-  };
-
-  // 初始化
-  const savedKey = localStorage.getItem('SORA_KEY');
-  if (savedKey && localStorage.getItem('SORA_REMEMBER') === '1') {
-    el.apiKey.value = savedKey;
-    el.rememberKey.checked = true;
-  }
-
-  updateSizeHint();
+  // init
+  setNetPill();
+  loadSavedKey();
+  refreshSizeDatalist();
   render();
-  log('🎬 就绪');
+  log("就绪：竖屏请用 720x1280（注意小写 x；会自动把 × 修成 x）");
 })();
 </script>
 </body>
