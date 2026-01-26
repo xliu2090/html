@@ -3,27 +3,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>AI 绘图系统</title>
+  <title>AI 绘图系统 Pro</title>
   <style>
+    /* =========================================
+       1. 全局变量与基础样式
+       ========================================= */
     :root{
+      /* 颜色系统 */
       --bg: #F6F7FB;
-      --card:#FFFFFF;
+      --card: #FFFFFF;
       --line: rgba(17, 24, 39, 0.10);
       --line-strong: rgba(17, 24, 39, 0.14);
 
-      --text:#0F172A;
-      --muted:#64748B;
+      --text: #0F172A;
+      --muted: #64748B;
 
-      --brand:#2563EB;
-      --brand-2:#1D4ED8;
+      --brand: #2563EB;
+      --brand-2: #1D4ED8;
       --brand-soft: rgba(37, 99, 235, 0.12);
 
-      --danger:#EF4444;
+      --danger: #EF4444;
+      --fav: #EC4899; /* 收藏心形颜色 */
 
-      --radius:18px;
-      --radius-sm:12px;
+      /* 尺寸与阴影 */
+      --radius: 18px;
+      --radius-sm: 12px;
 
-      --input-bg:#F8FAFC;
+      --input-bg: #F8FAFC;
 
       --shadow-sm: 0 2px 10px rgba(2, 6, 23, 0.06);
       --shadow: 0 12px 30px rgba(2, 6, 23, 0.08);
@@ -34,13 +40,19 @@
       --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji";
     }
 
-    *{box-sizing:border-box}
-    html,body{height:100%}
-    body{
-      margin:0;
-      font-family:var(--sans);
-      color:var(--text);
-      min-height:100vh;
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      min-height: 100vh;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
       background:
@@ -49,19 +61,27 @@
         linear-gradient(180deg, var(--bg), #F7F8FC);
     }
 
-    a{color:inherit}
-    ::selection{background: rgba(37, 99, 235, .18)}
+    a {
+      color: inherit;
+    }
 
-    .wrap{
+    ::selection {
+      background: rgba(37, 99, 235, .18);
+    }
+
+    /* =========================================
+       2. 布局容器与头部
+       ========================================= */
+    .wrap {
       max-width: 780px;
       margin: 0 auto;
       padding: 28px 16px 72px;
     }
 
-    .head{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
+    .head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       padding: 14px 14px;
       margin-bottom: 18px;
 
@@ -72,14 +92,14 @@
       backdrop-filter: blur(10px);
     }
 
-    .brand{
-      display:flex;
-      align-items:center;
+    .brand {
+      display: flex;
+      align-items: center;
       gap: 12px;
       min-width: 0;
     }
 
-    .logo{
+    .logo {
       width: 38px;
       height: 38px;
       border-radius: 12px;
@@ -88,10 +108,10 @@
       position: relative;
       overflow: hidden;
     }
-    .logo::after{
-      content:"";
-      position:absolute;
-      inset:-40% -40% auto auto;
+    .logo::after {
+      content: "";
+      position: absolute;
+      inset: -40% -40% auto auto;
       width: 120%;
       height: 120%;
       transform: rotate(18deg);
@@ -99,17 +119,19 @@
       opacity: .8;
     }
 
-    .title{min-width:0}
-    .title b{
-      display:block;
+    .title {
+      min-width: 0;
+    }
+    .title b {
+      display: block;
       font-size: 18px;
       font-weight: 800;
       letter-spacing: .2px;
       color: #0B1220;
       line-height: 1.15;
     }
-    .title span{
-      display:block;
+    .title span {
+      display: block;
       margin-top: 4px;
       font-size: 12.5px;
       color: var(--muted);
@@ -119,24 +141,29 @@
       max-width: 48vw;
     }
 
-    #logoutBtn{
+    #logoutBtn {
       font-size: 12.5px;
       color: var(--muted);
-      cursor:pointer;
+      cursor: pointer;
       padding: 8px 10px;
       border-radius: 10px;
       border: 1px solid transparent;
       transition: background .2s ease, border-color .2s ease, color .2s ease;
-      user-select:none;
+      user-select: none;
     }
-    #logoutBtn:hover{
+    #logoutBtn:hover {
       background: rgba(15, 23, 42, 0.04);
       border-color: var(--line);
       color: #0F172A;
     }
-    #logoutBtn:active{transform: translateY(1px)}
+    #logoutBtn:active {
+      transform: translateY(1px);
+    }
 
-    .card{
+    /* =========================================
+       3. 核心卡片与表单控件
+       ========================================= */
+    .card {
       background: rgba(255,255,255,.92);
       border: 1px solid var(--line);
       border-radius: var(--radius);
@@ -145,36 +172,103 @@
       backdrop-filter: blur(10px);
     }
 
-    .settings-grid{
-      display:grid;
+    .settings-grid {
+      display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 14px;
       margin-bottom: 16px;
     }
 
-    @media (max-width: 560px){
-      .settings-grid{grid-template-columns: repeat(2, minmax(0, 1fr));}
-      .wrap{padding-top: 18px}
-      .head{padding: 12px}
-      .card{padding: 16px}
+    @media (max-width: 560px) {
+      .settings-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .wrap {
+        padding-top: 18px;
+      }
+      .head {
+        padding: 12px;
+      }
+      .card {
+        padding: 16px;
+      }
     }
 
-    .control-item{
-      display:flex;
-      flex-direction:column;
+    .control-item {
+      display: flex;
+      flex-direction: column;
       gap: 7px;
       min-width: 0;
     }
 
-    .control-item label{
+    .control-item label {
       font-size: 12px;
       color: var(--muted);
       font-weight: 700;
       letter-spacing: .2px;
     }
 
-    input, select, textarea{
-      width:100%;
+    /* 开关样式 (Toggle Switch) */
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 44px;
+      padding: 0 4px;
+      background: var(--input-bg);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 0 12px;
+    }
+    .switch-label {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 40px;
+      height: 22px;
+    }
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      inset: 0;
+      background-color: #CBD5E1;
+      transition: .3s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: .3s;
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input:checked + .slider {
+      background-color: var(--brand);
+    }
+    input:checked + .slider:before {
+      transform: translateX(18px);
+    }
+
+    /* 输入框样式 */
+    input[type="text"],
+    input[type="password"],
+    select,
+    textarea {
+      width: 100%;
       border-radius: 12px;
       border: 1px solid var(--line);
       background: var(--input-bg);
@@ -182,13 +276,13 @@
       padding: 0 12px;
       height: 44px;
       font-size: 14px;
-      outline:none;
+      outline: none;
       transition: border-color .2s ease, box-shadow .2s ease, background .2s ease, transform .05s ease;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
     }
 
-    select{
-      appearance:none;
+    select {
+      appearance: none;
       padding-right: 40px;
       background-image:
         linear-gradient(45deg, transparent 50%, rgba(15,23,42,.55) 50%),
@@ -202,39 +296,37 @@
         5px 5px,
         5px 5px,
         100% 100%;
-      background-repeat:no-repeat;
+      background-repeat: no-repeat;
     }
 
-    textarea{
-      height:auto;
+    textarea {
+      height: auto;
       min-height: 92px;
       padding: 12px;
       resize: vertical;
       line-height: 1.55;
     }
 
-    input:focus, select:focus, textarea:focus{
+    input:focus, select:focus, textarea:focus {
       border-color: rgba(37,99,235,.65);
       background: #fff;
       box-shadow: var(--ring);
     }
 
-    input::placeholder, textarea::placeholder{color: rgba(100,116,139,.85)}
-
-    option:disabled{
-      color: #94A3B8;
-      font-style: italic;
+    input::placeholder, textarea::placeholder {
+      color: rgba(100,116,139,.85);
     }
 
-    .btn{
-      border:none;
+    /* 按钮样式 */
+    .btn {
+      border: none;
       border-radius: 12px;
       padding: 0 18px;
       height: 48px;
       font-weight: 800;
-      cursor:pointer;
+      cursor: pointer;
       background: linear-gradient(180deg, var(--brand), var(--brand-2));
-      color:#fff;
+      color: #fff;
       font-size: 15px;
       width: 100%;
       margin-top: 18px;
@@ -244,51 +336,56 @@
       transition: transform .08s ease, filter .2s ease, box-shadow .2s ease, opacity .2s ease;
       letter-spacing: .2px;
     }
-    .btn:hover{
+    .btn:hover {
       filter: brightness(1.02);
       box-shadow:
         0 18px 36px rgba(37, 99, 235, 0.20),
         0 2px 0 rgba(255,255,255,.18) inset;
       transform: translateY(-1px);
     }
-    .btn:active{
+    .btn:active {
       transform: translateY(0px) scale(0.99);
       opacity: .95;
     }
 
-    .upload-box{
-      position:relative;
-      width:100%;
-      height:44px;
+    /* 上传框 */
+    .upload-box {
+      position: relative;
+      width: 100%;
+      height: 44px;
       border: 1px dashed rgba(100,116,139,.35);
       border-radius: 12px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       gap: 8px;
       color: var(--muted);
       font-size: 13px;
       background: rgba(248,250,252,.85);
       cursor: pointer;
       transition: border-color .2s ease, background .2s ease, color .2s ease, transform .08s ease;
-      user-select:none;
+      user-select: none;
     }
-    .upload-box:hover{
+    .upload-box:hover {
       border-color: rgba(37,99,235,.55);
       color: var(--brand);
       background: #fff;
       transform: translateY(-1px);
     }
-    .upload-box span{font-weight: 700; letter-spacing: .1px;}
+    .upload-box span {
+      font-weight: 700;
+      letter-spacing: .1px;
+    }
 
-    .ref-grid{
-      display:grid;
+    /* 参考图缩略网格 */
+    .ref-grid {
+      display: grid;
       grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
       gap: 10px;
       margin-top: 12px;
     }
-    .ref-item{
-      position:relative;
+    .ref-item {
+      position: relative;
       aspect-ratio: 1;
       border-radius: 12px;
       overflow: hidden;
@@ -297,13 +394,19 @@
       box-shadow: 0 8px 18px rgba(2,6,23,.06);
       transition: transform .12s ease, box-shadow .2s ease;
     }
-    .ref-item:hover{
+    .ref-item:hover {
       transform: translateY(-1px);
       box-shadow: 0 14px 26px rgba(2,6,23,.08);
     }
-    .ref-item img{width:100%; height:100%; object-fit: cover; display:block; cursor:pointer;}
-    .ref-del{
-      position:absolute;
+    .ref-item img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+    }
+    .ref-del {
+      position: absolute;
       top: 6px;
       right: 6px;
       width: 22px;
@@ -311,96 +414,131 @@
       background: rgba(255,255,255,.92);
       color: var(--danger);
       border-radius: 999px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 14px;
-      cursor:pointer;
+      cursor: pointer;
       box-shadow: 0 10px 20px rgba(2,6,23,.10);
       border: 1px solid rgba(2,6,23,.08);
       transition: transform .08s ease, filter .2s ease;
-      user-select:none;
+      user-select: none;
     }
-    .ref-del:hover{filter: brightness(.98); transform: scale(1.05)}
-    .ref-del:active{transform: scale(.98)}
+    .ref-del:hover {
+      filter: brightness(.98);
+      transform: scale(1.05);
+    }
 
-    .history-section{margin-top: 34px;}
-    .history-head{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
+    /* =========================================
+       4. 历史记录与收藏筛选
+       ========================================= */
+    .history-section {
+      margin-top: 34px;
+    }
+    .history-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       margin-bottom: 14px;
       padding: 0 4px 10px;
       border-bottom: 1px solid var(--line);
     }
-    #clearHistory{
+    #clearHistory {
       font-size: 13px;
       color: var(--muted);
-      cursor:pointer;
+      cursor: pointer;
       padding: 8px 10px;
       border-radius: 10px;
       border: 1px solid transparent;
       transition: background .2s ease, border-color .2s ease, color .2s ease;
-      user-select:none;
+      user-select: none;
     }
-    #clearHistory:hover{
+    #clearHistory:hover {
       background: rgba(15, 23, 42, 0.04);
       border-color: var(--line);
       color: #0F172A;
     }
-    #clearHistory:active{transform: translateY(1px)}
 
-    .hist-card{
+    /* 筛选标签页 */
+    .filter-tabs {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .tab-btn {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--muted);
+      background: transparent;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .tab-btn.active {
+      background: rgba(37,99,235,.1);
+      color: var(--brand);
+      border-color: rgba(37,99,235,.2);
+    }
+    .tab-btn:hover:not(.active) {
+      background: rgba(0,0,0,0.03);
+    }
+
+    /* 历史卡片 */
+    .hist-card {
       background: rgba(255,255,255,.95);
       border-radius: var(--radius);
-      overflow:hidden;
+      overflow: hidden;
       border: 1px solid var(--line);
       margin-bottom: 18px;
       box-shadow: 0 2px 10px rgba(2,6,23,.06);
       transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease;
       animation: slideIn 0.25s ease-out;
     }
-    .hist-card:hover{
+    .hist-card:hover {
       transform: translateY(-2px);
       box-shadow: var(--shadow);
       border-color: var(--line-strong);
     }
-    @keyframes slideIn{
-      from { opacity:0; transform: translateY(8px); }
-      to   { opacity:1; transform: translateY(0); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
-    .hist-card img.main-img{
-      width:100%;
-      display:block;
+    .hist-card img.main-img {
+      width: 100%;
+      display: block;
       background: #F8FAFC;
       min-height: 220px;
       object-fit: contain;
-      cursor:pointer;
+      cursor: pointer;
     }
 
-    /* 折叠区 */
-    .hist-details{
+    /* 卡片详情区（默认折叠） */
+    .hist-details {
       padding: 12px 14px 14px;
       border-top: 1px solid var(--line);
       background: rgba(248,250,252,.70);
-      display:none;
+      display: none;
     }
-    .hist-card[data-expanded="1"] .hist-details{ display:block; }
+    .hist-card[data-expanded="1"] .hist-details {
+      display: block;
+    }
 
-    .prompt-label{
+    .prompt-label {
       font-size: 11px;
       color: var(--muted);
       font-weight: 900;
       letter-spacing: .2px;
       margin-bottom: 6px;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
       gap: 10px;
     }
-    .prompt-text{
-      margin:0;
+    .prompt-text {
+      margin: 0;
       font-size: 12.5px;
       color: var(--text);
       line-height: 1.55;
@@ -408,44 +546,22 @@
       word-break: break-word;
     }
 
-    .ref-mini-grid{
-      display:grid;
-      grid-template-columns: repeat(auto-fill, minmax(54px, 1fr));
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .ref-mini{
-      aspect-ratio: 1;
-      border-radius: 10px;
-      overflow:hidden;
-      border: 1px solid var(--line);
-      background: #F1F5F9;
-      box-shadow: 0 8px 16px rgba(2,6,23,.06);
-      cursor:pointer;
-      transition: transform .12s ease, box-shadow .2s ease;
-    }
-    .ref-mini:hover{
-      transform: translateY(-1px);
-      box-shadow: 0 12px 22px rgba(2,6,23,.08);
-    }
-    .ref-mini img{
-      width:100%;
-      height:100%;
-      object-fit: cover;
-      display:block;
-    }
-
-    .hist-meta{
+    .hist-meta {
       padding: 12px 14px;
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 12px;
       border-top: 1px solid var(--line);
       background: linear-gradient(180deg, rgba(248,250,252,.9), rgba(255,255,255,.96));
     }
-    .meta-info{display:flex; flex-direction:column; gap: 3px; min-width:0;}
-    .meta-title{
+    .meta-info {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      min-width: 0;
+    }
+    .meta-title {
       font-size: 13px;
       font-weight: 800;
       color: var(--text);
@@ -454,55 +570,111 @@
       text-overflow: ellipsis;
       max-width: 52vw;
     }
-    .meta-res{
+    .meta-res {
       font-size: 11px;
       color: var(--muted);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-family: ui-monospace, monospace;
       letter-spacing: .2px;
     }
 
-    .actions-group{display:flex; gap: 10px; align-items:center; flex-shrink:0; flex-wrap:wrap;}
+    /* 动作按钮组 */
+    .actions-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
 
-    .link-btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
+    .link-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 30px;
       padding: 0 10px;
       border-radius: 10px;
       border: 1px solid rgba(37,99,235,.22);
       background: rgba(37,99,235,.06);
       color: var(--brand);
-      text-decoration:none;
+      text-decoration: none;
       font-weight: 800;
       font-size: 12.5px;
-      cursor:pointer;
+      cursor: pointer;
       transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
-      user-select:none;
+      user-select: none;
       white-space: nowrap;
     }
-    .link-btn:hover{
+    .link-btn:hover {
       background: rgba(37,99,235,.10);
       border-color: rgba(37,99,235,.30);
       transform: translateY(-1px);
     }
-    .link-btn:active{transform: translateY(0px); filter: brightness(.98)}
+    .link-btn:active {
+      transform: translateY(0px);
+      filter: brightness(.98);
+    }
 
-    .toggle-btn{
+    .toggle-btn {
       border-color: rgba(100,116,139,.22);
       background: rgba(100,116,139,.08);
       color: var(--muted);
       font-weight: 900;
     }
-    .toggle-btn:hover{
+    .toggle-btn:hover {
       background: rgba(100,116,139,.12);
       border-color: rgba(100,116,139,.30);
     }
 
-    .del-btn{
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
+    /* 收藏按钮 */
+    .fav-btn {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: transparent;
+      color: #94A3B8;
+      transition: all .2s;
+    }
+    .fav-btn:hover {
+      background: rgba(0,0,0,0.03);
+      color: var(--fav);
+      transform: translateY(-1px);
+    }
+    .fav-btn.active {
+      color: var(--fav);
+      border-color: rgba(236,72,153,0.3);
+      background: rgba(236,72,153,0.08);
+    }
+    .fav-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    /* 迷你复制按钮 */
+    .copy-mini-btn {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      transition: opacity .2s;
+    }
+    .copy-mini-btn:hover {
+      opacity: 0.8;
+    }
+
+    .del-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       height: 30px;
       padding: 0 10px;
       border-radius: 10px;
@@ -511,23 +683,147 @@
       color: var(--danger);
       font-size: 12.5px;
       font-weight: 800;
-      cursor:pointer;
+      cursor: pointer;
       transition: transform .08s ease, background .2s ease, border-color .2s ease, filter .2s ease;
-      user-select:none;
+      user-select: none;
       white-space: nowrap;
     }
-    .del-btn:hover{
+    .del-btn:hover {
       background: rgba(239,68,68,.10);
       border-color: rgba(239,68,68,.30);
       transform: translateY(-1px);
     }
-    .del-btn:active{transform: translateY(0px); filter: brightness(.98)}
+    .del-btn:active {
+      transform: translateY(0px);
+      filter: brightness(.98);
+    }
 
-    .loading-placeholder{
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      justify-content:center;
+    /* =========================================
+       5. Lightbox (全屏画廊)
+       ========================================= */
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0, 0, 0, 0.95);
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      backdrop-filter: blur(5px);
+    }
+    .lightbox.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .lb-header {
+      height: 60px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      color: white;
+      z-index: 2;
+    }
+    .lb-close {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 24px;
+      transition: background 0.2s;
+    }
+    .lb-close:hover {
+      background: rgba(255,255,255,0.2);
+    }
+
+    .lb-content {
+      flex: 1;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .lb-img-wrap {
+      transition: transform 0.1s ease-out; /* 快速响应拖拽 */
+      cursor: grab;
+      max-width: 100%;
+      max-height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      /* 关键：确保缩放中心在视觉中心 */
+      transform-origin: center center;
+    }
+    .lb-img-wrap img {
+      max-width: 100vw;
+      max-height: 80vh;
+      object-fit: contain;
+      pointer-events: none;
+      user-select: none;
+      display: block;
+    }
+    .lb-img-wrap.zoomed {
+      cursor: grab;
+    }
+    .lb-img-wrap.zoomed:active {
+      cursor: grabbing;
+    }
+
+    .lb-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 20px;
+      user-select: none;
+      transition: background .2s;
+      z-index: 10;
+    }
+    .lb-nav:hover {
+      background: rgba(255,255,255,0.25);
+    }
+    .lb-prev { left: 20px; }
+    .lb-next { right: 20px; }
+    .lb-nav.disabled {
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .lb-footer {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 13px;
+      gap: 20px;
+      z-index: 2;
+    }
+
+    /* =========================================
+       6. 杂项：Loading, Login, 自定义面板
+       ========================================= */
+    .loading-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       padding: 18px 14px;
       min-height: 260px;
       background:
@@ -535,9 +831,9 @@
         linear-gradient(180deg, #F8FAFC, #F1F5F9);
       color: var(--muted);
       gap: 12px;
-      text-align:center;
+      text-align: center;
     }
-    .spinner{
+    .spinner {
       width: 44px;
       height: 44px;
       border: 3px solid rgba(100,116,139,.22);
@@ -547,13 +843,13 @@
       box-shadow: 0 10px 24px rgba(2,6,23,.08);
       background: rgba(255,255,255,.65);
     }
-    @keyframes spin{100%{transform:rotate(360deg)}}
+    @keyframes spin{ 100% { transform: rotate(360deg) } }
 
     /* 任务栏 */
-    .task-bar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
+    .task-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
       gap: 10px;
       margin-top: 10px;
       padding: 10px 12px;
@@ -563,104 +859,50 @@
       color: var(--muted);
       font-size: 12.5px;
     }
-    .task-badge{
-      display:inline-flex;
-      align-items:center;
+    .task-badge {
+      display: inline-flex;
+      align-items: center;
       gap: 8px;
       font-weight: 900;
       color: var(--text);
       min-width: 0;
     }
-    .task-dot{
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: rgba(37,99,235,.85);
-      box-shadow: 0 0 0 4px rgba(37,99,235,.12);
-      flex: 0 0 auto;
-    }
-    .task-actions{
-      display:flex;
-      gap: 8px;
-      align-items:center;
-      flex: 0 0 auto;
-    }
-    .tiny-btn{
-      height: 30px;
-      padding: 0 10px;
-      border-radius: 10px;
-      border: 1px solid var(--line);
-      background: rgba(255,255,255,.8);
-      color: var(--muted);
-      font-weight: 900;
-      cursor:pointer;
-      transition: transform .08s ease, filter .2s ease, background .2s ease;
-      user-select:none;
-      white-space: nowrap;
-    }
-    .tiny-btn:hover{transform: translateY(-1px); filter: brightness(1.01); background:#fff;}
-    .tiny-btn:active{transform: translateY(0px); filter: brightness(.98)}
-    .tiny-danger{
-      border-color: rgba(239,68,68,.20);
-      background: rgba(239,68,68,.06);
-      color: #B91C1C;
-    }
-    .tiny-danger:hover{background: rgba(239,68,68,.10)}
-    .loading-sub{
-      display:flex;
-      align-items:center;
-      gap: 10px;
-      font-weight: 800;
-      flex-wrap: wrap;
-      justify-content:center;
-    }
-    .sub-note{
-      font-size: 12px;
-      color: var(--muted);
-      opacity:.95;
-      text-align:center;
-      padding: 0 18px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-break: break-word;
-    }
 
-    #loginLayer{
+    /* 登录层 */
+    #loginLayer {
       position: fixed;
       inset: 0;
       background: rgba(15,23,42,0.18);
       z-index: 999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       backdrop-filter: blur(14px);
       animation: fadeIn .18s ease-out;
     }
-    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes fadeIn{ from { opacity: 0 } to { opacity: 1 } }
 
-    .loginBox{
+    .loginBox {
       width: 340px;
       padding: 26px 22px 22px;
       background: rgba(255,255,255,.92);
       border: 1px solid rgba(255,255,255,.55);
       border-radius: 22px;
-      text-align:center;
+      text-align: center;
       box-shadow: var(--shadow-2);
       position: relative;
-      overflow:hidden;
+      overflow: hidden;
       transform: translateY(0);
     }
-
-    .loginBox::before{
-      content:"";
-      position:absolute;
-      inset:-2px -2px auto -2px;
+    .loginBox::before {
+      content: "";
+      position: absolute;
+      inset: -2px -2px auto -2px;
       height: 110px;
       background: radial-gradient(700px 120px at 50% 0%, rgba(37,99,235,.20), transparent 60%);
-      pointer-events:none;
+      pointer-events: none;
     }
-
-    .loginBox h3{
+    .loginBox h3 {
       margin: 2px 0 16px;
       color: #0B1220;
       font-size: 20px;
@@ -668,81 +910,24 @@
       letter-spacing: .2px;
     }
 
-    .loginBox input[type="text"],
-    .loginBox input[type="password"] {
-      text-align:center;
-      margin-bottom: 12px;
-      height: 46px;
-      border-radius: 14px;
-      background: rgba(248,250,252,.9);
-    }
-    .loginBox input[type="password"] {margin-bottom: 18px}
-
-    .remember-box {
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      margin-bottom: 4px;
-      padding-left: 4px;
-    }
-    #rememberMe {
-      width: 16px;
-      height: 16px;
-      margin: 0 6px 0 0;
-      box-shadow: none;
-      background: transparent;
-      border-color: var(--line-strong);
-    }
-    .remember-box label {
-      font-size: 13px;
-      color: var(--muted);
-      cursor: pointer;
-      user-select: none;
-    }
-
-    #loginMsg{
-      margin-top: 10px;
-      font-size: 12px;
-      color: var(--danger);
-      min-height: 16px;
-    }
-
-    /* 自定义模型区域 */
-    .custom-panel{
-      display:none;
+    /* 自定义模型面板 */
+    .custom-panel {
+      display: none;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: rgba(248,250,252,.75);
       padding: 12px;
       gap: 10px;
     }
-    .custom-row{
-      display:flex;
-      gap: 10px;
-      align-items:center;
-    }
-    .custom-row > *{flex:1}
-    .small-btn{
-      height: 44px;
-      border-radius: 12px;
-      border: 1px solid rgba(37,99,235,.22);
-      background: rgba(37,99,235,.08);
-      color: var(--brand);
-      font-weight: 900;
-      cursor:pointer;
-      transition: transform .08s ease, filter .2s ease;
-    }
-    .small-btn:hover{transform: translateY(-1px); filter: brightness(1.02)}
-    .small-btn:active{transform: translateY(0px); filter: brightness(.98)}
-    .pill-list{
-      display:flex;
-      flex-wrap:wrap;
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-top: 10px;
     }
-    .pill{
-      display:flex;
-      align-items:center;
+    .pill {
+      display: flex;
+      align-items: center;
       gap: 8px;
       padding: 6px 10px;
       border-radius: 999px;
@@ -751,30 +936,22 @@
       font-size: 12px;
       color: var(--muted);
     }
-    .pill b{color: var(--text)}
-    .pill .x{
+    .pill b { color: var(--text) }
+    .pill .x {
       width: 18px;
       height: 18px;
       border-radius: 999px;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      cursor:pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
       color: var(--danger);
       border: 1px solid rgba(239,68,68,.18);
       background: rgba(239,68,68,.06);
       font-weight: 900;
-      user-select:none;
+      user-select: none;
     }
-    .pill .x:hover{filter: brightness(.98)}
-    .hint{
-      font-size: 12px;
-      color: var(--muted);
-      line-height: 1.5;
-      margin-top: 6px;
-    }
-
-    .error-box{
+    .error-box {
       margin-top: 12px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -783,99 +960,116 @@
       color: #991B1B;
       font-size: 12.5px;
       line-height: 1.5;
-      display:none;
+      display: none;
       white-space: pre-wrap;
       word-break: break-word;
     }
 
-    @media (prefers-reduced-motion: reduce){
-      *{animation:none !important; transition:none !important; scroll-behavior:auto !important;}
-    }
-
+    /* =========================================
+       7. 深色模式适配
+       ========================================= */
     @media (prefers-color-scheme: dark){
       :root{
-        --bg:#0B1220;
+        --bg: #0B1220;
         --card: rgba(15,23,42,.72);
         --line: rgba(148,163,184,.18);
         --line-strong: rgba(148,163,184,.26);
-        --text:#E5E7EB;
-        --muted:#A3B2C7;
+        --text: #E5E7EB;
+        --muted: #A3B2C7;
         --input-bg: rgba(2,6,23,.35);
         --shadow-sm: 0 10px 30px rgba(0,0,0,.35);
         --shadow: 0 18px 60px rgba(0,0,0,.40);
         --shadow-2: 0 25px 90px rgba(0,0,0,.50);
       }
-
-      body{
+      body {
         background:
           radial-gradient(1200px 700px at 15% -10%, rgba(37,99,235,.22), transparent 55%),
           radial-gradient(900px 600px at 100% 0%, rgba(99,102,241,.16), transparent 50%),
           linear-gradient(180deg, #0B1220, #0A1020);
       }
-
-      .head{
+      .head {
         background: rgba(15,23,42,.55);
         border-color: var(--line);
       }
-
-      .card{background: rgba(15,23,42,.62)}
-      .hist-card{background: rgba(15,23,42,.62)}
-      .hist-details{background: rgba(2,6,23,.18)}
-      .hist-meta{background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35))}
-      .upload-box{background: rgba(2,6,23,.25)}
-      input,select,textarea{color: var(--text)}
-      select{
+      .card, .hist-card {
+        background: rgba(15,23,42,.62);
+      }
+      .hist-details {
+        background: rgba(2,6,23,.18);
+      }
+      .hist-meta {
+        background: linear-gradient(180deg, rgba(2,6,23,.25), rgba(15,23,42,.35));
+      }
+      .upload-box {
+        background: rgba(2,6,23,.25);
+      }
+      .switch-row {
+        background: rgba(2,6,23,.35);
+      }
+      .slider {
+        background-color: #334155;
+      }
+      input:checked + .slider {
+        background-color: var(--brand);
+      }
+      .tab-btn:hover:not(.active) {
+        background: rgba(255,255,255,0.05);
+      }
+      input, select, textarea {
+        color: var(--text);
+      }
+      select {
         background-image:
           linear-gradient(45deg, transparent 50%, rgba(226,232,240,.65) 50%),
           linear-gradient(135deg, rgba(226,232,240,.65) 50%, transparent 50%),
           linear-gradient(to right, transparent, transparent);
       }
-      #loginLayer{background: rgba(2,6,23,.55)}
-      .loginBox{background: rgba(15,23,42,.78); border-color: rgba(148,163,184,.18)}
-      .logo{box-shadow: 0 18px 40px rgba(37, 99, 235, 0.20)}
-      .custom-panel{
+      #loginLayer {
+        background: rgba(2,6,23,.55);
+      }
+      .loginBox {
+        background: rgba(15,23,42,.78);
+        border-color: rgba(148,163,184,.18);
+      }
+      .custom-panel {
         background: rgba(2,6,23,.20);
         border-color: rgba(148,163,184,.18);
       }
-      .pill{background: rgba(15,23,42,.65)}
-      .error-box{
+      .pill {
+        background: rgba(15,23,42,.65);
+      }
+      .error-box {
         color: #FCA5A5;
         border-color: rgba(239,68,68,.22);
         background: rgba(239,68,68,.10);
       }
-      .task-bar{
+      .task-bar {
         background: rgba(2,6,23,.18);
         border-color: rgba(148,163,184,.18);
-      }
-      .tiny-btn{background: rgba(15,23,42,.5); border-color: rgba(148,163,184,.18); color: var(--muted);}
-      .tiny-btn:hover{background: rgba(15,23,42,.75)}
-      .toggle-btn{
-        border-color: rgba(148,163,184,.18);
-        background: rgba(148,163,184,.10);
-        color: var(--muted);
       }
     }
   </style>
 </head>
 
 <body>
+<!-- 1. 登录弹窗 -->
 <div id="loginLayer">
   <div class="loginBox">
     <h3>欢迎回来</h3>
     <input id="u_name" type="text" placeholder="账号" />
     <input id="u_pass" type="password" placeholder="密码" />
-
-    <div class="remember-box">
-      <input type="checkbox" id="rememberMe">
-      <label for="rememberMe">记住账号密码 </label>
+    <div style="margin: 10px 0; text-align: left; padding-left: 4px; display:flex; align-items:center;">
+      <input type="checkbox" id="rememberMe" style="width:auto; height:auto; margin-right:6px;">
+      <label for="rememberMe" style="font-size:13px; color:var(--muted); cursor:pointer;">记住账号密码</label>
     </div>
-
     <button class="btn" id="btnLogin">立即登录</button>
-    <div id="loginMsg"></div>
+    <div id="loginMsg" style="margin-top:10px; color:var(--danger); font-size:12px; min-height:16px;"></div>
   </div>
 </div>
 
+<!-- 2. 主界面 -->
 <div class="wrap">
+  <!-- 顶部栏 -->
   <div class="head">
     <div class="brand">
       <div class="logo"></div>
@@ -889,15 +1083,26 @@
     </div>
   </div>
 
+  <!-- 设置与输入卡片 -->
   <div class="card">
     <div class="settings-grid">
       <div class="control-item">
         <label>生成模型</label>
         <select id="modelSelect">
-          <option value="gemini-3-pro-image-preview">NanoBanana Pro</option>
-          <option value="gemini-2.5-flash-image">NanoBanana（Flash）</option>
-          <option value="__custom__">自定义...</option>
+          <!-- 动态填充 -->
         </select>
+      </div>
+
+      <!-- 画廊开关：新功能 -->
+      <div class="control-item">
+        <label>开启沉浸式看图</label>
+        <div class="switch-row">
+          <span class="switch-label" style="font-size:12px; color:var(--muted);">点击图片全屏查看</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="lightboxToggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
       </div>
 
       <div class="control-item">
@@ -921,1149 +1126,804 @@
         </select>
       </div>
 
-      <div class="control-item">
-        <label>参考图片 (可选)</label>
-        <div class="upload-box">
-          <input id="fileInput" type="file" accept="image/*" multiple style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;" />
-          <span>+ 上传图片（无限制，注意手机内存）</span>
-        </div>
-      </div>
-
+      <!-- 自定义模型面板 -->
       <div class="control-item" style="grid-column: 1 / -1;">
         <div id="customPanel" class="custom-panel">
-          <div class="custom-row">
-            <div style="flex:1.2">
-              <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--muted); font-weight:800;">自定义模型ID</label>
-              <input id="customModelId" placeholder='例如：gemini-2.5-flash-image 或你服务端支持的模型ID' />
-            </div>
-            <div style="flex:1">
-              <label style="display:block; margin-bottom:6px; font-size:12px; color:var(--muted); font-weight:800;">显示名称（可选）</label>
-              <input id="customModelName" placeholder="例如：我的模型A" />
-            </div>
-          </div>
-          <div class="custom-row" style="margin-top:10px;">
-            <button id="btnAddModel" class="small-btn" style="flex:0.5">添加到列表</button>
-            <button id="btnUseTempModel" class="small-btn" style="flex:0.5">仅本次使用</button>
-          </div>
-          <div class="hint">
-            说明：<b>添加到列表</b> 会保存到浏览器本地（localStorage），刷新仍可用。<br/>
-            能力判断：若模型ID包含 <code>flash</code> 将按 Flash 规则限制（例如参考图≤3、分辨率仅 1K）——这里不再强制限制，只做提示。
-          </div>
-          <div id="customList" class="pill-list"></div>
+           <div style="display:flex; gap:10px; margin-bottom:8px;">
+             <input id="customModelId" placeholder='模型ID (如 gemini-2.0-flash)' style="flex:1.5" />
+             <input id="customModelName" placeholder="显示名称 (可选)" style="flex:1" />
+           </div>
+           <div style="display:flex; gap:10px;">
+             <button id="btnAddModel" class="link-btn" style="flex:1; height:40px;">添加到列表</button>
+             <button id="btnUseTempModel" class="link-btn" style="flex:1; height:40px;">仅本次使用</button>
+           </div>
+           <div class="hint" style="font-size:12px; color:var(--muted); margin-top:6px;">
+             添加到列表会保存到浏览器本地。
+           </div>
+           <div id="customList" class="pill-list"></div>
         </div>
       </div>
     </div>
 
-    <div id="refGrid" class="ref-grid" style="display:none"></div>
+    <!-- 上传区域 -->
+    <div class="control-item">
+      <label>参考图片 (可选)</label>
+      <div class="upload-box">
+        <input id="fileInput" type="file" accept="image/*" multiple style="position:absolute; opacity:0; width:100%; height:100%; cursor:pointer;" />
+        <span>+ 上传图片（无限制，注意手机内存）</span>
+      </div>
+      <div id="refGrid" class="ref-grid" style="display:none"></div>
+    </div>
 
+    <!-- 提示词 -->
     <div class="control-item" style="margin-top:16px;">
       <label>创意描述 (Prompt)</label>
       <textarea id="prompt" placeholder="在此输入画面描述，例如：阳光下的向日葵花海，吉卜力画风，色彩鲜艳..."></textarea>
     </div>
 
     <button class="btn" id="gen">开始生成图片</button>
-
-    <div class="task-bar" id="taskBar" style="display:none;">
-      <div class="task-badge" style="min-width:0;">
-        <span class="task-dot"></span>
-        <span id="taskCount" style="white-space:nowrap;">进行中：0</span>
-        <span id="bgHint" style="font-weight:700; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-          · 后台会自动恢复
-        </span>
-      </div>
-      <div class="task-actions">
-        <span id="autoSaveHint">参数已自动保存</span>
-        <button id="cancelAll" class="tiny-btn tiny-danger">取消全部</button>
-      </div>
-    </div>
-
     <div id="errorBox" class="error-box"></div>
+    
+    <!-- 任务状态条 -->
+    <div class="task-bar" id="taskBar" style="display:none;">
+      <div class="task-badge">
+        <span class="spinner" style="width:16px; height:16px; border-width:2px;"></span>
+        <span id="taskCount">进行中：0</span>
+      </div>
+      <button id="cancelAll" class="del-btn" style="height:24px; font-size:11px;">取消全部</button>
+    </div>
   </div>
 
+  <!-- 历史记录区域 -->
   <div class="history-section">
     <div class="history-head">
       <span style="font-size:16px; font-weight:900; color:var(--text)">生成结果 & 历史</span>
       <span id="clearHistory">清空记录</span>
     </div>
+    
+    <!-- 筛选标签 -->
+    <div class="filter-tabs">
+      <button class="tab-btn active" data-filter="all">全部</button>
+      <button class="tab-btn" data-filter="fav">只看收藏 ❤️</button>
+    </div>
+
     <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- 3. Lightbox (全屏画廊层) -->
+<div id="lightbox" class="lightbox">
+  <div class="lb-header">
+    <span style="font-weight:700;">查看图片</span>
+    <div class="lb-close" id="lbClose">×</div>
+  </div>
+  <div class="lb-content">
+    <div class="lb-nav lb-prev" id="lbPrev">‹</div>
+    <div class="lb-img-wrap" id="lbImgWrap">
+      <img id="lbImg" src="" alt="" />
+    </div>
+    <div class="lb-nav lb-next" id="lbNext">›</div>
+  </div>
+  <div class="lb-footer">
+    <span id="lbMeta">1/1</span>
+    <span style="font-size:12px;">滚轮/双击缩放 · 拖拽移动 · 支持键盘左右键</span>
   </div>
 </div>
 
 <script>
 (() => {
-  // ================= 配置区 =================
+  /* =========================================
+     1. 配置与全局状态
+     ========================================= */
   const USERS_DB = {
-      "xliu2090": {
-          pwd: "123456kk",
-          key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt"
-      }
+    "xliu2090": {
+      pwd: "123456kk",
+      key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt"
+    }
   };
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
-  // =========================================
-
+  
+  // 运行时状态
   let currentUser = null;
-  let refImages = []; // { mime, blob, url }
   let dbInstance = null;
+  let inFlight = 0; // 进行中的任务数
+  let refImages = []; // { mime, blob, url }
+  const tasks = new Map(); // taskId -> { card, controller }
 
-  // 多任务：任务管理
-  let inFlight = 0;
-  const tasks = new Map(); // taskId -> { controller, card }
-  let wakeLock = null;
+  // 筛选与画廊状态
+  let currentFilter = 'all'; // 'all' | 'fav'
+  let currentHistoryItems = []; // 当前显示的列表数据（用于 Lightbox 导航）
+  let lightboxIndex = -1;
+  let lightboxZoom = 1;
+  let lightboxPan = {x: 0, y: 0};
+  let isDragging = false;
+  let startPan = {x: 0, y: 0};
 
+  // DOM 元素引用
   const $ = (id) => document.getElementById(id);
   const el = {
-    model: $("modelSelect"),
-    ratio: $("ratio"),
-    res: $("res"),
-    fileInput: $("fileInput"),
-    refGrid: $("refGrid"),
-    prompt: $("prompt"),
-    gen: $("gen"),
-    historyList: $("historyList"),
-    loginLayer: $("loginLayer"),
-    u_name: $("u_name"),
-    u_pass: $("u_pass"),
-    btnLogin: $("btnLogin"),
-    loginMsg: $("loginMsg"),
-    rememberMe: $("rememberMe"),
-    welcomeText: $("welcomeText"),
-    logoutBtn: $("logoutBtn"),
-    clearHistory: $("clearHistory"),
-    customPanel: $("customPanel"),
-    customModelId: $("customModelId"),
-    customModelName: $("customModelName"),
-    btnAddModel: $("btnAddModel"),
-    btnUseTempModel: $("btnUseTempModel"),
-    customList: $("customList"),
-    errorBox: $("errorBox"),
-    taskBar: $("taskBar"),
-    taskCount: $("taskCount"),
-    autoSaveHint: $("autoSaveHint"),
-    cancelAll: $("cancelAll"),
-    bgHint: $("bgHint"),
+    model: $("modelSelect"), lightboxToggle: $("lightboxToggle"),
+    ratio: $("ratio"), res: $("res"), fileInput: $("fileInput"),
+    prompt: $("prompt"), gen: $("gen"), historyList: $("historyList"),
+    loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
+    btnLogin: $("btnLogin"), loginMsg: $("loginMsg"), rememberMe: $("rememberMe"),
+    welcomeText: $("welcomeText"), logoutBtn: $("logoutBtn"), clearHistory: $("clearHistory"),
+    customPanel: $("customPanel"), customModelId: $("customModelId"), customModelName: $("customModelName"),
+    btnAddModel: $("btnAddModel"), btnUseTempModel: $("btnUseTempModel"), customList: $("customList"),
+    errorBox: $("errorBox"), refGrid: $("refGrid"), taskBar: $("taskBar"), taskCount: $("taskCount"), cancelAll: $("cancelAll"),
+    // Lightbox els
+    lightbox: $("lightbox"), lbClose: $("lbClose"), lbImg: $("lbImg"), lbImgWrap: $("lbImgWrap"),
+    lbPrev: $("lbPrev"), lbNext: $("lbNext"), lbMeta: $("lbMeta")
   };
 
-  // ===== IndexedDB =====
-  const DB_NAME = "AI_Art_Light";
-  const DB_VER = 2;
+  /* =========================================
+     2. IndexedDB 数据库管理
+     ========================================= */
+  const DB_NAME = "AI_Art_Pro";
+  const DB_VER = 3; // 升级版本以支持 isFavorite 字段
   const STORE_IMGS = "imgs";
   const STORE_TASKS = "tasks";
 
-  let dbReadyResolve, dbReadyReject;
-  const dbReady = new Promise((res, rej) => { dbReadyResolve = res; dbReadyReject = rej; });
-
-  function initDB() {
-    const request = indexedDB.open(DB_NAME, DB_VER);
-    request.onupgradeneeded = (e) => {
+  let dbReadyPromise = new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
       const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_IMGS)) db.createObjectStore(STORE_IMGS, { keyPath: "id" });
+      if (!db.objectStoreNames.contains(STORE_IMGS)) {
+        db.createObjectStore(STORE_IMGS, { keyPath: "id" });
+      } else {
+        // 如果旧版本表存在，可以在这里做数据迁移（如添加字段），本例简化处理
+      }
       if (!db.objectStoreNames.contains(STORE_TASKS)) {
-        const s = db.createObjectStore(STORE_TASKS, { keyPath: "taskId" });
-        try { s.createIndex("byUser", "user", { unique: false }); } catch {}
+        db.createObjectStore(STORE_TASKS, { keyPath: "taskId" });
       }
     };
-    request.onsuccess = (e) => {
+    req.onsuccess = (e) => {
       dbInstance = e.target.result;
-      dbReadyResolve(true);
-      loadHistory();
+      resolve();
     };
-    request.onerror = () => {
-      dbReadyReject(request.error);
-      showError("IndexedDB 初始化失败，历史/后台恢复功能不可用。");
-    };
-  }
+    req.onerror = (e) => reject(e);
+  });
 
-  function idbTx(storeName, mode="readonly") {
-    if (!dbInstance) throw new Error("DB not ready");
-    return dbInstance.transaction([storeName], mode).objectStore(storeName);
+  function idbTx(store, mode="readonly") {
+    return dbInstance.transaction([store], mode).objectStore(store);
   }
 
   function saveToDB(blob, record) {
     if (!dbInstance) return;
-    const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
     const item = {
       id: Date.now(),
       blob,
-      meta: record?.meta || "",
-      prompt: record?.prompt || "",
-      refs: Array.isArray(record?.refs) ? record.refs : [],
-      date: record?.date || new Date().toLocaleString()
+      meta: record.meta || "",
+      prompt: record.prompt || "",
+      refs: record.refs || [],
+      date: record.date || new Date().toLocaleString(),
+      isFavorite: false // 默认不收藏
     };
-    tx.objectStore(STORE_IMGS).add(item);
+    idbTx(STORE_IMGS, "readwrite").add(item);
   }
 
-  function deleteItem(id, dom) {
+  function updateDBItem(item) {
     if (!dbInstance) return;
-    const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
-    tx.objectStore(STORE_IMGS).delete(id);
-    tx.oncomplete = () => {
-      cleanupCardUrls(dom);
-      dom.remove();
-    };
+    idbTx(STORE_IMGS, "readwrite").put(item);
   }
 
-  function clearAllDB() {
-    if(!confirm("确认清空所有历史图片？")) return;
+  function deleteDBItem(id) {
     if (!dbInstance) return;
-
-    const cards = Array.from(el.historyList.querySelectorAll(".hist-card"));
-    cards.forEach(c => cleanupCardUrls(c));
-
-    const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
-    tx.objectStore(STORE_IMGS).clear();
-    tx.oncomplete = () => { el.historyList.innerHTML = ""; };
+    idbTx(STORE_IMGS, "readwrite").delete(id);
   }
 
+  // 加载历史记录（支持筛选）
   function loadHistory() {
     if (!dbInstance) return;
-    el.historyList.innerHTML = "";
-    const tx = dbInstance.transaction([STORE_IMGS], "readonly");
-    const req = tx.objectStore(STORE_IMGS).getAll();
+    const req = idbTx(STORE_IMGS).getAll();
     req.onsuccess = () => {
-      const items = (req.result || []).sort((a, b) => b.id - a.id);
-      items.forEach(item => renderHistoryItem(item, null));
+      let items = (req.result || []).sort((a,b) => b.id - a.id);
+      
+      // 应用筛选
+      if (currentFilter === 'fav') {
+        items = items.filter(x => x.isFavorite);
+      }
+      
+      currentHistoryItems = items; // 更新给 Lightbox 用的列表
+      el.historyList.innerHTML = "";
+      items.forEach((item, index) => renderHistoryItem(item, null, index));
     };
   }
 
-  // tasks store
-  function putTask(taskRecord) {
-    if (!dbInstance) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const store = idbTx(STORE_TASKS, "readwrite");
-      const req = store.put(taskRecord);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function delTask(taskId) {
-    if (!dbInstance) return Promise.resolve();
-    return new Promise((resolve, reject) => {
-      const store = idbTx(STORE_TASKS, "readwrite");
-      const req = store.delete(taskId);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  function getAllTasksByUser(user) {
-    if (!dbInstance) return Promise.resolve([]);
-    return new Promise((resolve) => {
-      const store = idbTx(STORE_TASKS, "readonly");
-      let req;
-      try {
-        const idx = store.index("byUser");
-        req = idx.getAll(user);
-      } catch {
-        req = store.getAll();
-      }
-      req.onsuccess = () => {
-        const all = req.result || [];
-        resolve(all.filter(x => x && x.user === user));
-      };
-      req.onerror = () => resolve([]);
-    });
-  }
-
-  // ===== 工具 =====
-  function escapeHtml(str) {
-    return String(str || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
-
+  /* =========================================
+     3. 工具函数
+     ========================================= */
   function showError(msg) {
     el.errorBox.style.display = "block";
     el.errorBox.textContent = msg;
+    setTimeout(() => el.errorBox.style.display = "none", 3000);
   }
 
   function clearError() {
     el.errorBox.style.display = "none";
-    el.errorBox.textContent = "";
   }
 
-  // [修复] 更稳定的新标签页打开图片方法
-  function openImageInNewTab(src) {
-    try {
-      // 创建临时 A 标签模拟点击，兼容性更好
-      const a = document.createElement("a");
-      a.href = src;
-      a.target = "_blank";
-      a.rel = "noopener";
-      document.body.appendChild(a); // 必须插入文档才能在 Firefox 等浏览器生效
-      a.click();
-      setTimeout(() => document.body.removeChild(a), 100);
-    } catch {
-      window.open(src, "_blank");
-    }
+  // 修复：更稳定的新标签页打开方式
+  function openImageNewTab(src) {
+    const a = document.createElement("a");
+    a.href = src;
+    a.target = "_blank";
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => document.body.removeChild(a), 100);
   }
 
-  // [改进] 复制文本到剪贴板
   function copyText(text, btn) {
-    if (!text) return;
     navigator.clipboard.writeText(text).then(() => {
-      const original = btn.textContent;
+      const orig = btn.textContent;
       btn.textContent = "已复制";
-      setTimeout(() => btn.textContent = original, 1500);
-    }).catch(() => {
-      showError("复制失败，请手动复制");
-    });
+      setTimeout(() => btn.textContent = orig, 1500);
+    }).catch(() => showError("复制失败，请手动复制"));
   }
 
-  // ===== URL 管理 =====
-  function registerUrl(card, url) {
-    if (!card) return;
-    if (!card._objectUrls) card._objectUrls = [];
-    card._objectUrls.push(url);
-  }
-  function cleanupCardUrls(card) {
-    try {
-      const arr = card?._objectUrls || [];
-      arr.forEach(u => { try { URL.revokeObjectURL(u); } catch {} });
-      if (card) card._objectUrls = [];
-    } catch {}
-  }
-
-  // ===== refs 懒加载 =====
-  function ensureRefsRendered(card, refs, targetEl) {
-    if (!targetEl) return;
-    if (targetEl.dataset.rendered === "1") return;
-    targetEl.dataset.rendered = "1";
-
-    if (!Array.isArray(refs) || refs.length === 0) {
-      targetEl.innerHTML = "";
-      return;
-    }
-
-    const grid = document.createElement("div");
-    grid.className = "ref-mini-grid";
-
-    refs.forEach((r, idx) => {
-      const u = URL.createObjectURL(r.blob);
-      registerUrl(card, u);
-
-      const box = document.createElement("div");
-      box.className = "ref-mini";
-      box.title = "点击单独打开";
-
-      const im = document.createElement("img");
-      im.src = u;
-      im.alt = "ref_" + idx;
-
-      box.appendChild(im);
-      box.onclick = () => openImageInNewTab(u);
-
-      grid.appendChild(box);
-    });
-
-    targetEl.appendChild(grid);
-  }
-
-  function setCardExpanded(card, expanded, toggleBtn, refs, refsHolder) {
-    card.dataset.expanded = expanded ? "1" : "0";
-    if (toggleBtn) toggleBtn.textContent = expanded ? "收起" : "查看Prompt/参考图";
-    if (expanded) ensureRefsRendered(card, refs, refsHolder);
-  }
-
-  // ===== History 卡片 =====
-  function renderHistoryItem(item, replaceElem) {
-    const container = replaceElem || document.createElement("div");
-    container.className = "hist-card";
-    container.dataset.expanded = "0";
-
-    cleanupCardUrls(container);
-
-    const mainUrl = URL.createObjectURL(item.blob);
-    registerUrl(container, mainUrl);
-
-    const metaLine = item.meta || "生成结果";
-    const promptText = item.prompt ? String(item.prompt) : "(无 Prompt)";
-    const refs = Array.isArray(item.refs) ? item.refs : [];
-    const dateText = item.date || "";
-
-    container.innerHTML = `
-      <img src="${mainUrl}" class="main-img" alt="generated" />
-      <div class="hist-meta">
-        <div class="meta-info">
-          <span class="meta-title">${escapeHtml(metaLine)}</span>
-          <span class="meta-res">读取分辨率...</span>
-        </div>
-        <div class="actions-group">
-          <button class="link-btn" data-copy="1">复制Prompt</button>
-          <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
-          <a class="link-btn" data-open="1">打开</a>
-          <a href="${mainUrl}" download="img_${item.id || Date.now()}.png" class="link-btn">下载</a>
-          <span class="del-btn" data-del="1">删除</span>
-        </div>
-      </div>
-      <div class="hist-details">
-        <div class="prompt-label">
-          <span>Prompt</span>
-          <span style="font-weight:800; color: var(--muted); font-size:11px;">${escapeHtml(dateText)}</span>
-        </div>
-        <p class="prompt-text">${escapeHtml(promptText)}</p>
-        <div class="refs-holder" data-rendered="0"></div>
-      </div>
-    `;
-
-    const img = container.querySelector("img.main-img");
-    const resSpan = container.querySelector(".meta-res");
-    const toggleBtn = container.querySelector('[data-toggle="1"]');
-    const delBtn = container.querySelector('[data-del="1"]');
-    const copyBtn = container.querySelector('[data-copy="1"]');
-    const openBtn = container.querySelector('[data-open="1"]');
-    const refsHolder = container.querySelector(".refs-holder");
-
-    const updateRes = () => { resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`; };
-    if (img.complete) updateRes(); else img.onload = updateRes;
-
-    // [修复] 图片点击事件
-    img.onclick = () => openImageInNewTab(mainUrl);
-    openBtn.onclick = () => openImageInNewTab(mainUrl);
-
-    // [新增] 复制 Prompt
-    copyBtn.onclick = () => copyText(item.prompt, copyBtn);
-
-    toggleBtn.onclick = () => {
-      const expanded = container.dataset.expanded === "1";
-      setCardExpanded(container, !expanded, toggleBtn, refs, refsHolder);
-    };
-
-    delBtn.onclick = () => deleteItem(item.id, container);
-
-    if (!replaceElem) el.historyList.appendChild(container);
-  }
-
-  // ===== 任务卡 =====
-  function createTaskCard(rec, statusText, subText, showRetry) {
-    const card = document.createElement("div");
-    card.className = "hist-card";
-    card.dataset.taskId = String(rec.taskId);
-    card.dataset.expanded = "0";
-
-    cleanupCardUrls(card);
-
-    const promptText = rec.prompt ? String(rec.prompt) : "(无 Prompt)";
-    const refs = Array.isArray(rec.refs) ? rec.refs : [];
-
-    card.innerHTML = `
-      <div class="loading-placeholder">
-        <div class="spinner"></div>
-        <div class="loading-sub">
-          <span>${escapeHtml(statusText)}</span>
-          <button class="tiny-btn tiny-danger" data-cancel="1">取消</button>
-          ${showRetry ? `<button class="tiny-btn" data-retry="1">立即重试</button>` : ``}
-        </div>
-        <div class="sub-note">${escapeHtml(subText || "")}</div>
-      </div>
-
-      <div class="hist-meta">
-        <div class="meta-info">
-          <span class="meta-title">${escapeHtml(rec.modelName || "模型")} · ${escapeHtml(rec.ratio || "")} · ${escapeHtml(rec.res || "")}</span>
-          <span class="meta-res">${escapeHtml(showRetry ? "失败" : "进行中...")}</span>
-        </div>
-        <div class="actions-group">
-          <button class="link-btn" data-copy="1">复制Prompt</button>
-          <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
-          <span class="del-btn" data-cancel="2">删除任务</span>
-        </div>
-      </div>
-
-      <div class="hist-details">
-        <div class="prompt-label">
-          <span>Prompt</span>
-          <span style="font-weight:800; color: var(--muted); font-size:11px;">${showRetry ? "失败" : "任务中"}</span>
-        </div>
-        <p class="prompt-text">${escapeHtml(promptText)}</p>
-        <div class="refs-holder" data-rendered="0"></div>
-      </div>
-    `;
-
-    const toggleBtn = card.querySelector('[data-toggle="1"]');
-    const refsHolder = card.querySelector(".refs-holder");
-    const copyBtn = card.querySelector('[data-copy="1"]');
-
-    // [新增] 复制 Prompt (即使任务失败也能复制)
-    copyBtn.onclick = () => copyText(rec.prompt, copyBtn);
-
-    toggleBtn.onclick = () => {
-      const expanded = card.dataset.expanded === "1";
-      setCardExpanded(card, !expanded, toggleBtn, refs, refsHolder);
-    };
-
-    return card;
-  }
-
-  function cancelOneTask(taskId, card) {
-    const t = tasks.get(taskId);
-    if (t) { try { t.controller.abort(); } catch {} }
-
-    try { cleanupCardUrls(card); card.remove(); } catch {}
-    tasks.delete(taskId);
-    delTask(taskId).catch(()=>{});
-
-    inFlight = Math.max(0, inFlight - 1);
-    updateTaskBar();
-
-    showError("已取消该任务。");
-    setTimeout(clearError, 900);
-  }
-
-  function cancelAllTasks() {
-    for (const [taskId, t] of tasks.entries()) {
-      try { t.controller.abort(); } catch {}
-      try { cleanupCardUrls(t.card); t.card.remove(); } catch {}
-      tasks.delete(taskId);
-      delTask(taskId).catch(()=>{});
-    }
-    inFlight = 0;
-    updateTaskBar();
-    showError("已取消全部进行中的任务。");
-    setTimeout(clearError, 1200);
-  }
-  el.cancelAll.onclick = cancelAllTasks;
-
-  // ===== 自定义模型：保存/加载 =====
-  const LS_CUSTOM_MODELS = "ai_art_custom_models_v1";
-  function loadCustomModels() {
-    try {
-      const raw = localStorage.getItem(LS_CUSTOM_MODELS);
-      const arr = raw ? JSON.parse(raw) : [];
-      return Array.isArray(arr) ? arr : [];
-    } catch { return []; }
-  }
-  function saveCustomModels(list) {
-    localStorage.setItem(LS_CUSTOM_MODELS, JSON.stringify(list || []));
-  }
-  function refreshModelSelect() {
-    const selected = el.model.value;
-
-    const builtins = [
-      { id: "gemini-3-pro-image-preview", name: "NanoBanana Pro" },
-      { id: "gemini-2.5-flash-image", name: "NanoBanana（Flash）" },
-    ];
-
-    el.model.innerHTML = "";
-    builtins.forEach(m => {
-      const opt = document.createElement("option");
-      opt.value = m.id;
-      opt.textContent = m.name;
-      el.model.appendChild(opt);
-    });
-
-    const customs = loadCustomModels();
-    if (customs.length) {
-      const sep = document.createElement("option");
-      sep.disabled = true;
-      sep.textContent = "──────── 自定义模型 ────────";
-      el.model.appendChild(sep);
-
-      customs.forEach(m => {
-        const opt = document.createElement("option");
-        opt.value = m.id;
-        opt.textContent = m.name ? `${m.name} (${m.id})` : m.id;
-        el.model.appendChild(opt);
-      });
-    }
-
-    const optCustom = document.createElement("option");
-    optCustom.value = "__custom__";
-    optCustom.textContent = "自定义...";
-    el.model.appendChild(optCustom);
-
-    const allValues = Array.from(el.model.options).map(o => o.value);
-    if (allValues.includes(selected)) el.model.value = selected;
-    else el.model.value = builtins[0].id;
-  }
-  function refreshCustomPills() {
-    const customs = loadCustomModels();
-    el.customList.innerHTML = customs.map(m => `
-      <div class="pill" title="${escapeHtml(m.id)}">
-        <b>${escapeHtml(m.name || "未命名")}</b>
-        <span>${escapeHtml(m.id)}</span>
-        <span class="x" data-id="${escapeHtml(m.id)}">×</span>
-      </div>
-    `).join("");
-
-    el.customList.querySelectorAll(".x").forEach(btn => {
-      btn.onclick = () => {
-        const id = btn.getAttribute("data-id");
-        let list = loadCustomModels();
-        list = list.filter(x => x.id !== id);
-        saveCustomModels(list);
-        refreshModelSelect();
-        refreshCustomPills();
-        saveSettingsDebounced();
-      };
-    });
-  }
-
-  function normalizeModelId(id) { return String(id || "").trim(); }
-  function isFlashModel(modelId) { return String(modelId || "").toLowerCase().includes("flash"); }
-
-  function applyResLimitByModel(modelId) {
-    const opts = el.res.options;
-    opts[1].disabled = false;
-    opts[2].disabled = false;
-    opts[1].text = "高清 (2K)";
-    opts[2].text = "超清 (4K)";
-  }
-
-  function getSelectedModelId() {
-    if (el.model.value === "__custom__") return normalizeModelId(el.customModelId.value);
-    return el.model.value;
-  }
-
-  function getSelectedModelName(modelId) {
-    if (el.model.value === "__custom__") {
-      const n = String(el.customModelName.value || "").trim();
-      return n || "自定义模型";
-    }
-    const opt = el.model.options[el.model.selectedIndex];
-    return opt ? opt.textContent : (modelId || "模型");
-  }
-
-  function toggleCustomPanel() {
-    const on = el.model.value === "__custom__";
-    el.customPanel.style.display = on ? "block" : "none";
-    const modelId = getSelectedModelId();
-    if (modelId) applyResLimitByModel(modelId);
-  }
-
-  // ===== 自动保存/恢复上次参数 =====
-  const LS_SETTINGS_PREFIX = "ai_art_last_settings_v4_";
-  function getSettingsKey() { return currentUser ? (LS_SETTINGS_PREFIX + currentUser) : null; }
-  function safeJsonParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
-  function getAllModelValues() { return Array.from(el.model.options).map(o => o.value); }
-
-  function saveSettings() {
-    if (!currentUser) return;
-    const key = getSettingsKey();
-    if (!key) return;
-
-    const modelId = getSelectedModelId();
-    const data = {
-      modelId: modelId || "",
-      modelSelectValue: el.model.value || "",
-      ratio: el.ratio.value || "16:9",
-      res: el.res.value || "4K",
-      customModelId: el.customModelId.value || "",
-      customModelName: el.customModelName.value || "",
-      savedAt: Date.now()
-    };
-    localStorage.setItem(key, JSON.stringify(data));
-    el.autoSaveHint.textContent = "参数已自动保存";
-  }
-
-  let saveTimer = null;
-  function saveSettingsDebounced(delay = 250) {
-    if (!currentUser) return;
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveSettings(), delay);
-  }
-
-  function loadSettings() {
-    if (!currentUser) return;
-    const key = getSettingsKey();
-    const raw = key ? localStorage.getItem(key) : null;
-    const data = safeJsonParse(raw, null);
-    if (!data) return;
-
-    refreshModelSelect();
-
-    el.customModelId.value = data.customModelId || "";
-    el.customModelName.value = data.customModelName || "";
-
-    const values = getAllModelValues();
-    if (data.modelId && values.includes(data.modelId)) {
-      el.model.value = data.modelId;
-    } else if (data.modelSelectValue === "__custom__" || (data.modelId && !values.includes(data.modelId))) {
-      el.model.value = "__custom__";
-      if (data.modelId) el.customModelId.value = data.modelId;
-    } else if (data.modelSelectValue && values.includes(data.modelSelectValue)) {
-      el.model.value = data.modelSelectValue;
-    }
-
-    if (data.ratio) el.ratio.value = data.ratio;
-    if (data.res) el.res.value = data.res;
-
-    toggleCustomPanel();
-    const modelId = getSelectedModelId();
-    if (modelId) applyResLimitByModel(modelId);
-
-    saveSettingsDebounced(10);
-  }
-
-  // ===== 参考图上传（点击单独打开）=====
-  el.fileInput.onchange = async () => {
-    clearError();
-    const files = Array.from(el.fileInput.files);
-    // [修复] 即使没选文件也要重置 input，否则下次选同名文件不触发
-    if (!files.length) { el.fileInput.value = ""; return; }
-
-    for (const f of files) {
-      // [修复] 增加安全性检查
-      try {
-        const url = URL.createObjectURL(f);
-        refImages.push({ mime: f.type || "image/png", blob: f, url });
-      } catch (e) {
-        showError("部分图片加载失败，请重试");
-      }
-    }
-    renderRefGrid();
-    el.fileInput.value = "";
-  };
-
-  function renderRefGrid() {
-    el.refGrid.style.display = refImages.length ? "grid" : "none";
-    el.refGrid.innerHTML = "";
-
-    refImages.forEach((img, i) => {
-      const box = document.createElement("div");
-      box.className = "ref-item";
-
-      const im = document.createElement("img");
-      im.src = img.url;
-      im.alt = "ref";
-      im.title = "点击单独打开";
-      // [修复] 统一使用安全的打开方式
-      im.onclick = () => openImageInNewTab(img.url);
-
-      const del = document.createElement("div");
-      del.className = "ref-del";
-      del.textContent = "×";
-      del.onclick = (e) => {
-        e.stopPropagation();
-        try { URL.revokeObjectURL(refImages[i]?.url); } catch {}
-        refImages.splice(i, 1);
-        renderRefGrid();
-      };
-
-      box.appendChild(im);
-      box.appendChild(del);
-      el.refGrid.appendChild(box);
-    });
-  }
-
-  // ===== API 解析 =====
-  function extractImageFromResponse(json) {
-    const candidates = json?.candidates || [];
-    for (const c of candidates) {
-      const parts = c?.content?.parts || [];
-      for (const p of parts) {
-        if (p?.inlineData?.data) return p.inlineData;
-      }
-    }
-    return null;
-  }
-  function extractTextFromResponse(json) {
-    const candidates = json?.candidates || [];
-    for (const c of candidates) {
-      const parts = c?.content?.parts || [];
-      for (const p of parts) {
-        if (typeof p?.text === "string" && p.text.trim()) return p.text.trim();
-      }
-    }
-    return "";
-  }
-  function getFinishReason(json) {
-    const fr = json?.candidates?.[0]?.finishReason;
-    return fr ? String(fr) : "";
-  }
-  function base64ToBlob(b64, mimeType) {
-    const binary = atob(b64);
-    const array = new Uint8Array(binary.length);
-    for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
-    return new Blob([array], {type: mimeType || "image/png"});
-  }
-  // [修复] 增加对转换过程的错误捕获，防止崩坏
-  function blobToBase64Data(blob) {
+  // 修复：稳定的 Base64 转换
+  function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
       if (!blob) return reject(new Error("无效的图片数据"));
       const reader = new FileReader();
       reader.onload = () => {
         try {
-          const dataUrl = String(reader.result || "");
-          const b64 = dataUrl.split(",")[1] || "";
+          const res = reader.result;
+          const b64 = res.split(',')[1];
           resolve(b64);
         } catch (e) { reject(e); }
       };
-      reader.onerror = () => reject(reader.error || new Error("读取文件失败"));
+      reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
   }
 
-  // ===== 任务栏/后台提示/Wake Lock =====
-  function updateUserInfo() {
-    if (!currentUser) return;
-    el.welcomeText.textContent = `${currentUser} · 多任务进行中 ${inFlight}`;
+  function escapeHtml(str) {
+    return String(str||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
   }
-  function updateBgHint() {
-    if (!currentUser) return;
-    if (document.visibilityState === "hidden") el.bgHint.textContent = "· 已后台：回来会自动恢复";
-    else el.bgHint.textContent = "· 后台会自动恢复";
-  }
-  function updateTaskBar() {
-    if (!currentUser) { el.taskBar.style.display = "none"; return; }
-    el.taskBar.style.display = "flex";
-    el.taskCount.textContent = `进行中：${inFlight}`;
-    updateUserInfo();
-    updateWakeLock();
-  }
-  async function updateWakeLock() {
-    const can = ("wakeLock" in navigator);
-    if (!can) return;
 
-    if (document.visibilityState === "visible" && inFlight > 0) {
-      try {
-        if (!wakeLock) {
-          wakeLock = await navigator.wakeLock.request("screen");
-          wakeLock.addEventListener("release", () => { wakeLock = null; });
-        }
-      } catch {}
-    } else {
-      try {
-        if (wakeLock) { await wakeLock.release(); wakeLock = null; }
-      } catch {}
+  /* =========================================
+     4. Lightbox (全屏画廊) 逻辑
+     ========================================= */
+  function openLightbox(index) {
+    // 检查开关
+    if (!el.lightboxToggle.checked) {
+      const item = currentHistoryItems[index];
+      if (item) openImageNewTab(URL.createObjectURL(item.blob));
+      return;
     }
+
+    lightboxIndex = index;
+    lightboxZoom = 1;
+    lightboxPan = {x: 0, y: 0};
+    updateLightboxTransform();
+    
+    el.lightbox.classList.add('active');
+    loadLightboxImage();
   }
 
-  // ===== 执行任务 =====
-  async function runTaskFromRecord(rec, card) {
+  function closeLightbox() {
+    el.lightbox.classList.remove('active');
+  }
+  
+  function loadLightboxImage() {
+    const item = currentHistoryItems[lightboxIndex];
+    if (!item) return;
+
+    // 更新导航按钮状态
+    el.lbPrev.classList.toggle('disabled', lightboxIndex <= 0);
+    el.lbNext.classList.toggle('disabled', lightboxIndex >= currentHistoryItems.length - 1);
+    el.lbMeta.textContent = `${lightboxIndex + 1} / ${currentHistoryItems.length}`;
+
+    // 设置图片
+    const src = URL.createObjectURL(item.blob);
+    el.lbImg.src = src;
+    
+    // 重置变换
+    lightboxZoom = 1;
+    lightboxPan = {x: 0, y: 0};
+    updateLightboxTransform();
+  }
+
+  function updateLightboxTransform() {
+    // 使用 translate 和 scale 进行变换
+    el.lbImgWrap.style.transform = `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`;
+    el.lbImgWrap.classList.toggle('zoomed', lightboxZoom > 1);
+  }
+
+  // Lightbox 事件绑定
+  el.lbClose.onclick = closeLightbox;
+  el.lbPrev.onclick = (e) => { e.stopPropagation(); if(lightboxIndex > 0) { lightboxIndex--; loadLightboxImage(); } };
+  el.lbNext.onclick = (e) => { e.stopPropagation(); if(lightboxIndex < currentHistoryItems.length-1) { lightboxIndex++; loadLightboxImage(); } };
+  
+  // 键盘支持
+  window.addEventListener('keydown', (e) => {
+    if (!el.lightbox.classList.contains('active')) return;
+    if (e.key === "Escape") closeLightbox();
+    if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; loadLightboxImage(); }
+    if (e.key === "ArrowRight" && lightboxIndex < currentHistoryItems.length - 1) { lightboxIndex++; loadLightboxImage(); }
+  });
+
+  // 滚轮缩放
+  el.lbImgWrap.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    lightboxZoom = Math.min(Math.max(1, lightboxZoom * delta), 5); // Max 5x, Min 1x
+    if (lightboxZoom <= 1) {
+      lightboxZoom = 1;
+      lightboxPan = {x: 0, y: 0};
+    }
+    updateLightboxTransform();
+  });
+
+  // 双击放大/复原
+  el.lbImgWrap.addEventListener('dblclick', (e) => {
+    if (lightboxZoom > 1) {
+      lightboxZoom = 1;
+      lightboxPan = {x: 0, y: 0};
+    } else {
+      lightboxZoom = 2.5; // 默认放大倍数
+    }
+    updateLightboxTransform();
+  });
+
+  // 拖拽平移 (Pan)
+  el.lbImgWrap.addEventListener('mousedown', (e) => {
+    if (lightboxZoom <= 1) return; // 只有放大时才能拖拽
+    isDragging = true;
+    startPan = { x: e.clientX - lightboxPan.x, y: e.clientY - lightboxPan.y };
+    e.preventDefault(); // 防止默认拖拽图片行为
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    e.preventDefault();
+    lightboxPan.x = e.clientX - startPan.x;
+    lightboxPan.y = e.clientY - startPan.y;
+    updateLightboxTransform();
+  });
+  window.addEventListener('mouseup', () => isDragging = false);
+
+  /* =========================================
+     5. 历史记录渲染逻辑
+     ========================================= */
+  // 渲染单个历史卡片
+  function renderHistoryItem(item, replaceElem, index) {
+    const div = replaceElem || document.createElement("div");
+    div.className = "hist-card";
+    div.dataset.expanded = "0";
+
+    const mainUrl = URL.createObjectURL(item.blob);
+    
+    // 心形图标 SVG
+    const heartSvg = `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
+    const isFav = item.isFavorite ? "active" : "";
+
+    div.innerHTML = `
+      <img src="${mainUrl}" class="main-img" />
+      <div class="hist-meta">
+        <div class="meta-info">
+          <span class="meta-title">${escapeHtml(item.meta)}</span>
+          <span class="meta-res">读取中...</span>
+        </div>
+        <div class="actions-group">
+          <!-- 收藏按钮 -->
+          <button class="fav-btn ${isFav}" title="收藏">${heartSvg}</button>
+          
+          <button class="link-btn toggle-btn">查看Prompt</button>
+          <a href="${mainUrl}" download="img_${item.id}.png" class="link-btn">下载</a>
+          <span class="del-btn">删除</span>
+        </div>
+      </div>
+      <div class="hist-details">
+        <div class="prompt-label">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>Prompt</span>
+            <!-- 改进：复制按钮移到这里 -->
+            <button class="copy-mini-btn">复制Prompt</button>
+          </div>
+          <span style="font-weight:800; color:var(--muted);">${item.date}</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(item.prompt || "(无 Prompt)")}</p>
+        <div class="ref-mini-grid"></div>
+      </div>
+    `;
+
+    // 绑定事件
+    const img = div.querySelector(".main-img");
+    const resSpan = div.querySelector(".meta-res");
+    // 获取真实分辨率
+    img.onload = () => resSpan.textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+    
+    // 1. 点击图片 -> 打开 Lightbox
+    // 注意：如果是追加的元素，index 需要在 currentHistoryItems 中查找
+    const itemIndex = index !== undefined && index !== null ? index : currentHistoryItems.findIndex(x => x.id === item.id);
+    img.onclick = () => openLightbox(itemIndex);
+    
+    // 2. 展开/折叠
+    const toggleBtn = div.querySelector(".toggle-btn");
+    toggleBtn.onclick = () => {
+      const isEx = div.dataset.expanded === "1";
+      div.dataset.expanded = isEx ? "0" : "1";
+      toggleBtn.textContent = isEx ? "查看Prompt" : "收起";
+      // 懒加载参考图缩略图
+      if (!isEx && item.refs && item.refs.length) renderRefMinis(div, item.refs);
+    };
+
+    // 3. 收藏逻辑
+    const favBtn = div.querySelector(".fav-btn");
+    favBtn.onclick = () => {
+      item.isFavorite = !item.isFavorite;
+      updateDBItem(item); // 更新数据库
+      favBtn.classList.toggle("active");
+      
+      // 如果当前处于“只看收藏”模式，取消收藏应隐藏该卡片（或者刷新列表）
+      if (currentFilter === 'fav' && !item.isFavorite) {
+        div.style.display = "none"; 
+      }
+    };
+
+    // 4. 复制 Prompt (内部按钮)
+    const copyBtn = div.querySelector(".copy-mini-btn");
+    copyBtn.onclick = () => copyText(item.prompt, copyBtn);
+
+    // 5. 删除
+    div.querySelector(".del-btn").onclick = () => {
+      if(confirm("确定删除？")) {
+        deleteDBItem(item.id);
+        div.remove();
+      }
+    };
+
+    if (!replaceElem) el.historyList.appendChild(div);
+  }
+
+  // 渲染参考图缩略图（在详情页中）
+  function renderRefMinis(card, refs) {
+    const grid = card.querySelector(".ref-mini-grid");
+    if (grid.innerHTML !== "") return; // 已渲染过
+    refs.forEach(r => {
+      const u = URL.createObjectURL(r.blob);
+      const img = document.createElement("img");
+      img.src = u;
+      img.style.cssText = "width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;";
+      img.onclick = () => openImageNewTab(u);
+      grid.appendChild(img);
+    });
+  }
+
+  /* =========================================
+     6. 核心绘图任务逻辑
+     ========================================= */
+  async function startTask() {
     if (!currentUser) return;
     clearError();
 
-    if (tasks.has(rec.taskId)) return;
+    const prompt = el.prompt.value.trim();
+    if (!prompt) return showError("请输入提示词");
+    
+    // 构造任务数据
+    const taskId = Date.now().toString() + "_" + Math.random().toString(36).substr(2);
+    const modelId = el.model.value === "__custom__" ? el.customModelId.value : el.model.value;
+    if (!modelId) return showError("请选择有效的模型");
 
+    const task = {
+      taskId,
+      prompt, 
+      modelId,
+      ratio: el.ratio.value,
+      res: el.res.value,
+      // 修复：必须复制 blob，否则后续 input 清空会丢失引用
+      refs: refImages.map(r => ({ mime: r.mime, blob: r.blob }))
+    };
+
+    // 创建 Loading 占位卡片
+    const card = document.createElement("div");
+    card.className = "hist-card";
+    card.innerHTML = `
+      <div class="loading-placeholder">
+        <div class="spinner"></div>
+        <div style="margin-top:10px">正在生成...</div>
+        <div style="font-size:12px; margin-top:5px;">${escapeHtml(task.modelId)}</div>
+        <button class="del-btn" style="margin-top:15px; width:auto;">取消</button>
+      </div>
+    `;
+    const cancelBtn = card.querySelector(".del-btn");
+    
+    // 插入列表顶部
+    el.historyList.prepend(card);
+    
     const controller = new AbortController();
-    tasks.set(rec.taskId, { controller, card });
-
-    inFlight += 1;
-    updateTaskBar();
-
-    const cancelBtn1 = card.querySelector('[data-cancel="1"]');
-    const cancelBtn2 = card.querySelector('[data-cancel="2"]');
-    if (cancelBtn1) cancelBtn1.onclick = () => cancelOneTask(rec.taskId, card);
-    if (cancelBtn2) cancelBtn2.onclick = () => cancelOneTask(rec.taskId, card);
+    tasks.set(taskId, { card, controller });
+    cancelBtn.onclick = () => {
+      controller.abort();
+      card.remove();
+      tasks.delete(taskId);
+      inFlight--; updateStatus();
+    };
+    
+    inFlight++; 
+    updateStatus();
 
     try {
-        // [修复] 构建请求体时增加 try-catch，捕获图片转换错误
-        const parts = [{ text: rec.prompt }];
-        const refs = Array.isArray(rec.refs) ? rec.refs : [];
-        for (const r of refs) {
-            try {
-                const b64 = await blobToBase64Data(r.blob);
-                parts.push({ inlineData: { mimeType: r.mime, data: b64 } });
-            } catch (err) {
-                throw new Error("处理参考图失败，可能是图片损坏或太大。");
-            }
+      // 准备 Multipart 数据
+      const parts = [{ text: prompt }];
+      // 处理参考图 Base64 转换
+      for(const r of task.refs) {
+        try {
+          const b64 = await blobToBase64(r.blob);
+          parts.push({ inlineData: { mimeType: r.mime, data: b64 } });
+        } catch(err) {
+          throw new Error("处理参考图失败，图片可能过大或损坏");
         }
+      }
 
-        const finalUrl = `${BASE_URL}${rec.modelId}:generateContent`;
-        const payload = {
-        contents: [{ parts }],
-        generationConfig: {
+      // API 请求
+      const resp = await fetch(`${BASE_URL}${task.modelId}:generateContent`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + USERS_DB[currentUser].key
+        },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
             responseModalities: ["IMAGE"],
             candidateCount: 1,
-            imageConfig: { aspectRatio: rec.ratio, imageSize: rec.res }
-        }
-        };
-
-        const fetchOnce = async (useKeepAlive) => {
-        return fetch(finalUrl, {
-            method: "POST",
-            headers: {
-            "Content-Type": "application/json",
-            "Authorization": "Bearer " + USERS_DB[currentUser].key
-            },
-            signal: controller.signal,
-            keepalive: !!useKeepAlive,
-            body: JSON.stringify(payload)
-        });
-        };
-
-      let resp;
-      try { resp = await fetchOnce(refs.length === 0); }
-      catch { resp = await fetchOnce(false); }
-
-      let json = null;
-      try { json = await resp.json(); }
-      catch {
-        const text = await resp.text().catch(() => "");
-        throw new Error(`接口返回非 JSON。HTTP ${resp.status}. ${text ? "返回内容：" + text.slice(0, 300) : ""}`);
-      }
+            imageConfig: { aspectRatio: task.ratio } // 简化参数
+          }
+        }),
+        signal: controller.signal
+      });
 
       if (!resp.ok) {
-        const msg = json?.error?.message || JSON.stringify(json);
-        throw new Error(`HTTP ${resp.status}：${msg}`);
+        const errJson = await resp.json().catch(() => ({}));
+        throw new Error(errJson.error?.message || `HTTP ${resp.status}`);
       }
 
-      const imgData = extractImageFromResponse(json);
-      if (!imgData) {
-        const txt = extractTextFromResponse(json);
-        const fr = getFinishReason(json);
-        const hint = [
-          "未返回图片。",
-          fr ? `finishReason=${fr}` : "",
-          txt ? `模型返回文字：${txt}` : "",
-          "提示：手机切后台可能会中断网络；任务已保存，回来会自动恢复/可点“立即重试”。"
-        ].filter(Boolean).join("\n");
-        throw new Error(hint);
-      }
+      const json = await resp.json();
+      const imgData = json.candidates?.[0]?.content?.parts?.[0]?.inlineData;
+      
+      if (!imgData) throw new Error("API返回成功但没有图片数据");
 
-      const blob = base64ToBlob(imgData.data, imgData.mimeType);
-      const meta = `${rec.modelName} · ${rec.ratio} · ${rec.res}`;
-      const dateStr = new Date().toLocaleString();
+      // Base64 转 Blob
+      const bin = atob(imgData.data);
+      const arr = new Uint8Array(bin.length);
+      for(let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
+      const blob = new Blob([arr], { type: imgData.mimeType });
 
-      // 替换为历史卡
+      // 构建完成的数据项
       const item = {
         id: Date.now(),
         blob,
-        meta,
-        prompt: rec.prompt,
-        refs: rec.refs || [],
-        date: dateStr,
+        meta: `${task.modelId} · ${task.ratio}`,
+        prompt,
+        refs: task.refs,
+        date: new Date().toLocaleString(),
+        isFavorite: false
       };
-      renderHistoryItem(item, card);
 
-      saveToDB(blob, { meta, prompt: rec.prompt, refs: rec.refs || [], date: dateStr });
-      await delTask(rec.taskId).catch(()=>{});
+      // 保存并渲染
+      saveToDB(blob, item);
+      loadHistory(); // 重新加载以确保排序和索引正确
+
+      // 清理 Prompt，方便下次输入
+      el.prompt.value = "";
 
     } catch (e) {
-      if (e && (e.name === "AbortError" || String(e).includes("AbortError"))) {
-        // cancelled
-      } else {
-        const msg = (e && e.message) ? e.message : String(e);
-
-        cleanupCardUrls(card);
-        const failCard = createTaskCard(rec, "任务失败（已保留，可自动恢复）", msg, true);
-        card.replaceWith(failCard);
-        card = failCard;
-
-        const cancelBtn1 = card.querySelector('[data-cancel="1"]');
-        const cancelBtn2 = card.querySelector('[data-cancel="2"]');
-        const retryBtn = card.querySelector('[data-retry="1"]');
-
-        if (cancelBtn1) cancelBtn1.onclick = () => cancelOneTask(rec.taskId, card);
-        if (cancelBtn2) cancelBtn2.onclick = () => cancelOneTask(rec.taskId, card);
-        if (retryBtn) retryBtn.onclick = () => {
-          const newCard = createTaskCard(rec, "恢复任务中...", "正在重试请求…", false);
-          card.replaceWith(newCard);
-          runTaskFromRecord(rec, newCard).catch(()=>{});
-        };
-
-        showError("任务失败但已保存：回到前台/刷新会自动继续（必要时重试）。");
-        setTimeout(clearError, 1800);
-      }
+      if (e.name === 'AbortError') return; // 用户取消，不做处理
+      card.innerHTML = `
+        <div class="loading-placeholder" style="color:var(--danger); border-color:var(--danger)">
+          <div style="font-weight:bold; margin-bottom:8px;">生成失败</div>
+          <div style="font-size:12px;">${escapeHtml(e.message)}</div>
+          <button class="del-btn" style="margin-top:15px; width:auto;" onclick="this.parentElement.parentElement.remove()">关闭</button>
+        </div>
+      `;
+      // 不自动移除失败卡片，让用户看到错误
+      return; 
     } finally {
-      tasks.delete(rec.taskId);
-      inFlight = Math.max(0, inFlight - 1);
-      updateTaskBar();
+      if (tasks.has(taskId)) {
+        tasks.delete(taskId);
+        inFlight--; 
+        updateStatus();
+      }
     }
   }
 
-  // ===== 发起新任务 =====
-  async function startNewTask() {
-    clearError();
-    if (!currentUser) return;
+  function updateStatus() {
+    if (inFlight > 0) {
+      el.taskBar.style.display = "flex";
+      el.taskCount.textContent = `进行中: ${inFlight}`;
+    } else {
+      el.taskBar.style.display = "none";
+    }
+  }
 
-    const prompt = el.prompt.value.trim();
-    if (!prompt) return showError("请输入提示词。");
-
-    saveSettingsDebounced(10);
-    try { await dbReady; } catch {}
-
-    const modelId = getSelectedModelId();
-    if (!modelId) return showError("请选择或输入有效的模型ID。");
-
-    // [修复] 复制引用数组，防止后续删除影响进行中的任务
-    const refsSnap = refImages.map(x => ({ mime: x.mime, blob: x.blob }));
-
-    const ratioSnap = el.ratio.value;
-    const resSnap = el.res.value;
-    const modelNameSnap = getSelectedModelName(modelId);
+  /* =========================================
+     7. 初始化与事件绑定
+     ========================================= */
+  // 模型选择逻辑
+  const defaultModels = [
+    {id:"gemini-3-pro-image-preview", n:"NanoBanana Pro (New)"},
+    {id:"gemini-2.5-flash-image", n:"NanoBanana (Flash)"}
+  ];
+  
+  function initModels() {
+    el.model.innerHTML = "";
+    defaultModels.forEach(m => el.model.add(new Option(m.n, m.id)));
     
-    const taskId = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
-    const taskRecord = {
-      taskId,
-      user: currentUser,
-      createdAt: Date.now(),
-      modelId,
-      modelName: modelNameSnap,
-      ratio: ratioSnap,
-      res: resSnap,
-      prompt,
-      refs: refsSnap
-    };
-
-    await putTask(taskRecord).catch(()=>{});
-
-    const card = createTaskCard(
-      taskRecord,
-      "绘制中...",
-      "手机进入后台/锁屏可能会暂停网络。\n任务已保存：回来后会自动继续（必要时自动重试），不会丢失。",
-      false
-    );
-    el.historyList.prepend(card);
-
-    el.prompt.value = "";
-    runTaskFromRecord(taskRecord, card).catch(()=>{});
-  }
-  el.gen.onclick = startNewTask;
-
-  // ===== 恢复未完成任务 =====
-  async function resumePendingTasks() {
-    if (!currentUser) return;
-    try { await dbReady; } catch {}
-
-    const pending = await getAllTasksByUser(currentUser);
-    if (!pending.length) return;
-
-    for (const rec of pending) {
-      if (!rec || !rec.taskId) continue;
-      if (tasks.has(rec.taskId)) continue;
-
-      const card = createTaskCard(rec, "恢复任务中...", "正在继续之前的请求…", false);
-      el.historyList.prepend(card);
-      runTaskFromRecord(rec, card).catch(() => {});
+    // 加载自定义模型
+    const customs = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
+    if(customs.length) {
+      el.model.add(new Option("── 自定义 ──", "", true, true));
+      customs.forEach(m => el.model.add(new Option(m.name||m.id, m.id)));
     }
+    el.model.add(new Option("添加自定义...", "__custom__"));
+    
+    renderCustomPills(customs);
   }
 
-  document.addEventListener("visibilitychange", () => {
-    updateBgHint();
-    if (document.visibilityState === "visible") resumePendingTasks();
-    updateWakeLock();
-  });
-  window.addEventListener("pageshow", () => {
-    updateBgHint();
-    resumePendingTasks();
-    updateWakeLock();
-  });
-
-  // ===== 登录记住密码 =====
-  const LS_USER = "ai_art_user";
-  const LS_PASS = "ai_art_pass";
-  const savedUser = localStorage.getItem(LS_USER);
-  const savedPass = localStorage.getItem(LS_PASS);
-  if (savedUser && savedPass) {
-    el.u_name.value = savedUser;
-    el.u_pass.value = savedPass;
-    el.rememberMe.checked = true;
+  function renderCustomPills(list) {
+    el.customList.innerHTML = list.map(m => `
+      <div class="pill">
+        <b>${escapeHtml(m.name)}</b>
+        <span class="x" onclick="removeModel('${m.id}')">×</span>
+      </div>
+    `).join("");
   }
 
+  // 暴露给全局以便 HTML onclick 调用
+  window.removeModel = (id) => {
+    let list = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
+    list = list.filter(x => x.id !== id);
+    localStorage.setItem("ai_custom_models", JSON.stringify(list));
+    initModels();
+  };
+  
+  el.model.onchange = () => {
+    el.customPanel.style.display = el.model.value === "__custom__" ? "block" : "none";
+  };
+
+  el.btnAddModel.onclick = () => {
+    const id = el.customModelId.value.trim();
+    const name = el.customModelName.value.trim() || id;
+    if(!id) return showError("请输入模型ID");
+    
+    let list = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
+    if (list.some(x => x.id === id)) return showError("已存在");
+    
+    list.push({id, name});
+    localStorage.setItem("ai_custom_models", JSON.stringify(list));
+    
+    initModels();
+    el.model.value = id;
+    el.customPanel.style.display = "none";
+  };
+  
+  // 仅本次使用
+  el.btnUseTempModel.onclick = () => {
+    const id = el.customModelId.value.trim();
+    if(!id) return showError("请输入模型ID");
+    el.model.value = "__custom__"; // 保持选中状态触发逻辑
+    showError("已设置临时模型，点击生成即可");
+  };
+
+  // 参考图上传修复
+  el.fileInput.onchange = () => {
+    const files = Array.from(el.fileInput.files);
+    if (files.length === 0) return;
+    
+    files.forEach(f => {
+      refImages.push({ mime: f.type || "image/png", blob: f });
+    });
+    
+    renderRefGrid();
+    el.fileInput.value = ""; // 重置以便再次上传同名文件
+  };
+
+  function renderRefGrid() {
+    if (refImages.length === 0) {
+      el.refGrid.style.display = "none";
+      return;
+    }
+    el.refGrid.style.display = "grid";
+    el.refGrid.innerHTML = "";
+    
+    refImages.forEach((r, i) => {
+      const u = URL.createObjectURL(r.blob);
+      const div = document.createElement("div");
+      div.className = "ref-item";
+      div.innerHTML = `
+        <img src="${u}" title="点击移除" onclick="delRef(${i})">
+        <div class="ref-del" onclick="delRef(${i})">×</div>
+      `;
+      el.refGrid.appendChild(div);
+    });
+  }
+
+  window.delRef = (i) => {
+    refImages.splice(i, 1);
+    renderRefGrid();
+  };
+
+  // 登录逻辑
   el.btnLogin.onclick = () => {
     const u = el.u_name.value.trim();
     const p = el.u_pass.value.trim();
-
-    if (USERS_DB[u] && USERS_DB[u].pwd === p) {
+    
+    if(USERS_DB[u] && USERS_DB[u].pwd === p) {
       currentUser = u;
-
-      if (el.rememberMe.checked) {
-        localStorage.setItem(LS_USER, u);
-        localStorage.setItem(LS_PASS, p);
-      } else {
-        localStorage.removeItem(LS_USER);
-        localStorage.removeItem(LS_PASS);
-      }
-
       el.loginLayer.style.display = "none";
-      el.loginMsg.textContent = "";
-
-      refreshModelSelect();
-      refreshCustomPills();
-      toggleCustomPanel();
-      applyResLimitByModel(getSelectedModelId());
-
-      updateUserInfo();
-      updateBgHint();
-      updateTaskBar();
-
-      initDB();
-
-      dbReady.then(() => {
-        loadHistory();
-        loadSettings();
-        saveSettingsDebounced(10);
-        resumePendingTasks();
-      }).catch(()=>{});
-
+      el.welcomeText.textContent = currentUser;
+      
+      // 记住密码逻辑
+      if (el.rememberMe.checked) {
+        localStorage.setItem("ai_art_user", u);
+        localStorage.setItem("ai_art_pass", p);
+      } else {
+        localStorage.removeItem("ai_art_user");
+        localStorage.removeItem("ai_art_pass");
+      }
+      
+      initModels();
+      dbReadyPromise.then(loadHistory);
     } else {
       el.loginMsg.textContent = "账号或密码错误";
     }
   };
 
-  // ===== 退出 / 清空历史 =====
-  el.logoutBtn.onclick = () => location.reload();
-  el.clearHistory.onclick = clearAllDB;
-
-  // ===== 自动保存：绑定变更事件 =====
-  function bindAutoSave() {
-    const onQuick = () => saveSettingsDebounced(10);
-    el.model.addEventListener("change", onQuick);
-    el.ratio.addEventListener("change", onQuick);
-    el.res.addEventListener("change", onQuick);
-
-    el.customModelId.addEventListener("input", () => saveSettingsDebounced(350));
-    el.customModelName.addEventListener("input", () => saveSettingsDebounced(350));
+  // 自动登录检查
+  const savedUser = localStorage.getItem("ai_art_user");
+  const savedPass = localStorage.getItem("ai_art_pass");
+  if (savedUser && savedPass) {
+    el.u_name.value = savedUser;
+    el.u_pass.value = savedPass;
+    el.rememberMe.checked = true;
   }
-  bindAutoSave();
-
-  el.model.onchange = () => {
-    toggleCustomPanel();
-    const modelId = getSelectedModelId();
-    if (modelId) applyResLimitByModel(modelId);
-    saveSettingsDebounced(10);
+  
+  // 核心按钮事件
+  el.gen.onclick = startTask;
+  
+  el.clearHistory.onclick = () => {
+    if(confirm("确定清空所有历史记录？不可恢复。")) {
+      idbTx(STORE_IMGS, "readwrite").clear();
+      loadHistory();
+    }
+  };
+  
+  el.logoutBtn.onclick = () => location.reload();
+  
+  el.cancelAll.onclick = () => {
+    tasks.forEach(t => {
+      t.controller.abort();
+      t.card.remove();
+    });
+    tasks.clear();
+    inFlight = 0;
+    updateStatus();
   };
 
-  // ===== 自定义模型按钮 =====
-  el.btnAddModel.onclick = () => {
-    clearError();
-    const id = normalizeModelId(el.customModelId.value);
-    const name = String(el.customModelName.value || "").trim();
+  // 筛选 Tab 切换
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentFilter = btn.dataset.filter;
+      loadHistory(); // 重新加载列表
+    };
+  });
 
-    if (!id) return showError("请输入自定义模型ID。");
-    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
-
-    let list = loadCustomModels();
-    if (list.some(x => x.id === id)) return showError("该模型ID已存在于列表。");
-
-    list.push({ id, name: name || "自定义模型" });
-    saveCustomModels(list);
-
-    refreshModelSelect();
-    refreshCustomPills();
-
-    el.model.value = id;
-    toggleCustomPanel();
-    applyResLimitByModel(id);
-
-    saveSettingsDebounced(10);
+  // 设置持久化：画廊开关
+  const savedLightBox = localStorage.getItem("setting_lightbox");
+  if (savedLightBox !== null) {
+    el.lightboxToggle.checked = savedLightBox === "true";
+  }
+  el.lightboxToggle.onchange = () => {
+    localStorage.setItem("setting_lightbox", el.lightboxToggle.checked);
   };
 
-  el.btnUseTempModel.onclick = () => {
-    clearError();
-    const id = normalizeModelId(el.customModelId.value);
-    if (!id) return showError("请输入自定义模型ID。");
-    if (id.includes(" ")) return showError("模型ID 不能包含空格。");
-
-    el.model.value = "__custom__";
-    toggleCustomPanel();
-    applyResLimitByModel(id);
-
-    saveSettingsDebounced(10);
-
-    showError("已设置“仅本次使用”的模型ID。点击生成即可。");
-    setTimeout(clearError, 1800);
-  };
-
-  // ===== 取消全部 =====
-  el.cancelAll.onclick = cancelAllTasks;
-
-  // ===== 初始化显示 =====
-  updateBgHint();
+  // 初始化
+  initModels();
 })();
 </script>
 </body>
