@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>AI 绘图系统 Pro</title>
+  <title>AI 绘图系统 Pro Max</title>
   <style>
     /* =========================================
        1. 全局变量与基础样式
@@ -24,6 +24,7 @@
 
       --danger: #EF4444;
       --fav: #EC4899; /* 收藏心形颜色 */
+      --ref-tag: #F59E0B; /* 参考图标签颜色 */
 
       /* 尺寸与阴影 */
       --radius: 18px;
@@ -742,6 +743,16 @@
     .lb-close:hover {
       background: rgba(255,255,255,0.2);
     }
+    
+    .lb-badge {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-weight: 800;
+      margin-left: 10px;
+    }
+    .lb-badge-res { background: var(--brand); color: white; }
+    .lb-badge-ref { background: var(--ref-tag); color: white; }
 
     .lb-content {
       flex: 1;
@@ -1093,7 +1104,7 @@
         </select>
       </div>
 
-      <!-- 画廊开关：新功能 -->
+      <!-- 画廊开关 -->
       <div class="control-item">
         <label>开启沉浸式看图</label>
         <div class="switch-row">
@@ -1194,7 +1205,10 @@
 <!-- 3. Lightbox (全屏画廊层) -->
 <div id="lightbox" class="lightbox">
   <div class="lb-header">
-    <span style="font-weight:700;">查看图片</span>
+    <div style="display:flex; align-items:center;">
+      <span style="font-weight:700;" id="lbTitle">查看图片</span>
+      <span id="lbBadge" class="lb-badge" style="display:none"></span>
+    </div>
     <div class="lb-close" id="lbClose">×</div>
   </div>
   <div class="lb-content">
@@ -1232,8 +1246,11 @@
 
   // 筛选与画廊状态
   let currentFilter = 'all'; // 'all' | 'fav'
-  let currentHistoryItems = []; // 当前显示的列表数据（用于 Lightbox 导航）
-  let lightboxIndex = -1;
+  let currentHistoryItems = []; // 当前显示的列表数据
+  
+  // Lightbox 播放列表（扁平化结构：成品 -> 参考1 -> 参考2 -> 下一个成品）
+  let lightboxPlaylist = []; 
+  let lightboxCurrentIndex = -1;
   let lightboxZoom = 1;
   let lightboxPan = {x: 0, y: 0};
   let isDragging = false;
@@ -1253,14 +1270,14 @@
     errorBox: $("errorBox"), refGrid: $("refGrid"), taskBar: $("taskBar"), taskCount: $("taskCount"), cancelAll: $("cancelAll"),
     // Lightbox els
     lightbox: $("lightbox"), lbClose: $("lbClose"), lbImg: $("lbImg"), lbImgWrap: $("lbImgWrap"),
-    lbPrev: $("lbPrev"), lbNext: $("lbNext"), lbMeta: $("lbMeta")
+    lbPrev: $("lbPrev"), lbNext: $("lbNext"), lbMeta: $("lbMeta"), lbTitle: $("lbTitle"), lbBadge: $("lbBadge")
   };
 
   /* =========================================
      2. IndexedDB 数据库管理
      ========================================= */
   const DB_NAME = "AI_Art_Pro";
-  const DB_VER = 3; // 升级版本以支持 isFavorite 字段
+  const DB_VER = 3; 
   const STORE_IMGS = "imgs";
   const STORE_TASKS = "tasks";
 
@@ -1270,8 +1287,6 @@
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_IMGS)) {
         db.createObjectStore(STORE_IMGS, { keyPath: "id" });
-      } else {
-        // 如果旧版本表存在，可以在这里做数据迁移（如添加字段），本例简化处理
       }
       if (!db.objectStoreNames.contains(STORE_TASKS)) {
         db.createObjectStore(STORE_TASKS, { keyPath: "taskId" });
@@ -1297,7 +1312,7 @@
       prompt: record.prompt || "",
       refs: record.refs || [],
       date: record.date || new Date().toLocaleString(),
-      isFavorite: false // 默认不收藏
+      isFavorite: false 
     };
     idbTx(STORE_IMGS, "readwrite").add(item);
   }
@@ -1312,7 +1327,7 @@
     idbTx(STORE_IMGS, "readwrite").delete(id);
   }
 
-  // 加载历史记录（支持筛选）
+  // 加载历史记录并构建画廊列表
   function loadHistory() {
     if (!dbInstance) return;
     const req = idbTx(STORE_IMGS).getAll();
@@ -1324,14 +1339,97 @@
         items = items.filter(x => x.isFavorite);
       }
       
-      currentHistoryItems = items; // 更新给 Lightbox 用的列表
+      currentHistoryItems = items; 
       el.historyList.innerHTML = "";
-      items.forEach((item, index) => renderHistoryItem(item, null, index));
+      
+      // 构建扁平化的 Lightbox 播放列表 (包含成品图和参考图)
+      buildLightboxPlaylist();
+
+      items.forEach((item) => renderHistoryItem(item));
     };
   }
 
+  // 构建画廊播放列表（关键逻辑：展平成一条线）
+  function buildLightboxPlaylist() {
+    lightboxPlaylist = [];
+    currentHistoryItems.forEach(item => {
+      // 1. 添加主生成图
+      lightboxPlaylist.push({
+        type: 'result',
+        id: item.id,
+        blob: item.blob,
+        meta: '生成结果',
+        parentMeta: item.meta,
+        date: item.date
+      });
+      
+      // 2. 添加参考图 (如果有)
+      if (item.refs && item.refs.length > 0) {
+        item.refs.forEach((ref, idx) => {
+          lightboxPlaylist.push({
+            type: 'ref',
+            id: item.id, // 指向同一个父任务 ID
+            blob: ref.blob,
+            meta: `参考图片 ${idx+1}/${item.refs.length}`,
+            parentMeta: item.meta,
+            date: item.date
+          });
+        });
+      }
+    });
+  }
+
   /* =========================================
-     3. 工具函数
+     3. 参数自动保存与恢复 (记忆功能)
+     ========================================= */
+  const LS_PARAMS_KEY = "ai_art_params_v1";
+
+  function saveParams() {
+    if (!currentUser) return;
+    const params = {
+      model: el.model.value,
+      customId: el.customModelId.value,
+      customName: el.customModelName.value,
+      ratio: el.ratio.value,
+      res: el.res.value
+    };
+    localStorage.setItem(LS_PARAMS_KEY + "_" + currentUser, JSON.stringify(params));
+  }
+
+  function loadParams() {
+    if (!currentUser) return;
+    const raw = localStorage.getItem(LS_PARAMS_KEY + "_" + currentUser);
+    if (!raw) return;
+    try {
+      const params = JSON.parse(raw);
+      if (params.ratio) el.ratio.value = params.ratio;
+      if (params.res) el.res.value = params.res;
+      
+      // 恢复模型选择
+      if (params.model) {
+        // 检查模型是否在列表中，不在则可能是自定义未添加，或者是临时使用的 __custom__
+        const exists = Array.from(el.model.options).some(o => o.value === params.model);
+        if (exists) {
+          el.model.value = params.model;
+        } else if (params.model === "__custom__") {
+          el.model.value = "__custom__";
+        }
+      }
+      
+      if (params.customId) el.customModelId.value = params.customId;
+      if (params.customName) el.customModelName.value = params.customName;
+      
+      // 触发一次 UI 更新
+      el.model.onchange(); 
+    } catch(e) { console.error("参数恢复失败", e); }
+  }
+
+  // 绑定保存事件
+  [el.model, el.ratio, el.res].forEach(input => input.addEventListener('change', saveParams));
+  [el.customModelId, el.customModelName].forEach(input => input.addEventListener('input', saveParams));
+
+  /* =========================================
+     4. 工具函数
      ========================================= */
   function showError(msg) {
     el.errorBox.style.display = "block";
@@ -1343,7 +1441,6 @@
     el.errorBox.style.display = "none";
   }
 
-  // 修复：更稳定的新标签页打开方式
   function openImageNewTab(src) {
     const a = document.createElement("a");
     a.href = src;
@@ -1362,7 +1459,6 @@
     }).catch(() => showError("复制失败，请手动复制"));
   }
 
-  // 修复：稳定的 Base64 转换
   function blobToBase64(blob) {
     return new Promise((resolve, reject) => {
       if (!blob) return reject(new Error("无效的图片数据"));
@@ -1384,17 +1480,21 @@
   }
 
   /* =========================================
-     4. Lightbox (全屏画廊) 逻辑
+     5. Lightbox (全屏画廊) 逻辑 - 升级版
      ========================================= */
-  function openLightbox(index) {
-    // 检查开关
+  function openLightbox(itemId) {
     if (!el.lightboxToggle.checked) {
-      const item = currentHistoryItems[index];
+      // 降级模式：直接打开图片新标签页
+      const item = currentHistoryItems.find(x => x.id === itemId);
       if (item) openImageNewTab(URL.createObjectURL(item.blob));
       return;
     }
 
-    lightboxIndex = index;
+    // 在播放列表中找到该 ID 对应的“生成结果”位置
+    const index = lightboxPlaylist.findIndex(x => x.id === itemId && x.type === 'result');
+    if (index === -1) return;
+
+    lightboxCurrentIndex = index;
     lightboxZoom = 1;
     lightboxPan = {x: 0, y: 0};
     updateLightboxTransform();
@@ -1408,15 +1508,31 @@
   }
   
   function loadLightboxImage() {
-    const item = currentHistoryItems[lightboxIndex];
+    const item = lightboxPlaylist[lightboxCurrentIndex];
     if (!item) return;
 
-    // 更新导航按钮状态
-    el.lbPrev.classList.toggle('disabled', lightboxIndex <= 0);
-    el.lbNext.classList.toggle('disabled', lightboxIndex >= currentHistoryItems.length - 1);
-    el.lbMeta.textContent = `${lightboxIndex + 1} / ${currentHistoryItems.length}`;
+    // 导航按钮状态
+    el.lbPrev.classList.toggle('disabled', lightboxCurrentIndex <= 0);
+    el.lbNext.classList.toggle('disabled', lightboxCurrentIndex >= lightboxPlaylist.length - 1);
+    
+    // 顶部标题和标签
+    el.lbTitle.textContent = item.meta; // "生成结果" 或 "参考图片 1/3"
+    
+    if (item.type === 'result') {
+        el.lbBadge.className = 'lb-badge lb-badge-res';
+        el.lbBadge.textContent = 'Result';
+        el.lbBadge.style.display = 'inline-block';
+    } else {
+        el.lbBadge.className = 'lb-badge lb-badge-ref';
+        el.lbBadge.textContent = 'Ref';
+        el.lbBadge.style.display = 'inline-block';
+    }
 
-    // 设置图片
+    // 底部信息
+    el.lbMeta.textContent = `${item.parentMeta} · ${item.date}`;
+
+    // 设置图片 (每次创建 URL，真实场景可缓存，这里简单处理)
+    // 之前的 URL 可能需要 revoke，但为了简单，依赖浏览器回收
     const src = URL.createObjectURL(item.blob);
     el.lbImg.src = src;
     
@@ -1427,53 +1543,44 @@
   }
 
   function updateLightboxTransform() {
-    // 使用 translate 和 scale 进行变换
     el.lbImgWrap.style.transform = `translate(${lightboxPan.x}px, ${lightboxPan.y}px) scale(${lightboxZoom})`;
     el.lbImgWrap.classList.toggle('zoomed', lightboxZoom > 1);
   }
 
-  // Lightbox 事件绑定
+  // Lightbox 事件
   el.lbClose.onclick = closeLightbox;
-  el.lbPrev.onclick = (e) => { e.stopPropagation(); if(lightboxIndex > 0) { lightboxIndex--; loadLightboxImage(); } };
-  el.lbNext.onclick = (e) => { e.stopPropagation(); if(lightboxIndex < currentHistoryItems.length-1) { lightboxIndex++; loadLightboxImage(); } };
+  el.lbPrev.onclick = (e) => { e.stopPropagation(); if(lightboxCurrentIndex > 0) { lightboxCurrentIndex--; loadLightboxImage(); } };
+  el.lbNext.onclick = (e) => { e.stopPropagation(); if(lightboxCurrentIndex < lightboxPlaylist.length-1) { lightboxCurrentIndex++; loadLightboxImage(); } };
   
-  // 键盘支持
   window.addEventListener('keydown', (e) => {
     if (!el.lightbox.classList.contains('active')) return;
     if (e.key === "Escape") closeLightbox();
-    if (e.key === "ArrowLeft" && lightboxIndex > 0) { lightboxIndex--; loadLightboxImage(); }
-    if (e.key === "ArrowRight" && lightboxIndex < currentHistoryItems.length - 1) { lightboxIndex++; loadLightboxImage(); }
+    if (e.key === "ArrowLeft" && lightboxCurrentIndex > 0) { lightboxCurrentIndex--; loadLightboxImage(); }
+    if (e.key === "ArrowRight" && lightboxCurrentIndex < lightboxPlaylist.length - 1) { lightboxCurrentIndex++; loadLightboxImage(); }
   });
 
   // 滚轮缩放
   el.lbImgWrap.addEventListener('wheel', (e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    lightboxZoom = Math.min(Math.max(1, lightboxZoom * delta), 5); // Max 5x, Min 1x
-    if (lightboxZoom <= 1) {
-      lightboxZoom = 1;
-      lightboxPan = {x: 0, y: 0};
-    }
+    lightboxZoom = Math.min(Math.max(1, lightboxZoom * delta), 5); 
+    if (lightboxZoom <= 1) { lightboxZoom = 1; lightboxPan = {x: 0, y: 0}; }
     updateLightboxTransform();
   });
 
-  // 双击放大/复原
+  // 双击放大
   el.lbImgWrap.addEventListener('dblclick', (e) => {
-    if (lightboxZoom > 1) {
-      lightboxZoom = 1;
-      lightboxPan = {x: 0, y: 0};
-    } else {
-      lightboxZoom = 2.5; // 默认放大倍数
-    }
+    if (lightboxZoom > 1) { lightboxZoom = 1; lightboxPan = {x: 0, y: 0}; } 
+    else { lightboxZoom = 2.5; }
     updateLightboxTransform();
   });
 
-  // 拖拽平移 (Pan)
+  // 拖拽
   el.lbImgWrap.addEventListener('mousedown', (e) => {
-    if (lightboxZoom <= 1) return; // 只有放大时才能拖拽
+    if (lightboxZoom <= 1) return; 
     isDragging = true;
     startPan = { x: e.clientX - lightboxPan.x, y: e.clientY - lightboxPan.y };
-    e.preventDefault(); // 防止默认拖拽图片行为
+    e.preventDefault(); 
   });
   window.addEventListener('mousemove', (e) => {
     if (!isDragging) return;
@@ -1485,17 +1592,16 @@
   window.addEventListener('mouseup', () => isDragging = false);
 
   /* =========================================
-     5. 历史记录渲染逻辑
+     6. 历史记录渲染
      ========================================= */
-  // 渲染单个历史卡片
-  function renderHistoryItem(item, replaceElem, index) {
+  function renderHistoryItem(item, replaceElem) {
     const div = replaceElem || document.createElement("div");
     div.className = "hist-card";
     div.dataset.expanded = "0";
 
     const mainUrl = URL.createObjectURL(item.blob);
     
-    // 心形图标 SVG
+    // 心形 SVG
     const heartSvg = `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
     const isFav = item.isFavorite ? "active" : "";
 
@@ -1507,9 +1613,7 @@
           <span class="meta-res">读取中...</span>
         </div>
         <div class="actions-group">
-          <!-- 收藏按钮 -->
           <button class="fav-btn ${isFav}" title="收藏">${heartSvg}</button>
-          
           <button class="link-btn toggle-btn">查看Prompt</button>
           <a href="${mainUrl}" download="img_${item.id}.png" class="link-btn">下载</a>
           <span class="del-btn">删除</span>
@@ -1519,7 +1623,6 @@
         <div class="prompt-label">
           <div style="display:flex; align-items:center; gap:8px;">
             <span>Prompt</span>
-            <!-- 改进：复制按钮移到这里 -->
             <button class="copy-mini-btn">复制Prompt</button>
           </div>
           <span style="font-weight:800; color:var(--muted);">${item.date}</span>
@@ -1529,16 +1632,12 @@
       </div>
     `;
 
-    // 绑定事件
     const img = div.querySelector(".main-img");
     const resSpan = div.querySelector(".meta-res");
-    // 获取真实分辨率
     img.onload = () => resSpan.textContent = `${img.naturalWidth}×${img.naturalHeight}`;
     
-    // 1. 点击图片 -> 打开 Lightbox
-    // 注意：如果是追加的元素，index 需要在 currentHistoryItems 中查找
-    const itemIndex = index !== undefined && index !== null ? index : currentHistoryItems.findIndex(x => x.id === item.id);
-    img.onclick = () => openLightbox(itemIndex);
+    // 1. 打开画廊
+    img.onclick = () => openLightbox(item.id);
     
     // 2. 展开/折叠
     const toggleBtn = div.querySelector(".toggle-btn");
@@ -1546,24 +1645,19 @@
       const isEx = div.dataset.expanded === "1";
       div.dataset.expanded = isEx ? "0" : "1";
       toggleBtn.textContent = isEx ? "查看Prompt" : "收起";
-      // 懒加载参考图缩略图
       if (!isEx && item.refs && item.refs.length) renderRefMinis(div, item.refs);
     };
 
-    // 3. 收藏逻辑
+    // 3. 收藏
     const favBtn = div.querySelector(".fav-btn");
     favBtn.onclick = () => {
       item.isFavorite = !item.isFavorite;
-      updateDBItem(item); // 更新数据库
+      updateDBItem(item);
       favBtn.classList.toggle("active");
-      
-      // 如果当前处于“只看收藏”模式，取消收藏应隐藏该卡片（或者刷新列表）
-      if (currentFilter === 'fav' && !item.isFavorite) {
-        div.style.display = "none"; 
-      }
+      if (currentFilter === 'fav' && !item.isFavorite) div.style.display = "none"; 
     };
 
-    // 4. 复制 Prompt (内部按钮)
+    // 4. 复制
     const copyBtn = div.querySelector(".copy-mini-btn");
     copyBtn.onclick = () => copyText(item.prompt, copyBtn);
 
@@ -1572,28 +1666,31 @@
       if(confirm("确定删除？")) {
         deleteDBItem(item.id);
         div.remove();
+        // 重建画廊列表
+        const idx = currentHistoryItems.findIndex(x => x.id === item.id);
+        if(idx > -1) currentHistoryItems.splice(idx, 1);
+        buildLightboxPlaylist();
       }
     };
 
     if (!replaceElem) el.historyList.appendChild(div);
   }
 
-  // 渲染参考图缩略图（在详情页中）
   function renderRefMinis(card, refs) {
     const grid = card.querySelector(".ref-mini-grid");
-    if (grid.innerHTML !== "") return; // 已渲染过
+    if (grid.innerHTML !== "") return;
     refs.forEach(r => {
       const u = URL.createObjectURL(r.blob);
       const img = document.createElement("img");
       img.src = u;
       img.style.cssText = "width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;";
-      img.onclick = () => openImageNewTab(u);
+      img.onclick = () => openImageNewTab(u); // 缩略图还是在新标签页打开，或可改为 Lightbox
       grid.appendChild(img);
     });
   }
 
   /* =========================================
-     6. 核心绘图任务逻辑
+     7. 绘图任务逻辑
      ========================================= */
   async function startTask() {
     if (!currentUser) return;
@@ -1602,22 +1699,18 @@
     const prompt = el.prompt.value.trim();
     if (!prompt) return showError("请输入提示词");
     
-    // 构造任务数据
+    // 保存当前参数到本地
+    saveParams();
+
     const taskId = Date.now().toString() + "_" + Math.random().toString(36).substr(2);
     const modelId = el.model.value === "__custom__" ? el.customModelId.value : el.model.value;
     if (!modelId) return showError("请选择有效的模型");
 
     const task = {
-      taskId,
-      prompt, 
-      modelId,
-      ratio: el.ratio.value,
-      res: el.res.value,
-      // 修复：必须复制 blob，否则后续 input 清空会丢失引用
+      taskId, prompt, modelId, ratio: el.ratio.value, res: el.res.value,
       refs: refImages.map(r => ({ mime: r.mime, blob: r.blob }))
     };
 
-    // 创建 Loading 占位卡片
     const card = document.createElement("div");
     card.className = "hist-card";
     card.innerHTML = `
@@ -1629,8 +1722,6 @@
       </div>
     `;
     const cancelBtn = card.querySelector(".del-btn");
-    
-    // 插入列表顶部
     el.historyList.prepend(card);
     
     const controller = new AbortController();
@@ -1642,36 +1733,23 @@
       inFlight--; updateStatus();
     };
     
-    inFlight++; 
-    updateStatus();
+    inFlight++; updateStatus();
 
     try {
-      // 准备 Multipart 数据
       const parts = [{ text: prompt }];
-      // 处理参考图 Base64 转换
       for(const r of task.refs) {
         try {
           const b64 = await blobToBase64(r.blob);
           parts.push({ inlineData: { mimeType: r.mime, data: b64 } });
-        } catch(err) {
-          throw new Error("处理参考图失败，图片可能过大或损坏");
-        }
+        } catch(err) { throw new Error("处理参考图失败"); }
       }
 
-      // API 请求
       const resp = await fetch(`${BASE_URL}${task.modelId}:generateContent`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + USERS_DB[currentUser].key
-        },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + USERS_DB[currentUser].key },
         body: JSON.stringify({
           contents: [{ parts }],
-          generationConfig: {
-            responseModalities: ["IMAGE"],
-            candidateCount: 1,
-            imageConfig: { aspectRatio: task.ratio } // 简化参数
-          }
+          generationConfig: { responseModalities: ["IMAGE"], candidateCount: 1, imageConfig: { aspectRatio: task.ratio } }
         }),
         signal: controller.signal
       });
@@ -1683,66 +1761,51 @@
 
       const json = await resp.json();
       const imgData = json.candidates?.[0]?.content?.parts?.[0]?.inlineData;
-      
-      if (!imgData) throw new Error("API返回成功但没有图片数据");
+      if (!imgData) throw new Error("API未返回图片");
 
-      // Base64 转 Blob
       const bin = atob(imgData.data);
       const arr = new Uint8Array(bin.length);
       for(let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
       const blob = new Blob([arr], { type: imgData.mimeType });
 
-      // 构建完成的数据项
       const item = {
-        id: Date.now(),
-        blob,
+        id: Date.now(), blob,
         meta: `${task.modelId} · ${task.ratio}`,
-        prompt,
-        refs: task.refs,
+        prompt, refs: task.refs,
         date: new Date().toLocaleString(),
         isFavorite: false
       };
 
-      // 保存并渲染
       saveToDB(blob, item);
-      loadHistory(); // 重新加载以确保排序和索引正确
+      loadHistory(); // 刷新
 
-      // 清理 Prompt，方便下次输入
       el.prompt.value = "";
 
     } catch (e) {
-      if (e.name === 'AbortError') return; // 用户取消，不做处理
+      if (e.name === 'AbortError') return;
       card.innerHTML = `
         <div class="loading-placeholder" style="color:var(--danger); border-color:var(--danger)">
-          <div style="font-weight:bold; margin-bottom:8px;">生成失败</div>
+          <div>生成失败</div>
           <div style="font-size:12px;">${escapeHtml(e.message)}</div>
           <button class="del-btn" style="margin-top:15px; width:auto;" onclick="this.parentElement.parentElement.remove()">关闭</button>
         </div>
       `;
-      // 不自动移除失败卡片，让用户看到错误
-      return; 
     } finally {
       if (tasks.has(taskId)) {
         tasks.delete(taskId);
-        inFlight--; 
-        updateStatus();
+        inFlight--; updateStatus();
       }
     }
   }
 
   function updateStatus() {
-    if (inFlight > 0) {
-      el.taskBar.style.display = "flex";
-      el.taskCount.textContent = `进行中: ${inFlight}`;
-    } else {
-      el.taskBar.style.display = "none";
-    }
+    el.taskBar.style.display = inFlight > 0 ? "flex" : "none";
+    el.taskCount.textContent = `进行中: ${inFlight}`;
   }
 
   /* =========================================
-     7. 初始化与事件绑定
+     8. 初始化与事件
      ========================================= */
-  // 模型选择逻辑
   const defaultModels = [
     {id:"gemini-3-pro-image-preview", n:"NanoBanana Pro (New)"},
     {id:"gemini-2.5-flash-image", n:"NanoBanana (Flash)"}
@@ -1751,28 +1814,21 @@
   function initModels() {
     el.model.innerHTML = "";
     defaultModels.forEach(m => el.model.add(new Option(m.n, m.id)));
-    
-    // 加载自定义模型
     const customs = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
     if(customs.length) {
       el.model.add(new Option("── 自定义 ──", "", true, true));
       customs.forEach(m => el.model.add(new Option(m.name||m.id, m.id)));
     }
     el.model.add(new Option("添加自定义...", "__custom__"));
-    
     renderCustomPills(customs);
   }
 
   function renderCustomPills(list) {
     el.customList.innerHTML = list.map(m => `
-      <div class="pill">
-        <b>${escapeHtml(m.name)}</b>
-        <span class="x" onclick="removeModel('${m.id}')">×</span>
-      </div>
+      <div class="pill"><b>${escapeHtml(m.name)}</b><span class="x" onclick="removeModel('${m.id}')">×</span></div>
     `).join("");
   }
 
-  // 暴露给全局以便 HTML onclick 调用
   window.removeModel = (id) => {
     let list = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
     list = list.filter(x => x.id !== id);
@@ -1788,75 +1844,51 @@
     const id = el.customModelId.value.trim();
     const name = el.customModelName.value.trim() || id;
     if(!id) return showError("请输入模型ID");
-    
     let list = JSON.parse(localStorage.getItem("ai_custom_models") || "[]");
     if (list.some(x => x.id === id)) return showError("已存在");
-    
     list.push({id, name});
     localStorage.setItem("ai_custom_models", JSON.stringify(list));
-    
     initModels();
     el.model.value = id;
     el.customPanel.style.display = "none";
+    saveParams(); // 保存更改
   };
   
-  // 仅本次使用
   el.btnUseTempModel.onclick = () => {
     const id = el.customModelId.value.trim();
     if(!id) return showError("请输入模型ID");
-    el.model.value = "__custom__"; // 保持选中状态触发逻辑
-    showError("已设置临时模型，点击生成即可");
+    el.model.value = "__custom__";
+    showError("已设置临时模型");
+    saveParams();
   };
 
-  // 参考图上传修复
   el.fileInput.onchange = () => {
-    const files = Array.from(el.fileInput.files);
-    if (files.length === 0) return;
-    
-    files.forEach(f => {
-      refImages.push({ mime: f.type || "image/png", blob: f });
-    });
-    
+    Array.from(el.fileInput.files).forEach(f => refImages.push({ mime: f.type || "image/png", blob: f }));
     renderRefGrid();
-    el.fileInput.value = ""; // 重置以便再次上传同名文件
+    el.fileInput.value = "";
   };
 
   function renderRefGrid() {
-    if (refImages.length === 0) {
-      el.refGrid.style.display = "none";
-      return;
-    }
-    el.refGrid.style.display = "grid";
+    el.refGrid.style.display = refImages.length ? "grid" : "none";
     el.refGrid.innerHTML = "";
-    
     refImages.forEach((r, i) => {
       const u = URL.createObjectURL(r.blob);
       const div = document.createElement("div");
       div.className = "ref-item";
-      div.innerHTML = `
-        <img src="${u}" title="点击移除" onclick="delRef(${i})">
-        <div class="ref-del" onclick="delRef(${i})">×</div>
-      `;
+      div.innerHTML = `<img src="${u}" onclick="delRef(${i})"><div class="ref-del" onclick="delRef(${i})">×</div>`;
       el.refGrid.appendChild(div);
     });
   }
+  window.delRef = (i) => { refImages.splice(i, 1); renderRefGrid(); };
 
-  window.delRef = (i) => {
-    refImages.splice(i, 1);
-    renderRefGrid();
-  };
-
-  // 登录逻辑
   el.btnLogin.onclick = () => {
     const u = el.u_name.value.trim();
     const p = el.u_pass.value.trim();
-    
     if(USERS_DB[u] && USERS_DB[u].pwd === p) {
       currentUser = u;
       el.loginLayer.style.display = "none";
       el.welcomeText.textContent = currentUser;
       
-      // 记住密码逻辑
       if (el.rememberMe.checked) {
         localStorage.setItem("ai_art_user", u);
         localStorage.setItem("ai_art_pass", p);
@@ -1866,13 +1898,13 @@
       }
       
       initModels();
+      // 登录后加载参数 + 加载历史
+      loadParams();
       dbReadyPromise.then(loadHistory);
-    } else {
-      el.loginMsg.textContent = "账号或密码错误";
-    }
+    } else el.loginMsg.textContent = "账号或密码错误";
   };
 
-  // 自动登录检查
+  // 自动登录
   const savedUser = localStorage.getItem("ai_art_user");
   const savedPass = localStorage.getItem("ai_art_pass");
   if (savedUser && savedPass) {
@@ -1881,48 +1913,24 @@
     el.rememberMe.checked = true;
   }
   
-  // 核心按钮事件
   el.gen.onclick = startTask;
-  
-  el.clearHistory.onclick = () => {
-    if(confirm("确定清空所有历史记录？不可恢复。")) {
-      idbTx(STORE_IMGS, "readwrite").clear();
-      loadHistory();
-    }
-  };
-  
+  el.clearHistory.onclick = () => { if(confirm("清空？")) { idbTx(STORE_IMGS, "readwrite").clear(); loadHistory(); } };
   el.logoutBtn.onclick = () => location.reload();
-  
-  el.cancelAll.onclick = () => {
-    tasks.forEach(t => {
-      t.controller.abort();
-      t.card.remove();
-    });
-    tasks.clear();
-    inFlight = 0;
-    updateStatus();
-  };
+  el.cancelAll.onclick = () => { tasks.forEach(t => t.controller.abort()); tasks.clear(); inFlight=0; updateStatus(); };
 
-  // 筛选 Tab 切换
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.dataset.filter;
-      loadHistory(); // 重新加载列表
+      loadHistory();
     };
   });
 
-  // 设置持久化：画廊开关
   const savedLightBox = localStorage.getItem("setting_lightbox");
-  if (savedLightBox !== null) {
-    el.lightboxToggle.checked = savedLightBox === "true";
-  }
-  el.lightboxToggle.onchange = () => {
-    localStorage.setItem("setting_lightbox", el.lightboxToggle.checked);
-  };
+  if (savedLightBox !== null) el.lightboxToggle.checked = savedLightBox === "true";
+  el.lightboxToggle.onchange = () => localStorage.setItem("setting_lightbox", el.lightboxToggle.checked);
 
-  // 初始化
   initModels();
 })();
 </script>
