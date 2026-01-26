@@ -1079,7 +1079,6 @@
   }
 
   function saveToDB(blob, record) {
-    // record: { meta, prompt, refs, date? }
     if (!dbInstance) return;
     const tx = dbInstance.transaction([STORE_IMGS], "readwrite");
     const item = {
@@ -1186,20 +1185,35 @@
     el.errorBox.textContent = "";
   }
 
+  // [修复] 更稳定的新标签页打开图片方法
   function openImageInNewTab(src) {
     try {
-      window.open(src, "_blank", "noopener");
-    } catch {
-      // fallback
+      // 创建临时 A 标签模拟点击，兼容性更好
       const a = document.createElement("a");
       a.href = src;
       a.target = "_blank";
       a.rel = "noopener";
+      document.body.appendChild(a); // 必须插入文档才能在 Firefox 等浏览器生效
       a.click();
+      setTimeout(() => document.body.removeChild(a), 100);
+    } catch {
+      window.open(src, "_blank");
     }
   }
 
-  // ===== URL 管理（避免长时间占用内存）=====
+  // [改进] 复制文本到剪贴板
+  function copyText(text, btn) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      const original = btn.textContent;
+      btn.textContent = "已复制";
+      setTimeout(() => btn.textContent = original, 1500);
+    }).catch(() => {
+      showError("复制失败，请手动复制");
+    });
+  }
+
+  // ===== URL 管理 =====
   function registerUrl(card, url) {
     if (!card) return;
     if (!card._objectUrls) card._objectUrls = [];
@@ -1213,7 +1227,7 @@
     } catch {}
   }
 
-  // ===== refs 懒加载（展开时才生成缩略图）=====
+  // ===== refs 懒加载 =====
   function ensureRefsRendered(card, refs, targetEl) {
     if (!targetEl) return;
     if (targetEl.dataset.rendered === "1") return;
@@ -1254,13 +1268,12 @@
     if (expanded) ensureRefsRendered(card, refs, refsHolder);
   }
 
-  // ===== History 卡片（成品图点击：单独打开；Prompt/参考图默认折叠）=====
+  // ===== History 卡片 =====
   function renderHistoryItem(item, replaceElem) {
     const container = replaceElem || document.createElement("div");
     container.className = "hist-card";
     container.dataset.expanded = "0";
 
-    // 若复用旧卡片，先清理旧 URL
     cleanupCardUrls(container);
 
     const mainUrl = URL.createObjectURL(item.blob);
@@ -1279,8 +1292,9 @@
           <span class="meta-res">读取分辨率...</span>
         </div>
         <div class="actions-group">
+          <button class="link-btn" data-copy="1">复制Prompt</button>
           <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
-          <a href="${mainUrl}" target="_blank" rel="noopener" class="link-btn">打开</a>
+          <a class="link-btn" data-open="1">打开</a>
           <a href="${mainUrl}" download="img_${item.id || Date.now()}.png" class="link-btn">下载</a>
           <span class="del-btn" data-del="1">删除</span>
         </div>
@@ -1295,32 +1309,35 @@
       </div>
     `;
 
-    // 分辨率
     const img = container.querySelector("img.main-img");
     const resSpan = container.querySelector(".meta-res");
     const toggleBtn = container.querySelector('[data-toggle="1"]');
     const delBtn = container.querySelector('[data-del="1"]');
+    const copyBtn = container.querySelector('[data-copy="1"]');
+    const openBtn = container.querySelector('[data-open="1"]');
     const refsHolder = container.querySelector(".refs-holder");
 
     const updateRes = () => { resSpan.textContent = `${img.naturalWidth} × ${img.naturalHeight} px`; };
     if (img.complete) updateRes(); else img.onload = updateRes;
 
-    // ✅ 成品图点击：单独打开（不卡）
+    // [修复] 图片点击事件
     img.onclick = () => openImageInNewTab(mainUrl);
+    openBtn.onclick = () => openImageInNewTab(mainUrl);
 
-    // ✅ 默认折叠，点按钮展开
+    // [新增] 复制 Prompt
+    copyBtn.onclick = () => copyText(item.prompt, copyBtn);
+
     toggleBtn.onclick = () => {
       const expanded = container.dataset.expanded === "1";
       setCardExpanded(container, !expanded, toggleBtn, refs, refsHolder);
     };
 
-    // 删除
     delBtn.onclick = () => deleteItem(item.id, container);
 
     if (!replaceElem) el.historyList.appendChild(container);
   }
 
-  // ===== 任务卡（生成中/失败：也带折叠区；refs 懒加载）=====
+  // ===== 任务卡 =====
   function createTaskCard(rec, statusText, subText, showRetry) {
     const card = document.createElement("div");
     card.className = "hist-card";
@@ -1349,6 +1366,7 @@
           <span class="meta-res">${escapeHtml(showRetry ? "失败" : "进行中...")}</span>
         </div>
         <div class="actions-group">
+          <button class="link-btn" data-copy="1">复制Prompt</button>
           <button class="link-btn toggle-btn" data-toggle="1">查看Prompt/参考图</button>
           <span class="del-btn" data-cancel="2">删除任务</span>
         </div>
@@ -1366,6 +1384,10 @@
 
     const toggleBtn = card.querySelector('[data-toggle="1"]');
     const refsHolder = card.querySelector(".refs-holder");
+    const copyBtn = card.querySelector('[data-copy="1"]');
+
+    // [新增] 复制 Prompt (即使任务失败也能复制)
+    copyBtn.onclick = () => copyText(rec.prompt, copyBtn);
 
     toggleBtn.onclick = () => {
       const expanded = card.dataset.expanded === "1";
@@ -1511,7 +1533,7 @@
     if (modelId) applyResLimitByModel(modelId);
   }
 
-  // ===== 自动保存/恢复上次参数（按账号）=====
+  // ===== 自动保存/恢复上次参数 =====
   const LS_SETTINGS_PREFIX = "ai_art_last_settings_v4_";
   function getSettingsKey() { return currentUser ? (LS_SETTINGS_PREFIX + currentUser) : null; }
   function safeJsonParse(raw, fallback) { try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; } }
@@ -1579,11 +1601,17 @@
   el.fileInput.onchange = async () => {
     clearError();
     const files = Array.from(el.fileInput.files);
-    if (!files.length) return;
+    // [修复] 即使没选文件也要重置 input，否则下次选同名文件不触发
+    if (!files.length) { el.fileInput.value = ""; return; }
 
     for (const f of files) {
-      const url = URL.createObjectURL(f);
-      refImages.push({ mime: f.type || "image/png", blob: f, url });
+      // [修复] 增加安全性检查
+      try {
+        const url = URL.createObjectURL(f);
+        refImages.push({ mime: f.type || "image/png", blob: f, url });
+      } catch (e) {
+        showError("部分图片加载失败，请重试");
+      }
     }
     renderRefGrid();
     el.fileInput.value = "";
@@ -1601,6 +1629,7 @@
       im.src = img.url;
       im.alt = "ref";
       im.title = "点击单独打开";
+      // [修复] 统一使用安全的打开方式
       im.onclick = () => openImageInNewTab(img.url);
 
       const del = document.createElement("div");
@@ -1650,8 +1679,10 @@
     for(let i=0; i<binary.length; i++) array[i] = binary.charCodeAt(i);
     return new Blob([array], {type: mimeType || "image/png"});
   }
+  // [修复] 增加对转换过程的错误捕获，防止崩坏
   function blobToBase64Data(blob) {
     return new Promise((resolve, reject) => {
+      if (!blob) return reject(new Error("无效的图片数据"));
       const reader = new FileReader();
       reader.onload = () => {
         try {
@@ -1660,7 +1691,7 @@
           resolve(b64);
         } catch (e) { reject(e); }
       };
-      reader.onerror = () => reject(reader.error);
+      reader.onerror = () => reject(reader.error || new Error("读取文件失败"));
       reader.readAsDataURL(blob);
     });
   }
@@ -1718,37 +1749,42 @@
     if (cancelBtn1) cancelBtn1.onclick = () => cancelOneTask(rec.taskId, card);
     if (cancelBtn2) cancelBtn2.onclick = () => cancelOneTask(rec.taskId, card);
 
-    const parts = [{ text: rec.prompt }];
-    const refs = Array.isArray(rec.refs) ? rec.refs : [];
-    for (const r of refs) {
-      const b64 = await blobToBase64Data(r.blob);
-      parts.push({ inlineData: { mimeType: r.mime, data: b64 } });
-    }
-
-    const finalUrl = `${BASE_URL}${rec.modelId}:generateContent`;
-    const payload = {
-      contents: [{ parts }],
-      generationConfig: {
-        responseModalities: ["IMAGE"],
-        candidateCount: 1,
-        imageConfig: { aspectRatio: rec.ratio, imageSize: rec.res }
-      }
-    };
-
-    const fetchOnce = async (useKeepAlive) => {
-      return fetch(finalUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": "Bearer " + USERS_DB[currentUser].key
-        },
-        signal: controller.signal,
-        keepalive: !!useKeepAlive,
-        body: JSON.stringify(payload)
-      });
-    };
-
     try {
+        // [修复] 构建请求体时增加 try-catch，捕获图片转换错误
+        const parts = [{ text: rec.prompt }];
+        const refs = Array.isArray(rec.refs) ? rec.refs : [];
+        for (const r of refs) {
+            try {
+                const b64 = await blobToBase64Data(r.blob);
+                parts.push({ inlineData: { mimeType: r.mime, data: b64 } });
+            } catch (err) {
+                throw new Error("处理参考图失败，可能是图片损坏或太大。");
+            }
+        }
+
+        const finalUrl = `${BASE_URL}${rec.modelId}:generateContent`;
+        const payload = {
+        contents: [{ parts }],
+        generationConfig: {
+            responseModalities: ["IMAGE"],
+            candidateCount: 1,
+            imageConfig: { aspectRatio: rec.ratio, imageSize: rec.res }
+        }
+        };
+
+        const fetchOnce = async (useKeepAlive) => {
+        return fetch(finalUrl, {
+            method: "POST",
+            headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + USERS_DB[currentUser].key
+            },
+            signal: controller.signal,
+            keepalive: !!useKeepAlive,
+            body: JSON.stringify(payload)
+        });
+        };
+
       let resp;
       try { resp = await fetchOnce(refs.length === 0); }
       catch { resp = await fetchOnce(false); }
@@ -1782,7 +1818,7 @@
       const meta = `${rec.modelName} · ${rec.ratio} · ${rec.res}`;
       const dateStr = new Date().toLocaleString();
 
-      // 替换为历史卡（默认折叠）
+      // 替换为历史卡
       const item = {
         id: Date.now(),
         blob,
@@ -1793,10 +1829,7 @@
       };
       renderHistoryItem(item, card);
 
-      // 保存历史（含 prompt + refs）
       saveToDB(blob, { meta, prompt: rec.prompt, refs: rec.refs || [], date: dateStr });
-
-      // 删除任务记录
       await delTask(rec.taskId).catch(()=>{});
 
     } catch (e) {
@@ -1805,7 +1838,6 @@
       } else {
         const msg = (e && e.message) ? e.message : String(e);
 
-        // 失败卡：可重试 + 折叠区
         cleanupCardUrls(card);
         const failCard = createTaskCard(rec, "任务失败（已保留，可自动恢复）", msg, true);
         card.replaceWith(failCard);
@@ -1847,16 +1879,13 @@
     const modelId = getSelectedModelId();
     if (!modelId) return showError("请选择或输入有效的模型ID。");
 
-    if (isFlashModel(modelId) && refImages.length > 3) {
-      showError("提示：当前模型像 Flash 类型，参考图过多/高分辨率可能不稳定。已继续提交任务。");
-      setTimeout(clearError, 1600);
-    }
+    // [修复] 复制引用数组，防止后续删除影响进行中的任务
+    const refsSnap = refImages.map(x => ({ mime: x.mime, blob: x.blob }));
 
     const ratioSnap = el.ratio.value;
     const resSnap = el.res.value;
     const modelNameSnap = getSelectedModelName(modelId);
-    const refsSnap = refImages.map(x => ({ mime: x.mime, blob: x.blob }));
-
+    
     const taskId = Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
     const taskRecord = {
       taskId,
@@ -1880,9 +1909,7 @@
     );
     el.historyList.prepend(card);
 
-    // ✅ 生成后清空 prompt
     el.prompt.value = "";
-
     runTaskFromRecord(taskRecord, card).catch(()=>{});
   }
   el.gen.onclick = startNewTask;
