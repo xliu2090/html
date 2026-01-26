@@ -1195,7 +1195,7 @@
     <!-- 筛选标签 -->
     <div class="filter-tabs">
       <button class="tab-btn active" data-filter="all">全部</button>
-      <button class="tab-btn" data-filter="fav">只看收藏 </button>
+      <button class="tab-btn" data-filter="fav">只看收藏 ❤️</button>
     </div>
 
     <div id="historyList"></div>
@@ -1407,7 +1407,6 @@
       
       // 恢复模型选择
       if (params.model) {
-        // 检查模型是否在列表中，不在则可能是自定义未添加，或者是临时使用的 __custom__
         const exists = Array.from(el.model.options).some(o => o.value === params.model);
         if (exists) {
           el.model.value = params.model;
@@ -1531,8 +1530,7 @@
     // 底部信息
     el.lbMeta.textContent = `${item.parentMeta} · ${item.date}`;
 
-    // 设置图片 (每次创建 URL，真实场景可缓存，这里简单处理)
-    // 之前的 URL 可能需要 revoke，但为了简单，依赖浏览器回收
+    // 设置图片
     const src = URL.createObjectURL(item.blob);
     el.lbImg.src = src;
     
@@ -1684,13 +1682,13 @@
       const img = document.createElement("img");
       img.src = u;
       img.style.cssText = "width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;";
-      img.onclick = () => openImageNewTab(u); // 缩略图还是在新标签页打开，或可改为 Lightbox
+      img.onclick = () => openImageNewTab(u); 
       grid.appendChild(img);
     });
   }
 
   /* =========================================
-     7. 绘图任务逻辑
+     7. 绘图任务逻辑 (升级：生成中可查看/复制 Prompt)
      ========================================= */
   async function startTask() {
     if (!currentUser) return;
@@ -1699,7 +1697,6 @@
     const prompt = el.prompt.value.trim();
     if (!prompt) return showError("请输入提示词");
     
-    // 保存当前参数到本地
     saveParams();
 
     const taskId = Date.now().toString() + "_" + Math.random().toString(36).substr(2);
@@ -1711,17 +1708,66 @@
       refs: refImages.map(r => ({ mime: r.mime, blob: r.blob }))
     };
 
+    // 创建生成中的卡片 (完整结构)
     const card = document.createElement("div");
     card.className = "hist-card";
+    // 默认折叠
+    card.dataset.expanded = "0";
+
     card.innerHTML = `
-      <div class="loading-placeholder">
+      <!-- 图片区域占位 -->
+      <div class="loading-placeholder" style="min-height:220px; background:#F8FAFC; display:flex; flex-direction:column; align-items:center; justify-content:center;">
         <div class="spinner"></div>
-        <div style="margin-top:10px">正在生成...</div>
-        <div style="font-size:12px; margin-top:5px;">${escapeHtml(task.modelId)}</div>
-        <button class="del-btn" style="margin-top:15px; width:auto;">取消</button>
+        <div style="margin-top:14px; font-weight:700; color:var(--brand);">正在生成...</div>
+        <div style="font-size:12px; margin-top:4px; color:var(--muted);">${escapeHtml(task.modelId)}</div>
+      </div>
+      
+      <!-- 信息栏 -->
+      <div class="hist-meta">
+        <div class="meta-info">
+          <span class="meta-title">任务进行中</span>
+          <span class="meta-res">${task.ratio}</span>
+        </div>
+        <div class="actions-group">
+          <button class="copy-mini-btn">复制Prompt</button>
+          <button class="link-btn toggle-btn">查看Prompt</button>
+          <button class="del-btn">取消</button>
+        </div>
+      </div>
+      
+      <!-- 详情栏 (隐藏) -->
+      <div class="hist-details">
+        <div class="prompt-label">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>Prompt</span>
+            <button class="copy-mini-btn" data-copy-detail="1">复制Prompt</button>
+          </div>
+          <span style="font-weight:800; color:var(--muted);">Now</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(task.prompt)}</p>
+        <div class="ref-mini-grid"></div>
       </div>
     `;
+
+    // 绑定生成中卡片的事件
     const cancelBtn = card.querySelector(".del-btn");
+    const toggleBtn = card.querySelector(".toggle-btn");
+    const copyBtns = card.querySelectorAll(".copy-mini-btn");
+    
+    // 展开/折叠
+    toggleBtn.onclick = () => {
+      const isEx = card.dataset.expanded === "1";
+      card.dataset.expanded = isEx ? "0" : "1";
+      toggleBtn.textContent = isEx ? "查看Prompt" : "收起";
+      // 展开时渲染参考图
+      if (!isEx && task.refs && task.refs.length) renderRefMinis(card, task.refs);
+    };
+
+    // 复制 Prompt
+    copyBtns.forEach(btn => {
+      btn.onclick = () => copyText(task.prompt, btn);
+    });
+
     el.historyList.prepend(card);
     
     const controller = new AbortController();
@@ -1776,20 +1822,28 @@
         isFavorite: false
       };
 
+      // 任务成功，保存并替换卡片
       saveToDB(blob, item);
-      loadHistory(); // 刷新
-
+      loadHistory(); // 刷新列表
       el.prompt.value = "";
 
     } catch (e) {
       if (e.name === 'AbortError') return;
-      card.innerHTML = `
-        <div class="loading-placeholder" style="color:var(--danger); border-color:var(--danger)">
-          <div>生成失败</div>
+      // 错误状态也保留卡片结构，替换占位符区域
+      card.querySelector(".loading-placeholder").innerHTML = `
+        <div style="color:var(--danger); text-align:center;">
+          <div style="font-weight:bold; margin-bottom:6px;">生成失败</div>
           <div style="font-size:12px;">${escapeHtml(e.message)}</div>
-          <button class="del-btn" style="margin-top:15px; width:auto;" onclick="this.parentElement.parentElement.remove()">关闭</button>
         </div>
       `;
+      // 移除 spinner，显示关闭按钮
+      const closeBtn = document.createElement("button");
+      closeBtn.className = "del-btn";
+      closeBtn.style.marginTop = "15px";
+      closeBtn.style.width = "auto";
+      closeBtn.textContent = "关闭";
+      closeBtn.onclick = () => card.remove();
+      card.querySelector(".loading-placeholder").appendChild(closeBtn);
     } finally {
       if (tasks.has(taskId)) {
         tasks.delete(taskId);
@@ -1851,7 +1905,7 @@
     initModels();
     el.model.value = id;
     el.customPanel.style.display = "none";
-    saveParams(); // 保存更改
+    saveParams(); 
   };
   
   el.btnUseTempModel.onclick = () => {
