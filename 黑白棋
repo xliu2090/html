@@ -73,9 +73,9 @@ var lastThinkKey = "";
 // ✅ 修复：记录上次“有效计算”的时间戳，用于 IDLE 超时强制重算（防卡死）
 var LAST_THINK_TS = 0;
 
-// ===== PASS 弹窗保护 =====
-var PASS_POPUP_GUARD_MS = 2200;   // 弹窗遮挡 1~2s，取 2.2s 更稳
-var SUSPEND_SCAN_UNTIL = 0;       // 在此时间戳之前：扫描线程不更新 stable，AI 线程也不点击
+// ===== PASS 保护：仅接受“预期棋盘”以规避弹窗遮挡 =====
+var PASS_EXPECT_AIKEY = "";       // boardKeyAI(对手 PASS 后预期棋盘)
+var PASS_EXPECT_UNTIL = 0;        // 预期有效期（时间戳）
 
 // ===== 落子确认期：只接受“预期落子后棋盘” =====
 var APPLY_EXPECT_AIKEY = "";      // boardKeyAI(预期棋盘)
@@ -536,12 +536,6 @@ function updateTurnByDelta(prev, curr, prevTurn) {
 threads.start(function () {
   while (true) {
 
-    // PASS 弹窗期间：不扫描、不更新 stable，避免弹窗污染棋盘
-    if (SUSPEND_SCAN_UNTIL && nowMs() < SUSPEND_SCAN_UNTIL) {
-      sleep(SCAN_INTERVAL_MS);
-      continue;
-    }
-
     var img = null;
     try {
       img = captureScreen();
@@ -555,14 +549,34 @@ threads.start(function () {
 
       if (sameKeyCount >= STABLE_FRAMES) {
 
-        // ✅ 落子确认期：只接受“预期棋盘”，避免 PASS 弹窗/遮挡导致 stable 被污染
+        // ✅ 只接受“预期棋盘”：避免落子确认期或 PASS 弹窗遮挡污染 stable
         var stableBoard = null;
+        if (PASS_EXPECT_AIKEY && nowMs() >= PASS_EXPECT_UNTIL) {
+          PASS_EXPECT_AIKEY = "";
+          PASS_EXPECT_UNTIL = 0;
+        }
+
+        var expectedKey = "";
+        var expectedKind = "";
         if (APPLY_EXPECT_AIKEY && nowMs() < APPLY_EXPECT_UNTIL) {
+          expectedKey = APPLY_EXPECT_AIKEY;
+          expectedKind = "apply";
+        } else if (PASS_EXPECT_AIKEY && nowMs() < PASS_EXPECT_UNTIL) {
+          expectedKey = PASS_EXPECT_AIKEY;
+          expectedKind = "pass";
+        }
+
+        if (expectedKey) {
           var tmp = mapRawToAI(raw);
-          if (boardKeyAI(tmp) === APPLY_EXPECT_AIKEY) {
+          if (boardKeyAI(tmp) === expectedKey) {
             stableBoard = tmp;
-            APPLY_EXPECT_AIKEY = "";
-            APPLY_EXPECT_UNTIL = 0;
+            if (expectedKind === "apply") {
+              APPLY_EXPECT_AIKEY = "";
+              APPLY_EXPECT_UNTIL = 0;
+            } else {
+              PASS_EXPECT_AIKEY = "";
+              PASS_EXPECT_UNTIL = 0;
+            }
           } else {
             stableBoard = null; // 非预期稳定帧：忽略
           }
@@ -654,14 +668,6 @@ threads.start(function () {
   while (true) {
     if (!running) { sleep(200); continue; }
     if (!latestStableBoard) { sleep(200); continue; }
-
-    // PASS 弹窗期间：不思考不点击（避免点到弹窗/识别被遮挡）
-    if (SUSPEND_SCAN_UNTIL && nowMs() < SUSPEND_SCAN_UNTIL) {
-      var remain = SUSPEND_SCAN_UNTIL - nowMs();
-      setActivity("PASS", "PASS 弹窗期：暂停识别/点击 " + remain + "ms", "#FBBF24");
-      sleep(Math.min(200, Math.max(0, remain)));
-      continue;
-    }
 
     var board = latestStableBoard;
     var keyAtStart = latestStableKey;
@@ -857,7 +863,7 @@ threads.start(function () {
     APPLY_FAIL_KEY = "";
     APPLY_FAIL_COUNT = 0;
 
-    // ✅ 落子确认后：如果对手 PASS，直接轮到我方，并暂停扫描躲弹窗
+    // ✅ 落子确认后：如果对手 PASS，直接轮到我方，并基于“计算棋盘”立即思考
     var afterBoardConfirm = latestStableBoard;
     var didOppPass = false;
 
@@ -878,10 +884,20 @@ threads.start(function () {
         // PASS 后棋盘不变，允许 AI 立刻重新算下一手
         lastThinkKey = "";
 
-        // 暂停扫描/点击，绕开 PASS 弹窗遮挡
-        SUSPEND_SCAN_UNTIL = nowMs() + PASS_POPUP_GUARD_MS;
+        // 预测 PASS：弹窗遮挡期间不再依赖扫描，而是直接使用“计算棋盘”
+        if (predictedOppPass) {
+          latestStableBoard = expectedBoardAfter;
+          latestStableKey = "AI:" + expectedAIKeyAfter;
+          TURN_BOARD = cloneBoard(expectedBoardAfter);
+          TURN_KEY = latestStableKey;
+          PASS_STABLE_COUNT = 0;
+        }
 
-        lastStatusLine = "对手 PASS（" + (predictedOppPass ? "已预判" : "确认后判断") + "）：暂停识别 " + PASS_POPUP_GUARD_MS + "ms，随后继续我方";
+        // 弹窗期间仅接受“预期棋盘”，避免遮挡导致误识别；有效期按思考预算动态设置
+        PASS_EXPECT_AIKEY = expectedAIKeyAfter;
+        PASS_EXPECT_UNTIL = nowMs() + Math.max(800, THINK_BUDGET_MS + 200);
+
+        lastStatusLine = "对手 PASS（" + (predictedOppPass ? "已预判" : "确认后判断") + "）：已切到计算棋盘，直接继续我方思考";
 
         // 尽量立即刷新“轮到”文本（因为扫描暂停了）
         safeUi(function () {
@@ -893,7 +909,7 @@ threads.start(function () {
           }
         });
 
-        setActivity("PASS", "对手 PASS：跳过识别/点击约 " + PASS_POPUP_GUARD_MS + "ms，弹窗消失后继续我方下一步", "#FBBF24");
+        setActivity("PASS", "对手 PASS：使用计算棋盘直接思考（弹窗遮挡期间仅接受预期棋盘）", "#FBBF24");
       }
     }
 
