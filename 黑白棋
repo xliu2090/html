@@ -1,0 +1,1525 @@
+auto.waitFor();
+console.show();
+
+// ================= [配置区] =================
+var BOARD_AREA = { x1: 152, y1: 889, x2: 926, y2: 1676 };
+var SCAN_INTERVAL_MS = 210;
+var STABLE_FRAMES = 2;
+
+if (!requestScreenCapture()) {
+  toast("请求截图失败");
+  exit();
+}
+
+// ================= [全局变量] =================
+var MY_COLOR = "X";
+
+var THINK_BUDGET_MS = 450;
+var MAX_SEARCH_DEPTH = 6;
+var ENDGAME_SOLVE_EMPTY = 12;
+
+var running = false;
+var AUTO_PLAY = true;
+
+// 折叠棋盘（隐藏 paramPanel + boardTxt）
+var COMPACT_MODE = false;
+// 折叠全部（仅保留顶部按钮 + 轮次行 + 活动PILL）
+var FOLD_ALL = false;
+
+var GRID_SIZE = (BOARD_AREA.x2 - BOARD_AREA.x1) / 8;
+var HALF_GRID = GRID_SIZE / 2;
+
+var CLICK_JITTER = Math.min(22, Math.floor(HALF_GRID * 0.35));
+var PRESS_MIN = 60, PRESS_MAX = 140;
+
+var EARLY_PLIES = 10;
+var EARLY_DELAY_MIN = 50, EARLY_DELAY_MAX = 200;
+var NORMAL_DELAY_MIN = 50, NORMAL_DELAY_MAX = 300;
+
+var WAIT_APPLY_TIMEOUT_MS = 3500;
+var WAIT_APPLY_POLL_MS = 80;
+
+var BOARD_TEXT_SIZE = 16;
+var BOARD_TEXT_MIN = 12;
+var BOARD_TEXT_MAX = 28;
+
+var latestStableBoard = null;
+var latestStableKey = "";
+var lastScanKey = "";
+var sameKeyCount = 0;
+
+var lastSuggested = null;
+var lastEval = 0;
+var lastDepthUsed = 0;
+var lastNodes = 0;
+var lastThinkMs = 0;
+
+var lastPredMargin = 0;
+var lastPredNote = "";
+
+var lastStatusLine = "就绪";
+
+var activityCode = "READY";
+var activityText = "就绪：等待识别稳定棋盘";
+
+var TURN = null;
+var TURN_RELIABLE = false;
+var TURN_KEY = "";
+var TURN_BOARD = null;
+var PASS_STABLE_COUNT = 0;
+
+var lastThinkKey = "";
+
+// ✅ 修复：记录上次“有效计算”的时间戳，用于 IDLE 超时强制重算（防卡死）
+var LAST_THINK_TS = 0;
+
+// ===== PASS 弹窗保护 =====
+var PASS_POPUP_GUARD_MS = 2200;   // 弹窗遮挡 1~2s，取 2.2s 更稳
+var SUSPEND_SCAN_UNTIL = 0;       // 在此时间戳之前：扫描线程不更新 stable，AI 线程也不点击
+
+// ===== 落子确认期：只接受“预期落子后棋盘” =====
+var APPLY_EXPECT_AIKEY = "";      // boardKeyAI(预期棋盘)
+var APPLY_EXPECT_UNTIL = 0;       // 预期有效期（时间戳）
+function nowMs(){ return new Date().getTime(); }
+
+// ===== 修复：落子未确认重试保护（避免卡 IDLE）=====
+var APPLY_FAIL_KEY = "";
+var APPLY_FAIL_COUNT = 0;
+var APPLY_FAIL_MAX = 2;            // 同一局面最多重试2次
+var APPLY_FAIL_COOLDOWN_MS = 650;  // 失败后冷却再试
+
+// ================= [工具：安全 ui.run] =================
+function safeUi(fn) {
+  try { ui.run(fn); } catch (e) {}
+}
+
+// ================= [工具：点击抖动] =================
+function jitter2D(maxR) {
+  var ang = Math.random() * Math.PI * 2;
+  var r = Math.sqrt(Math.random()) * maxR;
+  return { dx: Math.round(Math.cos(ang) * r), dy: Math.round(Math.sin(ang) * r) };
+}
+
+// ================= [工具：等待稳定棋盘key变化（支持“必须匹配预期棋盘”）] =================
+function waitStableKeyChange(oldKey, timeoutMs, expectedAIKey) {
+  var deadline = nowMs() + timeoutMs;
+  while (nowMs() < deadline) {
+    if (latestStableKey && latestStableKey !== oldKey) {
+      if (!expectedAIKey) return true;
+      if (latestStableBoard && boardKeyAI(latestStableBoard) === expectedAIKey) return true;
+    }
+    sleep(WAIT_APPLY_POLL_MS);
+  }
+  return false;
+}
+
+// ================= [悬浮窗 UI（按钮缩小 + 保留PILL）] =================
+var win = floaty.rawWindow(
+  <frame>  
+    <card cardCornerRadius="14dp" cardBackgroundColor="#CC0B0F14" padding="10dp">  
+      <vertical>  {/* ====== 第一行：运行 / 自动 / AI + 活动PILL ====== */}  
+        <horizontal id="topBar" gravity="center_vertical">  
+          <button id="btnRun"  text="▶ 运行"  textSize="12sp" h="42" w="0" layout_weight="1"/>  
+          <button id="btnAuto" text="自动:开" textSize="11sp" h="42" w="0" layout_weight="1" marginLeft="8"/>  
+          <button id="btnColor" text="AI:黑"  textSize="11sp" h="42" w="0" layout_weight="1" marginLeft="8"/>  
+          <text id="pill" text="READY" textColor="#0B0F14" textSize="10sp" padding="8 4"  
+                gravity="center" marginLeft="10"/>  
+        </horizontal>  
+
+        {/* ====== 第二行：轮次校准 + 轮到文本（拖动/双击展开） ====== */}  
+        <horizontal id="turnBar" gravity="center_vertical" marginTop="10">  
+          <button id="btnTurnX" text="轮到黑" textSize="11sp" h="38" w="0" layout_weight="1"/>  
+          <button id="btnTurnO" text="轮到白" textSize="11sp" h="38" w="0" layout_weight="1" marginLeft="8"/>  
+          <text id="turnText" text="轮到: ?" textColor="#9CA3AF" textSize="12sp"  
+                w="0" layout_weight="2" gravity="center_vertical|left" marginLeft="10"/>  
+        </horizontal>  
+
+        {/* ====== 工具行：折叠棋盘 / 折叠全部 / 退出（折叠全部时隐藏） ====== */}  
+        <horizontal id="utilRow" gravity="center_vertical" marginTop="10">  
+          <button id="btnCompact" text="折叠棋盘" textSize="11sp" h="38" w="0" layout_weight="1"/>  
+          <button id="btnFoldAll" text="折叠全部" textSize="11sp" h="38" w="0" layout_weight="1" marginLeft="8"/>  
+          <button id="btnQuit" text="退出" textSize="11sp" h="38" w="0" layout_weight="1" marginLeft="8"/>  
+          <text id="turnRel" text="未锁定" textColor="#9CA3AF" textSize="10sp" marginLeft="10"/>  
+        </horizontal>  
+
+        {/* ====== 展开内容区（折叠全部时隐藏） ====== */}  
+        <vertical id="expandPanel" marginTop="10">  
+          <text id="activity" text="就绪：等待识别稳定棋盘" textColor="#E5E7EB" textSize="11sp"/>  
+
+          {/* 参数区（折叠棋盘时隐藏） */}  
+          <vertical id="paramPanel" marginTop="10">  
+            <horizontal gravity="center_vertical">  
+              <text text="思考" textColor="#E5E7EB" textSize="10sp" w="32"/>  
+              <button id="thinkMinus" text="-" textSize="12sp" w="34" h="34"/>  
+              <text id="thinkMs" text="450" textColor="#FBBF24" textSize="10sp" w="52" gravity="center" />  
+              <button id="thinkPlus" text="+" textSize="12sp" w="34" h="34"/>  
+
+              <text text="深度" textColor="#E5E7EB" textSize="10sp" w="32" marginLeft="10"/>  
+              <button id="depthMinus" text="-" textSize="12sp" w="34" h="34"/>  
+              <text id="depthMax" text="6" textColor="#FBBF24" textSize="10sp" w="32" gravity="center" />  
+              <button id="depthPlus" text="+" textSize="12sp" w="34" h="34"/>  
+            </horizontal>  
+
+            <horizontal gravity="center_vertical" marginTop="8">  
+              <text text="字号" textColor="#E5E7EB" textSize="10sp" w="32"/>  
+              <button id="sizeMinus" text="－" textSize="12sp" w="36" h="34"/>  
+              <text id="sizeVal" text="16" textColor="#FBBF24" textSize="10sp" w="36" gravity="center"/>  
+              <button id="sizePlus" text="＋" textSize="12sp" w="36" h="34"/>  
+              <button id="sizeReset" text="重置" textSize="10sp" w="52" h="34" marginLeft="8"/>  
+              <text id="delayRange" text="延迟：开局50-200 / 常规50-300"  
+                    textColor="#9CA3AF" textSize="10sp" w="0" layout_weight="1" marginLeft="8"/>  
+            </horizontal>  
+          </vertical>  
+
+          {/* 信息区 */}  
+          <vertical id="infoPanel" marginTop="10">  
+            <text id="info" text="等待识别..." textColor="#E5E7EB" textSize="11sp"/>  
+            <text id="suggest" text="建议: 无 | 评估: 0" textColor="#FBBF24" textSize="12sp" textStyle="bold" marginTop="3"/>  
+            <text id="forecast" text="" textColor="#A7F3D0" textSize="11sp" marginTop="3"/>  
+            <text id="stats" text="" textColor="#9CA3AF" textSize="10sp" marginTop="3"/>  
+          </vertical>  
+
+          {/* ASCII 棋盘本体（折叠棋盘时隐藏） */}  
+          <text id="boardTxt" text="" textColor="#E5E7EB" typeface="monospace" textSize="16sp"  
+                gravity="center" marginTop="10"/>  
+
+          <text id="status" text="初始化完毕" textColor="#9CA3AF" textSize="10sp" marginTop="10"/>  
+        </vertical>  
+
+      </vertical>  
+    </card>
+  </frame>  
+);
+win.setPosition(60, 180);
+
+// ================= [PILL / 活动] =================
+function setPill(text, bg) {
+  safeUi(function () {
+    win.pill.setText(text);
+    win.pill.setBackgroundColor(colors.parseColor(bg));
+  });
+}
+
+function setActivity(code, text, pillBg) {
+  activityCode = code;
+  activityText = text;
+  setPill(code, pillBg);
+  if (!FOLD_ALL) safeUi(function () { win.activity.setText(text); });
+}
+
+// ================= [UI刷新] =================
+function updateThinkUI() {
+  safeUi(function () {
+    win.thinkMs.setText(String(THINK_BUDGET_MS));
+    win.depthMax.setText(String(MAX_SEARCH_DEPTH));
+  });
+}
+function updateColorUI() {
+  safeUi(function () { win.btnColor.setText(MY_COLOR === "X" ? "AI:黑" : "AI:白"); });
+}
+function updateAutoUI() {
+  safeUi(function () { win.btnAuto.setText(AUTO_PLAY ? "自动:开" : "自动:关"); });
+}
+function updateTurnReliableUI() {
+  safeUi(function () {
+    win.turnRel.setText(TURN_RELIABLE ? "已锁定" : "未锁定");
+    win.turnRel.setTextColor(colors.parseColor(TURN_RELIABLE ? "#34D399" : "#9CA3AF"));
+  });
+}
+function applyBoardTextSize() {
+  safeUi(function () {
+    win.boardTxt.setTextSize(BOARD_TEXT_SIZE);
+    win.sizeVal.setText(String(BOARD_TEXT_SIZE));
+  });
+}
+function setRunning(state) {
+  running = state;
+  safeUi(function () { win.btnRun.setText(running ? "⏸ 暂停" : "▶ 运行"); });
+}
+
+// 折叠棋盘：隐藏参数 + 棋盘本体
+function applyCompactState() {
+  safeUi(function () {
+    win.paramPanel.setVisibility(COMPACT_MODE ? 8 : 0);
+    win.boardTxt.setVisibility(COMPACT_MODE ? 8 : 0);
+    win.btnCompact.setText(COMPACT_MODE ? "展开棋盘" : "折叠棋盘");
+  });
+}
+
+// 折叠全部：只保留 topBar + turnBar（并保留PILL）
+function applyFoldAllState() {
+  safeUi(function () {
+    win.utilRow.setVisibility(FOLD_ALL ? 8 : 0);
+    win.expandPanel.setVisibility(FOLD_ALL ? 8 : 0);
+  });
+  if (FOLD_ALL) toast("已折叠全部：双击“轮到:”可展开");
+}
+
+// ================= [交互：按钮] =================
+win.btnRun.click(function () {
+  setRunning(!running);
+  lastThinkKey = "";
+  if (running) setActivity("RUN", "运行中：等待轮到我方/或持续给建议", "#34D399");
+  else setActivity("PAUSE", "已暂停：不会思考/不会点击", "#FBBF24");
+  lastStatusLine = running ? "AI：运行中" : "AI：已暂停";
+});
+
+win.btnAuto.click(function () {
+  AUTO_PLAY = !AUTO_PLAY;
+  lastThinkKey = "";
+  updateAutoUI();
+  setActivity("AUTO", AUTO_PLAY ? "自动落子：开启（将会自动点击落子）" : "自动落子：关闭（只给建议）", AUTO_PLAY ? "#34D399" : "#FBBF24");
+});
+
+win.btnColor.click(function () {
+  MY_COLOR = (MY_COLOR === "X") ? "O" : "X";
+  lastThinkKey = "";
+  updateColorUI();
+  setActivity("SIDE", "切换阵营：AI 现在执 " + (MY_COLOR === "X" ? "黑" : "白"), "#60A5FA");
+});
+
+// 轮次校准
+win.btnTurnX.click(function () {
+  TURN = "X"; TURN_RELIABLE = true;
+  TURN_KEY = latestStableKey || TURN_KEY;
+  TURN_BOARD = latestStableBoard ? cloneBoard(latestStableBoard) : TURN_BOARD;
+  PASS_STABLE_COUNT = 0;
+  lastThinkKey = "";
+  updateTurnReliableUI();
+  setActivity("LOCK", "轮次已校准：轮到黑方", "#34D399");
+});
+win.btnTurnO.click(function () {
+  TURN = "O"; TURN_RELIABLE = true;
+  TURN_KEY = latestStableKey || TURN_KEY;
+  TURN_BOARD = latestStableBoard ? cloneBoard(latestStableBoard) : TURN_BOARD;
+  PASS_STABLE_COUNT = 0;
+  lastThinkKey = "";
+  updateTurnReliableUI();
+  setActivity("LOCK", "轮次已校准：轮到白方", "#34D399");
+});
+
+// 折叠棋盘
+win.btnCompact.click(function () {
+  COMPACT_MODE = !COMPACT_MODE;
+  applyCompactState();
+  lastThinkKey = "";
+  setActivity("UI", COMPACT_MODE ? "已折叠棋盘：隐藏棋盘本体与参数" : "已展开棋盘：显示棋盘本体与参数", "#67E8F9");
+});
+
+// 折叠全部
+win.btnFoldAll.click(function () {
+  FOLD_ALL = !FOLD_ALL;
+  applyFoldAllState();
+  setActivity("UI", FOLD_ALL ? "折叠全部：仅保留核心按钮" : "已展开：显示完整信息", "#67E8F9");
+});
+
+// 退出
+win.btnQuit.click(function () { toast("AI 退出"); exit(); });
+
+// ✅ 参数加减：改值 + UI刷新 + 清空 lastThinkKey
+win.thinkMinus.click(function () {
+  THINK_BUDGET_MS = Math.max(150, THINK_BUDGET_MS - 50);
+  lastThinkKey = "";
+  updateThinkUI();
+  setActivity("SET", "思考预算已调整：" + THINK_BUDGET_MS + "ms", "#FBBF24");
+});
+win.thinkPlus.click(function () {
+  THINK_BUDGET_MS = Math.min(2000, THINK_BUDGET_MS + 50);
+  lastThinkKey = "";
+  updateThinkUI();
+  setActivity("SET", "思考预算已调整：" + THINK_BUDGET_MS + "ms", "#FBBF24");
+});
+win.depthMinus.click(function () {
+  MAX_SEARCH_DEPTH = Math.max(2, MAX_SEARCH_DEPTH - 1);
+  lastThinkKey = "";
+  updateThinkUI();
+  setActivity("SET", "最大深度已调整：" + MAX_SEARCH_DEPTH, "#FBBF24");
+});
+win.depthPlus.click(function () {
+  MAX_SEARCH_DEPTH = Math.min(10, MAX_SEARCH_DEPTH + 1);
+  lastThinkKey = "";
+  updateThinkUI();
+  setActivity("SET", "最大深度已调整：" + MAX_SEARCH_DEPTH, "#FBBF24");
+});
+win.sizeMinus.click(function () {
+  BOARD_TEXT_SIZE = Math.max(BOARD_TEXT_MIN, BOARD_TEXT_SIZE - 1);
+  applyBoardTextSize();
+  setActivity("SIZE", "棋盘字号：" + BOARD_TEXT_SIZE, "#FBBF24");
+});
+win.sizePlus.click(function () {
+  BOARD_TEXT_SIZE = Math.min(BOARD_TEXT_MAX, BOARD_TEXT_SIZE + 1);
+  applyBoardTextSize();
+  setActivity("SIZE", "棋盘字号：" + BOARD_TEXT_SIZE, "#FBBF24");
+});
+win.sizeReset.click(function () {
+  BOARD_TEXT_SIZE = 16;
+  applyBoardTextSize();
+  setActivity("SIZE", "棋盘字号：已重置为 16", "#FBBF24");
+});
+
+// ================= [拖动 + 双击展开（绑定 turnText）] =================
+(function enableDragAndDoubleTap() {
+  var x = 0, y = 0, wx = 0, wy = 0;
+  var moved = false;
+  var lastTap = 0;
+  var DOUBLE_MS = 350;
+
+  win.turnText.setOnTouchListener(function (view, event) {
+    switch (event.getAction()) {
+      case event.ACTION_DOWN:
+        x = event.getRawX(); y = event.getRawY();
+        wx = win.getX(); wy = win.getY();
+        moved = false;
+        return true;
+      case event.ACTION_MOVE:
+        win.setPosition(wx + (event.getRawX() - x), wy + (event.getRawY() - y));
+        if (Math.abs(event.getRawX() - x) > 6 || Math.abs(event.getRawY() - y) > 6) moved = true;
+        return true;
+      case event.ACTION_UP:
+        if (!moved && FOLD_ALL) {
+          var now = nowMs();
+          if (now - lastTap <= DOUBLE_MS) {
+            FOLD_ALL = false;
+            applyFoldAllState();
+            setActivity("UI", "已展开：显示完整信息", "#67E8F9");
+            lastTap = 0;
+          } else {
+            lastTap = now;
+          }
+        }
+        return true;
+    }
+    return true;
+  });
+})();
+
+// ================= [识别逻辑] =================
+// !!! 下面四个函数完全不改动 !!!
+
+function getPieceStatus(img, x, y) {
+  var color = images.pixel(img, x, y);
+  var r = colors.red(color);
+  var g = colors.green(color);
+  var b = colors.blue(color);
+
+  if (r < 100 && g < 100 && b < 110) return "1";
+
+  var avg = (r + g + b) / 3;
+  if (avg > 200) {
+    if (b >= r - 5) return "2";
+  }
+  return ".";
+}
+
+function scanBoardRaw(img) {
+  var matrix = [];
+  for (var row = 0; row < 8; row++) {
+    var rowData = [];
+    for (var col = 0; col < 8; col++) {
+      var cx = Math.floor(BOARD_AREA.x1 + col * GRID_SIZE + HALF_GRID);
+      var cy = Math.floor(BOARD_AREA.y1 + row * GRID_SIZE + HALF_GRID);
+      rowData.push(getPieceStatus(img, cx, cy));
+    }
+    matrix.push(rowData);
+  }
+  return matrix;
+}
+
+function mapRawToAI(raw) {
+  return raw.map(row => row.map(v => {
+    if (v === "1") return "X";
+    if (v === "2") return "O";
+    return "-";
+  }));
+}
+
+function boardKeyFromRaw(raw) {
+  return raw.map(r => r.join("")).join("|");
+}
+
+// ================= [通用工具函数] =================
+function other(p) { return p === "X" ? "O" : "X"; }
+function coordStr(move) { return move ? ((move.r + 1) + String.fromCharCode(65 + move.c)) : "无"; }
+function cloneBoard(b) { return b.map(r => r.slice()); }
+function boardKeyAI(board) { return board.map(r => r.join("")).join(""); }
+
+function countPieces(board) {
+  var x = 0, o = 0, e = 0;
+  for (var r = 0; r < 8; r++) for (var c = 0; c < 8; c++) {
+    if (board[r][c] === "X") x++;
+    else if (board[r][c] === "O") o++;
+    else e++;
+  }
+  return { x: x, o: o, empty: e, occupied: 64 - e };
+}
+
+function movesMade(board) {
+  var cnt = countPieces(board);
+  return Math.max(0, cnt.occupied - 4);
+}
+
+function getDelayRange(board) {
+  var m = movesMade(board);
+  if (m < EARLY_PLIES) return { min: EARLY_DELAY_MIN, max: EARLY_DELAY_MAX, tag: "开局" };
+  return { min: NORMAL_DELAY_MIN, max: NORMAL_DELAY_MAX, tag: "常规" };
+}
+
+function prettyFromAI(board) {
+  var header = "   A B C D E F G H";
+  var lines = [header];
+  for (var r = 0; r < 8; r++) {
+    var row = [];
+    for (var c = 0; c < 8; c++) {
+      var v = board[r][c];
+      row.push(v === "X" ? "X" : (v === "O" ? "O" : "."));
+    }
+    lines.push((r + 1) + "  " + row.join(" "));
+  }
+  return lines.join("\n");
+}
+
+// ================= [轮次判定：差分 + Pass] =================
+function detectTurnHeuristic(board) {
+  var xMoves = getAllMoves(board, "X").length;
+  var oMoves = getAllMoves(board, "O").length;
+  if (xMoves > 0 && oMoves === 0) return "X";
+  if (oMoves > 0 && xMoves === 0) return "O";
+  if (xMoves === 0 && oMoves === 0) return null;
+
+  var cnt = countPieces(board);
+  var mm = Math.max(0, cnt.occupied - 4);
+  return (mm % 2 === 0) ? "X" : "O";
+}
+
+function updateTurnByDelta(prev, curr, prevTurn) {
+  if (!prev) return { turn: detectTurnHeuristic(curr), reliable: false };
+
+  var placedCount = 0;
+  var placedColor = null;
+
+  for (var r = 0; r < 8; r++) {
+    for (var c = 0; c < 8; c++) {
+      if (prev[r][c] === "-" && curr[r][c] !== "-") {
+        placedCount++;
+        placedColor = curr[r][c];
+        if (placedCount > 1) break;
+      }
+    }
+    if (placedCount > 1) break;
+  }
+
+  if (placedCount === 1) {
+    var lastMover = placedColor;
+    var next = other(lastMover);
+
+    var nextMoves = getAllMoves(curr, next).length;
+    var lastMoves = getAllMoves(curr, lastMover).length;
+
+    if (nextMoves === 0 && lastMoves > 0) return { turn: lastMover, reliable: true };
+    if (nextMoves === 0 && lastMoves === 0) return { turn: null, reliable: true };
+    return { turn: next, reliable: true };
+  }
+
+  if (prevTurn) {
+    var tm = getAllMoves(curr, prevTurn).length;
+    var opp = other(prevTurn);
+    var om = getAllMoves(curr, opp).length;
+    if (tm === 0 && om > 0) return { turn: opp, reliable: false };
+    if (tm === 0 && om === 0) return { turn: null, reliable: false };
+    return { turn: prevTurn, reliable: false };
+  }
+
+  return { turn: detectTurnHeuristic(curr), reliable: false };
+}
+
+// ================= [主线程：扫描与显示] =================
+threads.start(function () {
+  while (true) {
+
+    // PASS 弹窗期间：不扫描、不更新 stable，避免弹窗污染棋盘
+    if (SUSPEND_SCAN_UNTIL && nowMs() < SUSPEND_SCAN_UNTIL) {
+      sleep(SCAN_INTERVAL_MS);
+      continue;
+    }
+
+    var img = null;
+    try {
+      img = captureScreen();
+      if (!img) { sleep(SCAN_INTERVAL_MS); continue; }
+
+      var raw = scanBoardRaw(img);
+      var key = boardKeyFromRaw(raw);
+
+      if (key === lastScanKey) sameKeyCount++;
+      else { lastScanKey = key; sameKeyCount = 1; }
+
+      if (sameKeyCount >= STABLE_FRAMES) {
+
+        // ✅ 落子确认期：只接受“预期棋盘”，避免 PASS 弹窗/遮挡导致 stable 被污染
+        var stableBoard = null;
+        if (APPLY_EXPECT_AIKEY && nowMs() < APPLY_EXPECT_UNTIL) {
+          var tmp = mapRawToAI(raw);
+          if (boardKeyAI(tmp) === APPLY_EXPECT_AIKEY) {
+            stableBoard = tmp;
+            APPLY_EXPECT_AIKEY = "";
+            APPLY_EXPECT_UNTIL = 0;
+          } else {
+            stableBoard = null; // 非预期稳定帧：忽略
+          }
+        } else {
+          stableBoard = mapRawToAI(raw);
+        }
+
+        if (stableBoard) {
+          latestStableKey = key;
+          latestStableBoard = stableBoard;
+
+          if (latestStableKey !== TURN_KEY) {
+            var res = updateTurnByDelta(TURN_BOARD, latestStableBoard, TURN);
+            TURN = res.turn;
+            TURN_RELIABLE = res.reliable || TURN_RELIABLE;
+            TURN_BOARD = cloneBoard(latestStableBoard);
+            TURN_KEY = latestStableKey;
+            PASS_STABLE_COUNT = 0;
+            updateTurnReliableUI();
+            lastThinkKey = "";
+          } else {
+            PASS_STABLE_COUNT++;
+            if (TURN && PASS_STABLE_COUNT >= Math.max(3, Math.floor(2000 / SCAN_INTERVAL_MS))) {
+              var tm = getAllMoves(latestStableBoard, TURN).length;
+              var opp2 = other(TURN);
+              var om = getAllMoves(latestStableBoard, opp2).length;
+              if (tm === 0 && om > 0) { TURN = opp2; lastThinkKey = ""; }
+              else if (tm === 0 && om === 0) TURN = null;
+              PASS_STABLE_COUNT = 0;
+            }
+          }
+
+          // 终局自动停
+          var xmEnd = getAllMoves(latestStableBoard, "X").length;
+          var omEnd = getAllMoves(latestStableBoard, "O").length;
+          if (xmEnd === 0 && omEnd === 0 && running) {
+            lastStatusLine = "对局结束：已自动停止";
+            setRunning(false);
+            setActivity("END", "对局结束：双方无合法步，已自动停止", "#9CA3AF");
+          }
+        }
+      }
+
+      var board = latestStableBoard;
+      if (board) {
+        var cnt = countPieces(board);
+        var turnText = (TURN === "X") ? "黑(●)" : (TURN === "O" ? "白(○)" : "结束");
+        var dr = getDelayRange(board);
+
+        safeUi(function () {
+          win.turnText.setText("轮到: " + (TURN ? turnText : "结束"));
+
+          if (!FOLD_ALL) {
+            win.info.setText("黑: " + cnt.x + " 白: " + cnt.o + " 空: " + cnt.empty + " | 轮到: " + (TURN ? turnText : "结束"));
+            win.suggest.setText("建议: " + coordStr(lastSuggested) + " | 评估: " + (lastEval >= 0 ? "+" : "") + lastEval);
+
+            var margin = lastPredMargin;
+            var fx = (margin > 0) ? ("预计胜 " + margin + " 子") : (margin < 0 ? ("预计负 " + (-margin) + " 子") : "预计平局");
+            win.forecast.setText(fx + (lastPredNote ? ("  (" + lastPredNote + ")") : ""));
+
+            win.stats.setText(
+              "深度:" + lastDepthUsed + "/" + MAX_SEARCH_DEPTH +
+              " | 节点:" + lastNodes +
+              " | 思考:" + lastThinkMs + "ms" +
+              " | 延迟(" + dr.tag + "):" + dr.min + "-" + dr.max +
+              " | 抖动:" + CLICK_JITTER +
+              " | 自动:" + (AUTO_PLAY ? "开" : "关")
+            );
+
+            win.delayRange.setText("延迟：开局" + EARLY_DELAY_MIN + "-" + EARLY_DELAY_MAX + " / 常规" + NORMAL_DELAY_MIN + "-" + NORMAL_DELAY_MAX);
+            win.boardTxt.setText(prettyFromAI(board));
+            win.status.setText(lastStatusLine);
+          }
+        });
+      }
+
+    } catch (e) {
+      // console.error(e);
+    } finally {
+      try { if (img) img.recycle(); } catch (e2) {}
+    }
+
+    sleep(SCAN_INTERVAL_MS);
+  }
+});
+
+// ================= [主线程：AI 计算 / 落子] =================
+threads.start(function () {
+  while (true) {
+    if (!running) { sleep(200); continue; }
+    if (!latestStableBoard) { sleep(200); continue; }
+
+    // PASS 弹窗期间：不思考不点击（避免点到弹窗/识别被遮挡）
+    if (SUSPEND_SCAN_UNTIL && nowMs() < SUSPEND_SCAN_UNTIL) {
+      var remain = SUSPEND_SCAN_UNTIL - nowMs();
+      setActivity("PASS", "PASS 弹窗期：暂停识别/点击 " + remain + "ms", "#FBBF24");
+      sleep(Math.min(200, Math.max(0, remain)));
+      continue;
+    }
+
+    var board = latestStableBoard;
+    var keyAtStart = latestStableKey;
+
+    // 终局
+    var xm0 = getAllMoves(board, "X").length;
+    var om0 = getAllMoves(board, "O").length;
+    if (xm0 === 0 && om0 === 0) {
+      lastStatusLine = "对局结束：已自动停止";
+      setRunning(false);
+      setActivity("END", "对局结束：双方无合法步，已自动停止", "#9CA3AF");
+      sleep(500);
+      continue;
+    }
+
+    // 轮次未锁定且双方都可走：提示校准
+    if (!TURN_RELIABLE) {
+      if (xm0 > 0 && om0 > 0) {
+        lastStatusLine = "轮次未锁定：请点“轮到黑/轮到白”校准";
+        setActivity("NEED", "需要校准：双方都有合法步，无法静态确定轮次。请点“轮到黑/白”。", "#F87171");
+        sleep(400);
+        continue;
+      } else {
+        TURN = (xm0 > 0) ? "X" : (om0 > 0 ? "O" : null);
+      }
+    }
+
+    if (TURN === null) {
+      lastStatusLine = "对局结束：已自动停止";
+      setRunning(false);
+      setActivity("END", "对局结束：双方无合法步，已自动停止", "#9CA3AF");
+      sleep(500);
+      continue;
+    }
+
+    if (TURN !== MY_COLOR) {
+      lastStatusLine = "等待对手落子...";
+      setActivity("WAIT", "等待对手：当前轮到对方落子（我方不会点击）", "#60A5FA");
+      sleep(250);
+      continue;
+    }
+
+    // 同局面避免重复算（但参数变化会清空 lastThinkKey）
+    if (latestStableKey === lastThinkKey) {
+      // ✅ 防卡死保险：轮到我方且 idle 超过 2.5s，强制重算一次
+      if (TURN === MY_COLOR && AUTO_PLAY && (nowMs() - LAST_THINK_TS > 2500)) {
+        lastThinkKey = "";
+        setActivity("FIX", "IDLE 超时：强制重算一次（防卡死）", "#FBBF24");
+        sleep(80);
+        continue;
+      }
+      setActivity("IDLE", "已计算：等待局面变化", "#9CA3AF");
+      sleep(220);
+      continue;
+    }
+
+    lastStatusLine = "AI 思考中...";
+    setActivity("THINK", "思考中：预算 " + THINK_BUDGET_MS + "ms，最大深度 " + MAX_SEARCH_DEPTH, "#A78BFA");
+
+    var cnt = countPieces(board);
+    var depthCap = MAX_SEARCH_DEPTH;
+    if (cnt.empty <= ENDGAME_SOLVE_EMPTY) depthCap = Math.max(depthCap, cnt.empty);
+
+    // ✅ 终盘自动加预算：提升“收官吃干净/扩大子差”的能力（不影响UI手动预算，只在计算时临时提升）
+    var budget = THINK_BUDGET_MS;
+    if (cnt.empty <= 14) budget = Math.min(2000, THINK_BUDGET_MS + (14 - cnt.empty) * 120);
+    else if (cnt.empty <= 22) budget = Math.min(1500, THINK_BUDGET_MS + 250);
+
+    var start = nowMs();
+    var res = getBestMove_IterDeep(board, MY_COLOR, depthCap, budget, 1);
+    var end = nowMs();
+
+    lastSuggested = res.move;
+    lastEval = res.eval;
+    lastDepthUsed = res.depthUsed;
+    lastNodes = res.nodes;
+    lastThinkMs = end - start;
+
+    var pred = estimateDiscMargin(board, MY_COLOR, lastEval, lastDepthUsed);
+    lastPredMargin = pred.margin;
+    lastPredNote = pred.note;
+
+    // ✅ 关键修复：思考期间棋盘若变了，直接作废，不要写 lastThinkKey（否则会误进 IDLE 卡住）
+    if (latestStableKey !== keyAtStart) {
+      lastStatusLine = "棋盘变化，取消本次思考结果";
+      setActivity("SYNC", "同步中：思考期间棋盘发生变化，本轮结果作废，等待稳定", "#FBBF24");
+      lastThinkKey = "";
+      sleep(120);
+      continue;
+    }
+
+    // ✅ 只有确认“还是同一个局面”才标记已计算（用 keyAtStart 更严谨）
+    lastThinkKey = keyAtStart;
+    LAST_THINK_TS = nowMs();
+
+    // 若自动关：只给建议，不点击
+    if (!AUTO_PLAY) {
+      lastStatusLine = "自动关闭：仅给建议（不点击）";
+      setActivity("HINT", "已给建议：自动关闭（不点击）", "#9CA3AF");
+      sleep(240);
+      continue;
+    }
+
+    // （保留）二次同步检查：即使刚写入 lastThinkKey，也可能瞬间被扫描线程更新
+    if (latestStableKey !== keyAtStart) {
+      lastStatusLine = "棋盘变化，取消本次动作";
+      setActivity("SYNC", "同步中：棋盘发生变化，本轮结果作废，等待稳定", "#FBBF24");
+      lastThinkKey = ""; // 更稳：避免任何边界误判
+      sleep(120);
+      continue;
+    }
+
+    if (!res.move) {
+      lastStatusLine = "无子可落（等待 pass）";
+      setActivity("PASS", "无子可走：等待对方或系统跳过", "#9CA3AF");
+      sleep(350);
+      continue;
+    }
+
+    // 动态随机延迟
+    var dr = getDelayRange(board);
+    var waitTime = random(dr.min, dr.max);
+    lastStatusLine = "随机延迟 " + waitTime + "ms...";
+    setActivity("DELAY", "延迟中：" + dr.tag + " 随机 " + waitTime + "ms", "#FBBF24");
+    sleep(waitTime);
+
+    if (latestStableKey !== keyAtStart) {
+      lastStatusLine = "延迟期间棋盘变化，取消落子";
+      setActivity("SYNC", "同步中：延迟期间棋盘变化，取消点击，等待稳定", "#FBBF24");
+      sleep(120);
+      continue;
+    }
+
+    // press + 抖动（防出格）
+    var centerX = Math.floor(BOARD_AREA.x1 + res.move.c * GRID_SIZE + HALF_GRID);
+    var centerY = Math.floor(BOARD_AREA.y1 + res.move.r * GRID_SIZE + HALF_GRID);
+    var j = jitter2D(CLICK_JITTER);
+
+    var minX = Math.floor(BOARD_AREA.x1 + res.move.c * GRID_SIZE + 2);
+    var maxX = Math.floor(BOARD_AREA.x1 + (res.move.c + 1) * GRID_SIZE - 2);
+    var minY = Math.floor(BOARD_AREA.y1 + res.move.r * GRID_SIZE + 2);
+    var maxY = Math.floor(BOARD_AREA.y1 + (res.move.r + 1) * GRID_SIZE - 2);
+
+    var tapX = Math.max(minX, Math.min(maxX, centerX + j.dx));
+    var tapY = Math.max(minY, Math.min(maxY, centerY + j.dy));
+
+    // ====== 预期落子后棋盘（用于：1) 预判对手是否 PASS  2) 落子确认期过滤弹窗污染） ======
+    var expectedBoardAfter = makeMove(cloneBoard(board), res.move.r, res.move.c, MY_COLOR);
+    var expectedAIKeyAfter = boardKeyAI(expectedBoardAfter);
+
+    // 预判：对手是否会 PASS（对手无合法步，但我方仍有合法步）
+    var oppAfterMoves = getAllMoves(expectedBoardAfter, other(MY_COLOR)).length;
+    var myAfterMoves  = getAllMoves(expectedBoardAfter, MY_COLOR).length;
+    var predictedOppPass = (oppAfterMoves === 0 && myAfterMoves > 0);
+
+    // 开启“落子确认期过滤”：在 timeout 内只接受 expectedAIKeyAfter 对应的 stable
+    APPLY_EXPECT_AIKEY = expectedAIKeyAfter;
+    APPLY_EXPECT_UNTIL = nowMs() + WAIT_APPLY_TIMEOUT_MS + 800;
+
+    setActivity("TAP", "点击中：执行落子（带抖动与按压）", "#34D399");
+    press(tapX, tapY, random(PRESS_MIN, PRESS_MAX));
+
+    // 防连点：等待稳定棋盘确认变化（并要求匹配预期棋盘）
+    setActivity("HOLD", "确认中：等待棋盘稳定更新（防止动画未结束导致二次点击）", "#FBBF24");
+    var changed = waitStableKeyChange(keyAtStart, WAIT_APPLY_TIMEOUT_MS, expectedAIKeyAfter);
+
+    if (!changed) {
+      // 清理确认过滤，避免卡死
+      APPLY_EXPECT_AIKEY = "";
+      APPLY_EXPECT_UNTIL = 0;
+
+      // ✅ 关键：不确认就别进入 IDLE，下一轮必须重算/重试
+      lastThinkKey = "";
+
+      // 失败计数（按 keyAtStart 计）
+      if (APPLY_FAIL_KEY === keyAtStart) APPLY_FAIL_COUNT++;
+      else { APPLY_FAIL_KEY = keyAtStart; APPLY_FAIL_COUNT = 1; }
+
+      lastStatusLine = "落子未确认：准备重试(" + APPLY_FAIL_COUNT + "/" + APPLY_FAIL_MAX + ")";
+      setActivity("HOLD", "确认超时：未看到预期稳定棋盘变化，将重试（避免卡 IDLE）", "#FBBF24");
+
+      // 连续失败太多：自动暂停，避免无限乱点
+      if (APPLY_FAIL_COUNT >= APPLY_FAIL_MAX) {
+        setRunning(false);
+        setActivity("NEED", "连续落子未确认：已暂停。请检查 BOARD_AREA/遮挡弹窗/点位偏移", "#F87171");
+      }
+
+      sleep(APPLY_FAIL_COOLDOWN_MS);
+      continue;
+    }
+
+    // 确认成功：清掉失败计数
+    APPLY_FAIL_KEY = "";
+    APPLY_FAIL_COUNT = 0;
+
+    // ✅ 落子确认后：如果对手 PASS，直接轮到我方，并暂停扫描躲弹窗
+    var afterBoardConfirm = latestStableBoard;
+    var didOppPass = false;
+
+    if (afterBoardConfirm) {
+      var oppMovesNow = getAllMoves(afterBoardConfirm, other(MY_COLOR)).length;
+      var myMovesNow  = getAllMoves(afterBoardConfirm, MY_COLOR).length;
+
+      if (oppMovesNow === 0 && myMovesNow > 0) {
+        didOppPass = true;
+
+        TURN = MY_COLOR;
+        TURN_RELIABLE = true;
+        TURN_BOARD = cloneBoard(afterBoardConfirm);
+        TURN_KEY = latestStableKey;
+        PASS_STABLE_COUNT = 0;
+        updateTurnReliableUI();
+
+        // PASS 后棋盘不变，允许 AI 立刻重新算下一手
+        lastThinkKey = "";
+
+        // 暂停扫描/点击，绕开 PASS 弹窗遮挡
+        SUSPEND_SCAN_UNTIL = nowMs() + PASS_POPUP_GUARD_MS;
+
+        lastStatusLine = "对手 PASS（" + (predictedOppPass ? "已预判" : "确认后判断") + "）：暂停识别 " + PASS_POPUP_GUARD_MS + "ms，随后继续我方";
+
+        // 尽量立即刷新“轮到”文本（因为扫描暂停了）
+        safeUi(function () {
+          var tstr = (TURN === "X") ? "黑(●)" : "白(○)";
+          win.turnText.setText("轮到: " + tstr);
+          if (!FOLD_ALL && afterBoardConfirm) {
+            var cc = countPieces(afterBoardConfirm);
+            win.info.setText("黑: " + cc.x + " 白: " + cc.o + " 空: " + cc.empty + " | 轮到: " + tstr);
+          }
+        });
+
+        setActivity("PASS", "对手 PASS：跳过识别/点击约 " + PASS_POPUP_GUARD_MS + "ms，弹窗消失后继续我方下一步", "#FBBF24");
+      }
+    }
+
+    if (!didOppPass) {
+      lastStatusLine = "落子完成: " + coordStr(res.move);
+      setActivity("DONE", "完成：落子已被棋盘稳定确认", "#34D399");
+    }
+
+    sleep(200);
+  }
+});
+
+// ================= [AI 核心：评估+排序+TT+PVS迭代加深] =================
+
+// 位置权重表
+var V = [
+  [100, -20, 10,  5,  5, 10, -20, 100],
+  [-20, -50, -2, -2, -2, -2, -50, -20],
+  [ 10,  -2, -1, -1, -1, -1,  -2,  10],
+  [  5,  -2, -1, -1, -1, -1,  -2,   5],
+  [  5,  -2, -1, -1, -1, -1,  -2,   5],
+  [ 10,  -2, -1, -1, -1, -1,  -2,  10],
+  [-20, -50, -2, -2, -2, -2, -50, -20],
+  [100, -20, 10,  5,  5, 10, -20, 100]
+];
+
+var CORNERS = [{r:0,c:0},{r:0,c:7},{r:7,c:0},{r:7,c:7}];
+var X_SQUARES = [{r:1,c:1},{r:1,c:6},{r:6,c:1},{r:6,c:6}];
+var C_SQUARES = [
+  {r:0,c:1},{r:1,c:0},{r:0,c:6},{r:1,c:7},
+  {r:6,c:0},{r:7,c:1},{r:6,c:7},{r:7,c:6}
+];
+
+function isCorner(m){ return (m.r===0||m.r===7) && (m.c===0||m.c===7); }
+function isEdge(m){ return (m.r===0||m.r===7||m.c===0||m.c===7) && !isCorner(m); }
+
+function cornerForNearSquare(m){
+  if (m.r===1 && m.c===1) return {r:0,c:0};
+  if (m.r===1 && m.c===6) return {r:0,c:7};
+  if (m.r===6 && m.c===1) return {r:7,c:0};
+  if (m.r===6 && m.c===6) return {r:7,c:7};
+
+  if (m.r===0 && m.c===1) return {r:0,c:0};
+  if (m.r===1 && m.c===0) return {r:0,c:0};
+
+  if (m.r===0 && m.c===6) return {r:0,c:7};
+  if (m.r===1 && m.c===7) return {r:0,c:7};
+
+  if (m.r===6 && m.c===0) return {r:7,c:0};
+  if (m.r===7 && m.c===1) return {r:7,c:0};
+
+  if (m.r===6 && m.c===7) return {r:7,c:7};
+  if (m.r===7 && m.c===6) return {r:7,c:7};
+
+  return null;
+}
+function isXSquare(m){
+  return (m.r===1 && m.c===1) || (m.r===1 && m.c===6) || (m.r===6 && m.c===1) || (m.r===6 && m.c===6);
+}
+function isCSquare(m){
+  return (m.r===0 && (m.c===1||m.c===6)) ||
+         (m.r===7 && (m.c===1||m.c===6)) ||
+         (m.c===0 && (m.r===1||m.r===6)) ||
+         (m.c===7 && (m.r===1||m.r===6));
+}
+
+function frontierCount(board, player) {
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var cnt = 0;
+  for (var r=0;r<8;r++){
+    for (var c=0;c<8;c++){
+      if (board[r][c] !== player) continue;
+      for (var i=0;i<8;i++){
+        var nr=r+dirs[i][0], nc=c+dirs[i][1];
+        if (nr>=0 && nr<8 && nc>=0 && nc<8 && board[nr][nc] === "-") { cnt++; break; }
+      }
+    }
+  }
+  return cnt;
+}
+
+// ====== 前中期少吃子/后期才吃（翻子相位） ======
+var FLIP_PENALTY_OPEN = 35;
+var FLIP_PENALTY_MID  = 14;
+var FLIP_BONUS_END    = 12;
+
+// ====== 评估对子差：前中期负权（不贪子），残局正权（追子） ======
+var DISC_W_OPEN = -2.6;
+var DISC_W_MID  = -1.2;
+var DISC_W_END  = 12.0;
+
+// ====== ✅ 去掉“严格避边” ======
+var EDGE_PENALTY_OPEN = 0;
+var EDGE_PENALTY_MID  = 0;
+var EDGE_BONUS_END    = 0;
+
+var EDGE_NEAR_EMPTY_CORNER_OPEN = 12000;
+var EDGE_NEAR_EMPTY_CORNER_MID  = 6000;
+
+// 评估层：不再压制“边子数量”
+var EDGE_W_OPEN = 0.0;
+var EDGE_W_MID  = 0.0;
+var EDGE_W_END  = 0.0;
+
+// ====== 强化：Killer / History ======
+var KILLER1 = [];
+var KILLER2 = [];
+var HIST_X = Array(8).fill(0).map(()=>Array(8).fill(0));
+var HIST_O = Array(8).fill(0).map(()=>Array(8).fill(0));
+function histRef(player){ return player==="X" ? HIST_X : HIST_O; }
+function sameMove(a,b){ return a && b && a.r===b.r && a.c===b.c; }
+
+// ====== 稳定边子 / 潜在行动力 / 翻子数 ======
+function stableEdgeCount(board, player){
+  function scanLine(cornerR, cornerC, dr, dc){
+    if (board[cornerR][cornerC] !== player) return 0;
+    var k = 1;
+    var r = cornerR + dr, c = cornerC + dc;
+    while (r>=0 && r<8 && c>=0 && c<8){
+      if (board[r][c] === player) { k++; r+=dr; c+=dc; }
+      else break;
+    }
+    return k;
+  }
+
+  var s = 0;
+  s += scanLine(0,0, 0,1); s += scanLine(0,0, 1,0);
+  s += scanLine(0,7, 0,-1); s += scanLine(0,7, 1,0);
+  s += scanLine(7,0, -1,0); s += scanLine(7,0, 0,1);
+  s += scanLine(7,7, -1,0); s += scanLine(7,7, 0,-1);
+
+  if (board[0][0]===player) s -= 1;
+  if (board[0][7]===player) s -= 1;
+  if (board[7][0]===player) s -= 1;
+  if (board[7][7]===player) s -= 1;
+  return s;
+}
+
+function potentialMobility(board, player){
+  var opp = other(player);
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var myPot = 0, opPot = 0;
+
+  for (var r=0;r<8;r++){
+    for (var c=0;c<8;c++){
+      if (board[r][c] !== "-") continue;
+
+      var nearP = false, nearO = false;
+      for (var i=0;i<8;i++){
+        var nr=r+dirs[i][0], nc=c+dirs[i][1];
+        if (nr<0||nr>=8||nc<0||nc>=8) continue;
+        if (board[nr][nc] === player) nearP = true;
+        else if (board[nr][nc] === opp) nearO = true;
+      }
+      if (nearO) myPot++;
+      if (nearP) opPot++;
+    }
+  }
+  return myPot - opPot;
+}
+
+function countFlips(board, r, c, player){
+  if (board[r][c] !== "-") return 0;
+  var opp = other(player);
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  var total = 0;
+
+  for (var i=0;i<8;i++){
+    var dr=dirs[i][0], dc=dirs[i][1];
+    var nr=r+dr, nc=c+dc;
+    var line = 0;
+
+    while (nr>=0 && nr<8 && nc>=0 && nc<8 && board[nr][nc] === opp){
+      line++; nr+=dr; nc+=dc;
+    }
+    if (line>0 && nr>=0 && nr<8 && nc>=0 && nc<8 && board[nr][nc] === player){
+      total += line;
+    }
+  }
+  return total;
+}
+
+// ====== 靠角边格辅助（仍保留：角未占时的风险惩罚） ======
+function cornerOfEdgeMove(m){
+  if (m.r === 0) return (m.c < 4) ? {r:0,c:0} : {r:0,c:7};
+  if (m.r === 7) return (m.c < 4) ? {r:7,c:0} : {r:7,c:7};
+  if (m.c === 0) return (m.r < 4) ? {r:0,c:0} : {r:7,c:0};
+  if (m.c === 7) return (m.r < 4) ? {r:0,c:7} : {r:7,c:7};
+  return null;
+}
+
+function isNearCornerEdge(m){
+  if (!isEdge(m) || isCorner(m)) return false;
+  if (m.r === 0 || m.r === 7) return (m.c <= 2 || m.c >= 5);
+  if (m.c === 0 || m.c === 7) return (m.r <= 2 || m.r >= 5);
+  return false;
+}
+
+// 边子数量（不含四角）——保留函数但评估权重已置0
+function edgeDiscCount(board, player){
+  var cnt = 0;
+  for (var c=1;c<=6;c++){
+    if (board[0][c] === player) cnt++;
+    if (board[7][c] === player) cnt++;
+  }
+  for (var r=1;r<=6;r++){
+    if (board[r][0] === player) cnt++;
+    if (board[r][7] === player) cnt++;
+  }
+  return cnt;
+}
+
+// ====== 评估（更强 + 前中期少吃子 + 取消严格避边） ======
+function evaluateAdvanced(board, player) {
+  var opp = other(player);
+  var cnt = countPieces(board);
+  var empty = cnt.empty;
+
+  var phase = (empty > 44) ? 0 : (empty > 16 ? 1 : 2);
+
+  var pos = 0;
+  for (var r=0;r<8;r++){
+    for (var c=0;c<8;c++){
+      if (board[r][c] === player) pos += V[r][c];
+      else if (board[r][c] === opp) pos -= V[r][c];
+    }
+  }
+
+  var myMoves = getAllMoves(board, player).length;
+  var opMoves = getAllMoves(board, opp).length;
+  var mob = myMoves - opMoves;
+
+  var corner = 0;
+  for (var i=0;i<4;i++){
+    var p = CORNERS[i];
+    if (board[p.r][p.c] === player) corner += 1;
+    else if (board[p.r][p.c] === opp) corner -= 1;
+  }
+
+  var near = 0;
+  for (var i2=0;i2<X_SQUARES.length;i2++){
+    var m = X_SQUARES[i2];
+    var cor = cornerForNearSquare(m);
+    if (cor && board[cor.r][cor.c] === "-") {
+      if (board[m.r][m.c] === player) near -= 1;
+      else if (board[m.r][m.c] === opp) near += 1;
+    }
+  }
+  for (var j=0;j<C_SQUARES.length;j++){
+    var m2 = C_SQUARES[j];
+    var cor2 = cornerForNearSquare(m2);
+    if (cor2 && board[cor2.r][cor2.c] === "-") {
+      if (board[m2.r][m2.c] === player) near -= 1;
+      else if (board[m2.r][m2.c] === opp) near += 1;
+    }
+  }
+
+  var fr = frontierCount(board, player) - frontierCount(board, opp);
+  var pm = potentialMobility(board, player);
+  var stable = stableEdgeCount(board, player) - stableEdgeCount(board, opp);
+
+  // 子差（前中期负权避免贪子，残局正权）
+  var disc = (player === "X") ? (cnt.x - cnt.o) : (cnt.o - cnt.x);
+  var wDisc = (phase===0) ? DISC_W_OPEN : (phase===1 ? DISC_W_MID : DISC_W_END);
+
+  // 边子数量差（不含角）——权重已置0（保留计算不删代码）
+  var myEdge = edgeDiscCount(board, player);
+  var opEdge = edgeDiscCount(board, opp);
+  var edgeDiff = myEdge - opEdge;
+  var wEdge = (phase===0) ? EDGE_W_OPEN : (phase===1 ? EDGE_W_MID : EDGE_W_END);
+
+  var wPos    = (phase===0) ? 1.0  : (phase===1 ? 0.9  : 0.6);
+  var wMob    = (phase===0) ? 7.5  : (phase===1 ? 11.0 : 2.0);
+  var wCorner = (phase===0) ? 90.0 : (phase===1 ? 140.0: 220.0);
+  var wNear   = (phase===0) ? 55.0 : (phase===1 ? 70.0 : 45.0);
+  var wFr     = (phase===0) ? -2.5 : (phase===1 ? -4.5 : -1.0);
+  var wPM     = (phase===0) ? 1.5  : (phase===1 ? 2.5  : 0.5);
+  var wStable = (phase===0) ? 8.0  : (phase===1 ? 14.0 : 18.0);
+
+  return Math.round(
+    pos * wPos +
+    mob * wMob +
+    corner * wCorner +
+    near * wNear +
+    fr * wFr +
+    pm * wPM +
+    stable * wStable +
+    disc * wDisc +
+    edgeDiff * wEdge
+  );
+}
+
+function finalScore(board, player) {
+  var cnt = countPieces(board);
+  return player === "X" ? (cnt.x - cnt.o) : (cnt.o - cnt.x);
+}
+
+function estimateDiscMargin(board, player, evalScore, depthUsed) {
+  var cnt = countPieces(board);
+  var disc = (player === "X") ? (cnt.x - cnt.o) : (cnt.o - cnt.x);
+
+  if (cnt.empty <= ENDGAME_SOLVE_EMPTY && depthUsed >= cnt.empty) {
+    return { margin: Math.round(evalScore / 10000), note: "终盘精算" };
+  }
+  var est = disc + Math.round(evalScore / 180);
+  if (est > 64) est = 64;
+  if (est < -64) est = -64;
+  return { margin: est, note: "粗略估计" };
+}
+
+// ========== 走法生成 / 执行 ==========
+function getAllMoves(board, player) {
+  var m = [];
+  for (var r = 0; r < 8; r++) for (var c = 0; c < 8; c++)
+    if (canMove(board, r, c, player)) m.push({ r: r, c: c });
+  return m;
+}
+
+function canMove(board, r, c, player) {
+  if (board[r][c] !== "-") return false;
+  var opp = other(player);
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  for (var i = 0; i < 8; i++) {
+    var dr = dirs[i][0], dc = dirs[i][1];
+    var nr = r + dr, nc = c + dc, foundOpp = false;
+    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+      if (board[nr][nc] === opp) foundOpp = true;
+      else if (board[nr][nc] === player) { if (foundOpp) return true; break; }
+      else break;
+      nr += dr; nc += dc;
+    }
+  }
+  return false;
+}
+
+function makeMove(board, r, c, player) {
+  var opp = other(player);
+  board[r][c] = player;
+  var dirs = [[0,1],[0,-1],[1,0],[-1,0],[1,1],[1,-1],[-1,1],[-1,-1]];
+  for (var i = 0; i < 8; i++) {
+    var dr = dirs[i][0], dc = dirs[i][1];
+    var nr = r + dr, nc = c + dc, flip = [];
+    while (nr >= 0 && nr < 8 && nc >= 0 && nc < 8) {
+      if (board[nr][nc] === opp) flip.push({ r: nr, c: nc });
+      else if (board[nr][nc] === player) { flip.forEach(p => board[p.r][p.c] = player); break; }
+      else break;
+      nr += dr; nc += dc;
+    }
+  }
+  return board;
+}
+
+// ========== 搜索：PVS(αβ) + 排序 + TT + 迭代加深 ==========
+var TT = new Map();
+var TT_MAX = 80000;
+var SEARCH_DEADLINE = 0;
+var SEARCH_ABORT = false;
+var NODES = 0;
+
+var TT_EXACT = 0, TT_LOWER = 1, TT_UPPER = 2;
+var INF = 1000000000;
+
+function ttGet(key) { return TT.get(key); }
+function ttPut(key, entry) { if (TT.size > TT_MAX) TT.clear(); TT.set(key, entry); }
+
+// ====== 排序（PV/TT bestMove + Killer + History + 少吃子 + 去掉严格避边） ======
+function orderMoves(board, moves, player, pvMove, depth) {
+  var cnt = countPieces(board);
+  var empty = cnt.empty;
+  var phase = (empty > 44) ? 0 : (empty > 16 ? 1 : 2);
+
+  var H = histRef(player);
+  var k1 = KILLER1[depth] || null;
+  var k2 = KILLER2[depth] || null;
+
+  function moveScore(m) {
+    var s = 0;
+
+    // PV / Killer
+    if (pvMove && sameMove(m, pvMove)) s += 500000;
+    if (k1 && sameMove(m, k1)) s += 200000;
+    if (k2 && sameMove(m, k2)) s += 120000;
+
+    // 角必抢
+    if (isCorner(m)) {
+      s += 160000;
+    } else if (isEdge(m)) {
+      // ✅ 去掉“严格避边”：不再对普通边子施加相位惩罚/奖励
+      if (phase === 0) s -= EDGE_PENALTY_OPEN;
+      else if (phase === 1) s -= EDGE_PENALTY_MID;
+      else s += EDGE_BONUS_END;
+
+      // 仍保留：靠角边格且角未占的风险惩罚（防送角）
+      if (phase !== 2 && isNearCornerEdge(m)) {
+        var cor = cornerOfEdgeMove(m);
+        if (cor && board[cor.r][cor.c] === "-") {
+          s -= (phase === 0) ? EDGE_NEAR_EMPTY_CORNER_OPEN : EDGE_NEAR_EMPTY_CORNER_MID;
+        }
+      }
+    }
+
+    // 角附近 X/C 惩罚（角未占时）
+    var cor2 = cornerForNearSquare(m);
+    if (cor2 && board[cor2.r][cor2.c] === "-") {
+      if (isXSquare(m)) s -= 12000;
+      if (isCSquare(m)) s -= 6000;
+    }
+
+    // 位置表
+    s += V[m.r][m.c] * 8;
+
+    // History
+    s += H[m.r][m.c];
+
+    // 翻子数相位：开局/中局少吃，残局多吃
+    var flips = countFlips(board, m.r, m.c, player);
+    if (phase === 0) s -= flips * FLIP_PENALTY_OPEN;
+    else if (phase === 1) s -= flips * FLIP_PENALTY_MID;
+    else s += flips * FLIP_BONUS_END;
+
+    return s;
+  }
+
+  var all = moves.slice();
+  all.sort(function (a, b) { return moveScore(b) - moveScore(a); });
+  return all;
+}
+
+// ====== PVS αβ（终局/Pass处理 + TT bestMove + killer/history更新） ======
+function alphaBeta(board, depth, alpha, beta, player, pvMove) {
+  if (SEARCH_ABORT) return evaluateAdvanced(board, player);
+
+  if ((NODES & 255) === 0) {
+    if (nowMs() > SEARCH_DEADLINE) {
+      SEARCH_ABORT = true;
+      return evaluateAdvanced(board, player);
+    }
+  }
+  NODES++;
+
+  // 先判合法步/终局
+  var moves = getAllMoves(board, player);
+  if (moves.length === 0) {
+    var opp = other(player);
+    var oppMoves = getAllMoves(board, opp);
+    if (oppMoves.length === 0) return finalScore(board, player) * 10000; // 终局
+    if (depth <= 0) return evaluateAdvanced(board, player);              // 叶子：无步但未终局
+
+    // ✅ 若处于“搜到终局”(depth>=empty)，PASS 不扣 depth
+    var empty = countPieces(board).empty;
+    var nextDepth = (depth >= empty) ? depth : (depth - 1);
+    return -alphaBeta(board, nextDepth, -beta, -alpha, opp, null);
+  }
+
+  if (depth <= 0) return evaluateAdvanced(board, player);
+
+  // TT：key不带depth，提高复用率
+  var key = boardKeyAI(board) + player;
+  var ent = ttGet(key);
+  if (ent && ent.depth >= depth) {
+    if (ent.bestMove) pvMove = ent.bestMove;
+
+    if (ent.flag === TT_EXACT) return ent.value;
+    if (ent.flag === TT_LOWER) alpha = Math.max(alpha, ent.value);
+    else if (ent.flag === TT_UPPER) beta = Math.min(beta, ent.value);
+    if (alpha >= beta) return ent.value;
+  }
+
+  var ordered = orderMoves(board, moves, player, pvMove, depth);
+
+  var bestVal = -INF;
+  var bestMove = ordered[0];
+  var alpha0 = alpha;
+  var beta0 = beta;
+
+  // ✅ PVS / Negascout
+  for (var i = 0; i < ordered.length; i++) {
+    var m = ordered[i];
+    var nb = makeMove(cloneBoard(board), m.r, m.c, player);
+
+    var val;
+    if (i === 0) {
+      // 第一个走法全窗
+      val = -alphaBeta(nb, depth - 1, -beta, -alpha, other(player), null);
+    } else {
+      // 其它走法先零窗试探
+      var a = alpha;
+      val = -alphaBeta(nb, depth - 1, -(a + 1), -a, other(player), null);
+
+      // 若“可能更好”，再全窗重搜
+      if (val > alpha && val < beta) {
+        val = -alphaBeta(nb, depth - 1, -beta, -alpha, other(player), null);
+      }
+    }
+
+    if (SEARCH_ABORT) return evaluateAdvanced(board, player);
+
+    if (val > bestVal) { bestVal = val; bestMove = m; }
+    if (bestVal > alpha) alpha = bestVal;
+
+    // β剪枝：更新 killer/history
+    if (alpha >= beta) {
+      if (!KILLER1[depth] || !sameMove(KILLER1[depth], m)) {
+        KILLER2[depth] = KILLER1[depth] || null;
+        KILLER1[depth] = m;
+      }
+      var H = histRef(player);
+      H[m.r][m.c] += (depth * depth) * 40;
+      break;
+    }
+  }
+
+  var flag = TT_EXACT;
+  if (bestVal <= alpha0) flag = TT_UPPER;
+  else if (bestVal >= beta0) flag = TT_LOWER;
+
+  ttPut(key, { depth: depth, value: bestVal, flag: flag, bestMove: bestMove });
+  return bestVal;
+}
+
+// ====== 迭代加深（aspiration window + 根节点PVS） ======
+function getBestMove_IterDeep(board, player, maxDepth, budgetMs, topN) {
+  var start = nowMs();
+  SEARCH_DEADLINE = start + Math.max(80, budgetMs);
+  SEARCH_ABORT = false;
+  NODES = 0;
+
+  var moves = getAllMoves(board, player);
+  if (moves.length === 0) return { move: null, eval: 0, depthUsed: 0, nodes: 0 };
+
+  var pv = null;
+  var bestMove = moves[0];
+  var bestEval = -INF;
+  var depthUsed = 0;
+
+  var asp = 2500;
+
+  for (var d = 1; d <= maxDepth; d++) {
+    if (nowMs() > SEARCH_DEADLINE) break;
+
+    var alpha0 = -INF, beta0 = INF;
+    if (d >= 2 && bestEval !== -INF) {
+      alpha0 = bestEval - asp;
+      beta0  = bestEval + asp;
+    }
+
+    var ordered = orderMoves(board, moves, player, pv, d);
+
+    var alpha = alpha0, beta = beta0;
+    var bestVal = -INF;
+    var bestM = ordered[0];
+
+    // ✅ 根节点也用 PVS
+    for (var i = 0; i < ordered.length; i++) {
+      if (SEARCH_ABORT) break;
+
+      var m = ordered[i];
+      var nb = makeMove(cloneBoard(board), m.r, m.c, player);
+
+      var val;
+      if (i === 0) {
+        val = -alphaBeta(nb, d - 1, -beta, -alpha, other(player), null);
+      } else {
+        var a = alpha;
+        val = -alphaBeta(nb, d - 1, -(a + 1), -a, other(player), null);
+        if (val > alpha && val < beta) {
+          val = -alphaBeta(nb, d - 1, -beta, -alpha, other(player), null);
+        }
+      }
+
+      if (SEARCH_ABORT) break;
+
+      if (val > bestVal) { bestVal = val; bestM = m; }
+      if (bestVal > alpha) alpha = bestVal;
+      if (alpha >= beta) break;
+    }
+
+    // aspiration 失败 -> 全窗口重搜一次
+    if (!SEARCH_ABORT && d >= 2 && bestEval !== -INF) {
+      if (bestVal <= alpha0 || bestVal >= beta0) {
+        alpha = -INF; beta = INF;
+        bestVal = -INF; bestM = ordered[0];
+
+        var ordered2 = orderMoves(board, moves, player, pv, d);
+        for (var j = 0; j < ordered2.length; j++) {
+          if (SEARCH_ABORT) break;
+
+          var m2 = ordered2[j];
+          var nb2 = makeMove(cloneBoard(board), m2.r, m2.c, player);
+          var v2 = -alphaBeta(nb2, d - 1, -beta, -alpha, other(player), null);
+
+          if (SEARCH_ABORT) break;
+
+          if (v2 > bestVal) { bestVal = v2; bestM = m2; }
+          if (bestVal > alpha) alpha = bestVal;
+        }
+      }
+    }
+
+    if (!SEARCH_ABORT) {
+      bestMove = bestM;
+      bestEval = bestVal;
+      depthUsed = d;
+      pv = bestMove;
+    } else break;
+  }
+
+  if (depthUsed === 0) {
+    bestMove = orderMoves(board, moves, player, null, 1)[0];
+    var nb0 = makeMove(cloneBoard(board), bestMove.r, bestMove.c, player);
+    bestEval = evaluateAdvanced(nb0, player);
+    depthUsed = 1;
+  }
+
+  return { move: bestMove, eval: bestEval, depthUsed: depthUsed, nodes: NODES };
+}
+
+// ================= [初始化 UI 状态] =================
+updateThinkUI();
+updateColorUI();
+updateAutoUI();
+updateTurnReliableUI();
+applyBoardTextSize();
+applyCompactState();
+applyFoldAllState();
+setActivity("READY", "就绪：等待识别稳定棋盘", "#34D399");
+
+// ================= [维持脚本] =================
+setInterval(() => {}, 1000);
