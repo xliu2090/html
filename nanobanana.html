@@ -142,23 +142,28 @@
       max-width: 48vw;
     }
 
-    #logoutBtn {
-      font-size: 12.5px;
-      color: var(--muted);
+    .icon-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: rgba(255,255,255,.72);
+      color: var(--text);
       cursor: pointer;
-      padding: 8px 10px;
-      border-radius: 10px;
-      border: 1px solid transparent;
-      transition: background .2s ease, border-color .2s ease, color .2s ease;
-      user-select: none;
+      font-size: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background .2s ease, border-color .2s ease, transform .08s ease, box-shadow .2s ease;
+      box-shadow: 0 8px 18px rgba(2,6,23,.06);
     }
-    #logoutBtn:hover {
-      background: rgba(15, 23, 42, 0.04);
-      border-color: var(--line);
-      color: #0F172A;
+    .icon-btn:hover {
+      background: #fff;
+      border-color: var(--line-strong);
+      transform: translateY(-1px);
     }
-    #logoutBtn:active {
-      transform: translateY(1px);
+    .icon-btn:active {
+      transform: translateY(0);
     }
 
     /* =========================================
@@ -879,13 +884,13 @@
       min-width: 0;
     }
 
-    /* 登录层 */
-    #loginLayer {
+    /* Key 弹窗 */
+    #keyLayer {
       position: fixed;
       inset: 0;
       background: rgba(15,23,42,0.18);
       z-index: 999;
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       backdrop-filter: blur(14px);
@@ -893,19 +898,18 @@
     }
     @keyframes fadeIn{ from { opacity: 0 } to { opacity: 1 } }
 
-    .loginBox {
-      width: 340px;
+    .keyBox {
+      width: min(92vw, 380px);
       padding: 26px 22px 22px;
       background: rgba(255,255,255,.92);
       border: 1px solid rgba(255,255,255,.55);
       border-radius: 22px;
-      text-align: center;
       box-shadow: var(--shadow-2);
       position: relative;
       overflow: hidden;
       transform: translateY(0);
     }
-    .loginBox::before {
+    .keyBox::before {
       content: "";
       position: absolute;
       inset: -2px -2px auto -2px;
@@ -913,12 +917,49 @@
       background: radial-gradient(700px 120px at 50% 0%, rgba(37,99,235,.20), transparent 60%);
       pointer-events: none;
     }
-    .loginBox h3 {
-      margin: 2px 0 16px;
+    .keyBox h3 {
+      margin: 2px 0 8px;
       color: #0B1220;
       font-size: 20px;
       font-weight: 900;
       letter-spacing: .2px;
+      position: relative;
+      z-index: 1;
+    }
+    .keySub {
+      position: relative;
+      z-index: 1;
+      margin: 0 0 16px;
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .key-actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .key-actions .btn {
+      margin-top: 0;
+    }
+    .btn-secondary {
+      background: rgba(100,116,139,.10);
+      color: var(--text);
+      box-shadow: none;
+      border: 1px solid var(--line);
+    }
+    .btn-secondary:hover {
+      background: rgba(100,116,139,.14);
+    }
+    .key-msg {
+      min-height: 18px;
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      position: relative;
+      z-index: 1;
     }
 
     /* 自定义模型面板 */
@@ -1035,10 +1076,10 @@
           linear-gradient(135deg, rgba(226,232,240,.65) 50%, transparent 50%),
           linear-gradient(to right, transparent, transparent);
       }
-      #loginLayer {
+      #keyLayer {
         background: rgba(2,6,23,.55);
       }
-      .loginBox {
+      .keyBox {
         background: rgba(15,23,42,.78);
         border-color: rgba(148,163,184,.18);
       }
@@ -1063,21 +1104,6 @@
 </head>
 
 <body>
-<!-- 1. 登录弹窗 -->
-<div id="loginLayer">
-  <div class="loginBox">
-    <h3>欢迎回来</h3>
-    <input id="u_name" type="text" placeholder="账号" />
-    <input id="u_pass" type="password" placeholder="密码" />
-    <div style="margin: 10px 0; text-align: left; padding-left: 4px; display:flex; align-items:center;">
-      <input type="checkbox" id="rememberMe" style="width:auto; height:auto; margin-right:6px;">
-      <label for="rememberMe" style="font-size:13px; color:var(--muted); cursor:pointer;">记住账号密码</label>
-    </div>
-    <button class="btn" id="btnLogin">立即登录</button>
-    <div id="loginMsg" style="margin-top:10px; color:var(--danger); font-size:12px; min-height:16px;"></div>
-  </div>
-</div>
-
 <!-- 2. 主界面 -->
 <div class="wrap">
   <!-- 顶部栏 -->
@@ -1086,11 +1112,11 @@
       <div class="logo"></div>
       <div class="title">
         <b>AI 绘图工作台</b>
-        <span id="welcomeText">未登录</span>
+        <span id="welcomeText">未配置 API Key</span>
       </div>
     </div>
-    <div style="text-align:right">
-      <div id="logoutBtn">退出</div>
+    <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+      <button id="keyBtn" class="icon-btn" type="button" title="填写 API Key">🔑</button>
     </div>
   </div>
 
@@ -1224,21 +1250,28 @@
   </div>
 </div>
 
+<div id="keyLayer">
+  <div class="keyBox">
+    <h3>填写 API Key</h3>
+    <p class="keySub">这里填写你自己的 key，保存在当前浏览器本地，不再写死在代码里。</p>
+    <input id="apiKeyInput" type="password" placeholder="请输入 API Key" autocomplete="off" />
+    <div class="key-actions">
+      <button class="btn btn-secondary" id="btnClearKey" type="button">清空</button>
+      <button class="btn" id="btnSaveKey" type="button">保存</button>
+    </div>
+    <div id="keyMsg" class="key-msg"></div>
+  </div>
+</div>
+
 <script>
 (() => {
   /* =========================================
      1. 配置与全局状态
      ========================================= */
-  const USERS_DB = {
-    "xliu2090": {
-      pwd: "123456kk",
-      key: "sk-j9fvH2UVUYyuWMUskDzyTQZdmx92zxruPudu6rxreA7ZEuEt"
-    }
-  };
   const BASE_URL = "https://api.vectorengine.ai/v1beta/models/";
+  const LS_API_KEY = "ai_art_api_key_v1";
   
   // 运行时状态
-  let currentUser = null;
   let dbInstance = null;
   let inFlight = 0; // 进行中的任务数
   let refImages = []; // { mime, blob, url }
@@ -1262,9 +1295,8 @@
     model: $("modelSelect"), lightboxToggle: $("lightboxToggle"),
     ratio: $("ratio"), res: $("res"), fileInput: $("fileInput"),
     prompt: $("prompt"), gen: $("gen"), historyList: $("historyList"),
-    loginLayer: $("loginLayer"), u_name: $("u_name"), u_pass: $("u_pass"),
-    btnLogin: $("btnLogin"), loginMsg: $("loginMsg"), rememberMe: $("rememberMe"),
-    welcomeText: $("welcomeText"), logoutBtn: $("logoutBtn"), clearHistory: $("clearHistory"),
+    welcomeText: $("welcomeText"), keyBtn: $("keyBtn"), keyLayer: $("keyLayer"),
+    apiKeyInput: $("apiKeyInput"), btnSaveKey: $("btnSaveKey"), btnClearKey: $("btnClearKey"), keyMsg: $("keyMsg"), clearHistory: $("clearHistory"),
     customPanel: $("customPanel"), customModelId: $("customModelId"), customModelName: $("customModelName"),
     btnAddModel: $("btnAddModel"), btnUseTempModel: $("btnUseTempModel"), customList: $("customList"),
     errorBox: $("errorBox"), refGrid: $("refGrid"), taskBar: $("taskBar"), taskCount: $("taskCount"), cancelAll: $("cancelAll"),
@@ -1385,7 +1417,6 @@
   const LS_PARAMS_KEY = "ai_art_params_v1";
 
   function saveParams() {
-    if (!currentUser) return;
     const params = {
       model: el.model.value,
       customId: el.customModelId.value,
@@ -1393,12 +1424,11 @@
       ratio: el.ratio.value,
       res: el.res.value
     };
-    localStorage.setItem(LS_PARAMS_KEY + "_" + currentUser, JSON.stringify(params));
+    localStorage.setItem(LS_PARAMS_KEY, JSON.stringify(params));
   }
 
   function loadParams() {
-    if (!currentUser) return;
-    const raw = localStorage.getItem(LS_PARAMS_KEY + "_" + currentUser);
+    const raw = localStorage.getItem(LS_PARAMS_KEY);
     if (!raw) return;
     try {
       const params = JSON.parse(raw);
@@ -1438,6 +1468,33 @@
 
   function clearError() {
     el.errorBox.style.display = "none";
+  }
+
+  function getApiKey() {
+    return (localStorage.getItem(LS_API_KEY) || "").trim();
+  }
+
+  function maskKey(key) {
+    if (!key) return "未配置 API Key";
+    if (key.length <= 8) return "已配置 API Key";
+    return `Key 已配置：${key.slice(0, 4)}****${key.slice(-4)}`;
+  }
+
+  function updateKeyStatus() {
+    const key = getApiKey();
+    el.welcomeText.textContent = maskKey(key);
+    el.keyMsg.textContent = key ? "已保存到当前浏览器" : "当前还没有保存 key";
+  }
+
+  function openKeyLayer() {
+    el.apiKeyInput.value = getApiKey();
+    updateKeyStatus();
+    el.keyLayer.style.display = "flex";
+    setTimeout(() => el.apiKeyInput.focus(), 0);
+  }
+
+  function closeKeyLayer() {
+    el.keyLayer.style.display = "none";
   }
 
   function openImageNewTab(src) {
@@ -1691,8 +1748,13 @@
      7. 绘图任务逻辑 (升级：生成中可查看/复制 Prompt)
      ========================================= */
   async function startTask() {
-    if (!currentUser) return;
     clearError();
+
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      openKeyLayer();
+      return showError("请先点击右上角钥匙图标填写 API Key");
+    }
 
     const prompt = el.prompt.value.trim();
     if (!prompt) return showError("请输入提示词");
@@ -1792,7 +1854,7 @@
 
       const resp = await fetch(`${BASE_URL}${task.modelId}:generateContent`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + USERS_DB[currentUser].key },
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
         body: JSON.stringify({
           contents: [{ parts }],
           generationConfig: { responseModalities: ["IMAGE"], candidateCount: 1, imageConfig: { aspectRatio: task.ratio } }
@@ -1935,41 +1997,29 @@
   }
   window.delRef = (i) => { refImages.splice(i, 1); renderRefGrid(); };
 
-  el.btnLogin.onclick = () => {
-    const u = el.u_name.value.trim();
-    const p = el.u_pass.value.trim();
-    if(USERS_DB[u] && USERS_DB[u].pwd === p) {
-      currentUser = u;
-      el.loginLayer.style.display = "none";
-      el.welcomeText.textContent = currentUser;
-      
-      if (el.rememberMe.checked) {
-        localStorage.setItem("ai_art_user", u);
-        localStorage.setItem("ai_art_pass", p);
-      } else {
-        localStorage.removeItem("ai_art_user");
-        localStorage.removeItem("ai_art_pass");
-      }
-      
-      initModels();
-      // 登录后加载参数 + 加载历史
-      loadParams();
-      dbReadyPromise.then(loadHistory);
-    } else el.loginMsg.textContent = "账号或密码错误";
+  el.keyBtn.onclick = openKeyLayer;
+  el.btnSaveKey.onclick = () => {
+    const key = el.apiKeyInput.value.trim();
+    if (!key) return showError("请输入 API Key");
+    localStorage.setItem(LS_API_KEY, key);
+    updateKeyStatus();
+    closeKeyLayer();
   };
-
-  // 自动登录
-  const savedUser = localStorage.getItem("ai_art_user");
-  const savedPass = localStorage.getItem("ai_art_pass");
-  if (savedUser && savedPass) {
-    el.u_name.value = savedUser;
-    el.u_pass.value = savedPass;
-    el.rememberMe.checked = true;
-  }
+  el.btnClearKey.onclick = () => {
+    localStorage.removeItem(LS_API_KEY);
+    el.apiKeyInput.value = "";
+    updateKeyStatus();
+  };
+  el.keyLayer.addEventListener('click', (e) => {
+    if (e.target === el.keyLayer) closeKeyLayer();
+  });
+  el.apiKeyInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') el.btnSaveKey.click();
+    if (e.key === 'Escape') closeKeyLayer();
+  });
   
   el.gen.onclick = startTask;
   el.clearHistory.onclick = () => { if(confirm("清空？")) { idbTx(STORE_IMGS, "readwrite").clear(); loadHistory(); } };
-  el.logoutBtn.onclick = () => location.reload();
   el.cancelAll.onclick = () => { tasks.forEach(t => t.controller.abort()); tasks.clear(); inFlight=0; updateStatus(); };
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1986,6 +2036,9 @@
   el.lightboxToggle.onchange = () => localStorage.setItem("setting_lightbox", el.lightboxToggle.checked);
 
   initModels();
+  loadParams();
+  updateKeyStatus();
+  dbReadyPromise.then(loadHistory);
 })();
 </script>
 </body>
