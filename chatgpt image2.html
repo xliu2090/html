@@ -1338,15 +1338,17 @@
   function saveToDB(blob, record) {
     if (!dbInstance) return;
     const item = {
-      id: Date.now(),
+      id: record.id || Date.now(),
       blob,
+      imageDataUrl: record.imageDataUrl || "",
+      mimeType: record.mimeType || blob?.type || "image/png",
       meta: record.meta || "",
       prompt: record.prompt || "",
       refs: record.refs || [],
       date: record.date || new Date().toLocaleString(),
-      isFavorite: false 
+      isFavorite: record.isFavorite || false
     };
-    idbTx(STORE_IMGS, "readwrite").add(item);
+    idbTx(STORE_IMGS, "readwrite").put(item);
   }
 
   function updateDBItem(item) {
@@ -1390,6 +1392,8 @@
         type: 'result',
         id: item.id,
         blob: item.blob,
+        imageDataUrl: item.imageDataUrl,
+        mimeType: item.mimeType,
         meta: '生成结果',
         parentMeta: item.meta,
         date: item.date
@@ -1402,6 +1406,8 @@
             type: 'ref',
             id: item.id, // 指向同一个父任务 ID
             blob: ref.blob,
+            imageDataUrl: ref.imageDataUrl,
+            mimeType: ref.mimeType || ref.mime,
             meta: `参考图片 ${idx+1}/${item.refs.length}`,
             parentMeta: item.meta,
             date: item.date
@@ -1531,11 +1537,68 @@
     });
   }
 
-  function base64ToBlob(b64, mimeType="image/png") {
+  function normalizeBase64Payload(payload) {
+    if (!payload) throw new Error("API未返回图片数据");
+    let raw = String(payload).trim();
+    let mimeType = "image/png";
+    const dataUrlMatch = raw.match(/^data:([^;]+);base64,(.*)$/s);
+    if (dataUrlMatch) {
+      mimeType = dataUrlMatch[1] || mimeType;
+      raw = dataUrlMatch[2] || "";
+    }
+    // 有些中转会返回带换行/空格的 base64；atob 前必须清理。
+    raw = raw.replace(/\s/g, "");
+    if (!raw) throw new Error("API返回了空图片数据");
+    return { b64: raw, mimeType };
+  }
+
+  function base64ToBlob(payload, defaultMimeType="image/png") {
+    const { b64, mimeType } = normalizeBase64Payload(payload);
     const bin = atob(b64);
-    const arr = new Uint8Array(bin.length);
-    for(let i=0; i<bin.length; i++) arr[i] = bin.charCodeAt(i);
-    return new Blob([arr], { type: mimeType });
+    // 分片写入，避免 2K/4K 图片在手机浏览器里一次性分配过大导致图片损坏。
+    const chunkSize = 8192;
+    const chunks = [];
+    for (let offset = 0; offset < bin.length; offset += chunkSize) {
+      const slice = bin.slice(offset, offset + chunkSize);
+      const arr = new Uint8Array(slice.length);
+      for (let i = 0; i < slice.length; i++) arr[i] = slice.charCodeAt(i);
+      chunks.push(arr);
+    }
+    return new Blob(chunks, { type: mimeType || defaultMimeType });
+  }
+
+  function base64ToDataUrl(payload, defaultMimeType="image/png") {
+    const { b64, mimeType } = normalizeBase64Payload(payload);
+    return `data:${mimeType || defaultMimeType};base64,${b64}`;
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function getImageSrc(item) {
+    if (!item) return "";
+    if (item.imageDataUrl) return item.imageDataUrl;
+    if (item.blob instanceof Blob) return URL.createObjectURL(item.blob);
+    return "";
+  }
+
+  function detectImageMimeFromBase64(payload) {
+    try {
+      const { b64, mimeType } = normalizeBase64Payload(payload);
+      if (mimeType && mimeType !== "image/png") return mimeType;
+      if (b64.startsWith("/9j/")) return "image/jpeg";
+      if (b64.startsWith("UklGR")) return "image/webp";
+      if (b64.startsWith("iVBOR")) return "image/png";
+      return mimeType || "image/png";
+    } catch (_) {
+      return "image/png";
+    }
   }
 
   function mimeToExt(mime="image/png") {
@@ -1557,9 +1620,9 @@
       },
       "2K": {
         "1:1": "2048x2048",
-        "16:9": "2560x1440",
-        "21:9": "2560x1096",
-        "9:16": "1440x2560",
+        "16:9": "2048x1152",
+        "21:9": "2048x880",
+        "9:16": "1152x2048",
         "4:3": "2048x1536",
         "3:4": "1536x2048"
       },
@@ -1591,18 +1654,52 @@
     }
   }
 
-  async function imageResponseToBlob(json) {
+  async function validateImageSrc(src) {
+    await new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("图片数据无法被浏览器读取"));
+      img.src = src;
+    });
+  }
+
+  function pickBase64FromResponse(json) {
     const first = json?.data?.[0];
-    if (first?.b64_json) {
-      const fmt = first.output_format || "png";
-      return base64ToBlob(first.b64_json, `image/${fmt}`);
+    if (first?.b64_json) return first.b64_json;
+    if (first?.base64) return first.base64;
+    if (first?.image_base64) return first.image_base64;
+    if (first?.result) return first.result;
+    // 兼容 Responses API 风格或部分中转字段。
+    const output = Array.isArray(json?.output) ? json.output : [];
+    const imgOutput = output.find(x => x?.type === "image_generation_call" && x?.result);
+    if (imgOutput?.result) return imgOutput.result;
+    return null;
+  }
+
+  async function imageResponseToImage(json) {
+    const first = json?.data?.[0];
+    const b64Payload = pickBase64FromResponse(json);
+
+    if (b64Payload) {
+      const mimeType = detectImageMimeFromBase64(b64Payload);
+      const blob = base64ToBlob(b64Payload, mimeType);
+      const dataUrl = base64ToDataUrl(b64Payload, mimeType);
+      await validateImageSrc(dataUrl);
+      return { blob, dataUrl, mimeType: blob.type || mimeType };
     }
+
     if (first?.url) {
+      // 如果中转返回的是 data URL，直接转成 blob；如果是远程 URL，下载后再转成 data URL，避免历史记录里的跨域/临时 URL 失效。
       const imgResp = await fetch(first.url);
       if (!imgResp.ok) throw new Error("图片 URL 下载失败");
-      return await imgResp.blob();
+      const blob = await imgResp.blob();
+      const mimeType = blob.type || "image/png";
+      const dataUrl = await blobToDataUrl(blob);
+      await validateImageSrc(dataUrl);
+      return { blob, dataUrl, mimeType };
     }
-    throw new Error("API未返回图片，请检查模型、Key 或平台是否支持 gpt-image-2");
+
+    throw new Error("API未返回可读取的图片数据，请检查模型、Key 或平台是否支持 gpt-image-2");
   }
 
   async function callImageApi(apiKey, task, signal) {
@@ -1664,7 +1761,7 @@
     if (!el.lightboxToggle.checked) {
       // 降级模式：直接打开图片新标签页
       const item = currentHistoryItems.find(x => x.id === itemId);
-      if (item) openImageNewTab(URL.createObjectURL(item.blob));
+      if (item) openImageNewTab(getImageSrc(item));
       return;
     }
 
@@ -1710,7 +1807,7 @@
     el.lbMeta.textContent = `${item.parentMeta} · ${item.date}`;
 
     // 设置图片
-    const src = URL.createObjectURL(item.blob);
+    const src = getImageSrc(item);
     el.lbImg.src = src;
     
     // 重置变换
@@ -1776,7 +1873,8 @@
     div.className = "hist-card";
     div.dataset.expanded = "0";
 
-    const mainUrl = URL.createObjectURL(item.blob);
+    const mainUrl = getImageSrc(item);
+    const ext = mimeToExt(item.mimeType || item.blob?.type || "image/png");
     
     // 心形 SVG
     const heartSvg = `<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`;
@@ -1792,7 +1890,7 @@
         <div class="actions-group">
           <button class="fav-btn ${isFav}" title="收藏">${heartSvg}</button>
           <button class="link-btn toggle-btn">查看Prompt</button>
-          <a href="${mainUrl}" download="img_${item.id}.png" class="link-btn">下载</a>
+          <a href="${mainUrl}" download="img_${item.id}.${ext}" class="link-btn">下载</a>
           <span class="del-btn">删除</span>
         </div>
       </div>
@@ -1812,6 +1910,10 @@
     const img = div.querySelector(".main-img");
     const resSpan = div.querySelector(".meta-res");
     img.onload = () => resSpan.textContent = `${img.naturalWidth}×${img.naturalHeight}`;
+    img.onerror = () => {
+      resSpan.textContent = "图片读取失败";
+      img.alt = "图片数据读取失败，请清空旧记录后重新生成";
+    };
     
     // 1. 打开画廊
     img.onclick = () => openLightbox(item.id);
@@ -1960,17 +2062,20 @@
       controller.abort();
       card.remove();
       tasks.delete(taskId);
-      inFlight--; updateStatus();
+      inFlight = Math.max(0, inFlight - 1); updateStatus();
     };
     
     inFlight++; updateStatus();
 
     try {
       const json = await callImageApi(apiKey, task, controller.signal);
-      const blob = await imageResponseToBlob(json);
+      const image = await imageResponseToImage(json);
+      const blob = image.blob;
 
       const item = {
         id: Date.now(), blob,
+        imageDataUrl: image.dataUrl,
+        mimeType: image.mimeType,
         meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)}`,
         prompt, refs: task.refs,
         date: new Date().toLocaleString(),
@@ -2002,7 +2107,7 @@
     } finally {
       if (tasks.has(taskId)) {
         tasks.delete(taskId);
-        inFlight--; updateStatus();
+        inFlight = Math.max(0, inFlight - 1); updateStatus();
       }
     }
   }
