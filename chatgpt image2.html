@@ -1163,6 +1163,24 @@
         </select>
       </div>
 
+      <div class="control-item">
+        <label>图片质量</label>
+        <select id="quality">
+          <option value="auto" selected>自动 (auto)</option>
+          <option value="low">低 - 更快/省成本</option>
+          <option value="medium">中 - 均衡</option>
+          <option value="high">高 - 细节更好</option>
+        </select>
+      </div>
+
+      <div class="control-item">
+        <label>审核强度</label>
+        <select id="moderation">
+          <option value="auto" selected>标准 (auto)</option>
+          <option value="low">较低限制 (low)</option>
+        </select>
+      </div>
+
       <!-- 自定义模型面板 -->
       <div class="control-item" style="grid-column: 1 / -1;">
         <div id="customPanel" class="custom-panel">
@@ -1276,6 +1294,7 @@
   let inFlight = 0; // 进行中的任务数
   let refImages = []; // { mime, blob, url }
   const tasks = new Map(); // taskId -> { card, controller }
+  const autoResumedTaskIds = new Set(); // 避免恢复任务被重复自动提交
 
   // 筛选与画廊状态
   let currentFilter = 'all'; // 'all' | 'fav'
@@ -1293,7 +1312,7 @@
   const $ = (id) => document.getElementById(id);
   const el = {
     model: $("modelSelect"), lightboxToggle: $("lightboxToggle"),
-    ratio: $("ratio"), res: $("res"), fileInput: $("fileInput"),
+    ratio: $("ratio"), res: $("res"), quality: $("quality"), moderation: $("moderation"), fileInput: $("fileInput"),
     prompt: $("prompt"), gen: $("gen"), historyList: $("historyList"),
     welcomeText: $("welcomeText"), keyBtn: $("keyBtn"), keyLayer: $("keyLayer"),
     apiKeyInput: $("apiKeyInput"), btnSaveKey: $("btnSaveKey"), btnClearKey: $("btnClearKey"), keyMsg: $("keyMsg"), clearHistory: $("clearHistory"),
@@ -1309,7 +1328,7 @@
      2. IndexedDB 数据库管理
      ========================================= */
   const DB_NAME = "AI_Art_Pro";
-  const DB_VER = 3; 
+  const DB_VER = 4; 
   const STORE_IMGS = "imgs";
   const STORE_TASKS = "tasks";
 
@@ -1361,6 +1380,50 @@
     idbTx(STORE_IMGS, "readwrite").delete(id);
   }
 
+  function dbPut(store, item) {
+    if (!dbInstance) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const req = idbTx(store, "readwrite").put(item);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function dbDelete(store, key) {
+    if (!dbInstance) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      const req = idbTx(store, "readwrite").delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function dbGetAll(store) {
+    if (!dbInstance) return Promise.resolve([]);
+    return new Promise((resolve, reject) => {
+      const req = idbTx(store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveTaskState(task, status="running", error="") {
+    if (!dbInstance || !task?.taskId) return;
+    const item = {
+      ...task,
+      status,
+      error: error || "",
+      updatedAt: Date.now(),
+      date: task.date || new Date().toLocaleString()
+    };
+    await dbPut(STORE_TASKS, item).catch(() => {});
+  }
+
+  async function removeTaskState(taskId) {
+    if (!dbInstance || !taskId) return;
+    await dbDelete(STORE_TASKS, taskId).catch(() => {});
+  }
+
   // 加载历史记录并构建画廊列表
   function loadHistory() {
     if (!dbInstance) return;
@@ -1380,6 +1443,7 @@
       buildLightboxPlaylist();
 
       items.forEach((item) => renderHistoryItem(item));
+      renderSavedTasks();
     };
   }
 
@@ -1428,7 +1492,9 @@
       customId: el.customModelId.value,
       customName: el.customModelName.value,
       ratio: el.ratio.value,
-      res: el.res.value
+      res: el.res.value,
+      quality: el.quality.value,
+      moderation: el.moderation.value
     };
     localStorage.setItem(LS_PARAMS_KEY, JSON.stringify(params));
   }
@@ -1440,6 +1506,8 @@
       const params = JSON.parse(raw);
       if (params.ratio) el.ratio.value = params.ratio;
       if (params.res) el.res.value = params.res;
+      if (params.quality && el.quality) el.quality.value = params.quality;
+      if (params.moderation && el.moderation) el.moderation.value = params.moderation;
       
       // 恢复模型选择
       if (params.model) {
@@ -1460,7 +1528,7 @@
   }
 
   // 绑定保存事件
-  [el.model, el.ratio, el.res].forEach(input => input.addEventListener('change', saveParams));
+  [el.model, el.ratio, el.res, el.quality, el.moderation].forEach(input => input.addEventListener('change', saveParams));
   [el.customModelId, el.customModelName].forEach(input => input.addEventListener('input', saveParams));
 
   /* =========================================
@@ -1638,9 +1706,12 @@
     return sizes[res]?.[ratio] || "auto";
   }
 
-  function getImageQuality(res) {
-    if (res === "1K") return "medium";
-    return "high";
+  function getImageQuality(task) {
+    return task?.quality || el.quality?.value || "auto";
+  }
+
+  function getModeration(task) {
+    return task?.moderation || el.moderation?.value || "auto";
   }
 
   async function readApiError(resp) {
@@ -1704,7 +1775,8 @@
 
   async function callImageApi(apiKey, task, signal) {
     const size = getImageSize(task.ratio, task.res);
-    const quality = getImageQuality(task.res);
+    const quality = getImageQuality(task);
+    const moderation = getModeration(task);
     const hasRefs = task.refs && task.refs.length > 0;
 
     let resp;
@@ -1715,6 +1787,7 @@
       form.append("n", "1");
       form.append("size", size);
       form.append("quality", quality);
+      form.append("moderation", moderation);
       form.append("output_format", "png");
       form.append("background", "auto");
       task.refs.slice(0, 16).forEach((r, idx) => {
@@ -1740,7 +1813,7 @@
           quality,
           output_format: "png",
           background: "auto",
-          moderation: "auto"
+          moderation
         }),
         signal
       });
@@ -1959,13 +2032,163 @@
     const grid = card.querySelector(".ref-mini-grid");
     if (grid.innerHTML !== "") return;
     refs.forEach(r => {
-      const u = URL.createObjectURL(r.blob);
+      const u = getImageSrc(r) || URL.createObjectURL(r.blob);
       const img = document.createElement("img");
       img.src = u;
       img.style.cssText = "width:50px; height:50px; border-radius:8px; object-fit:cover; border:1px solid #ddd; cursor:pointer;";
       img.onclick = () => openImageNewTab(u); 
       grid.appendChild(img);
     });
+  }
+
+  function hasTaskCard(taskId) {
+    return Array.from(document.querySelectorAll('.hist-card[data-task-id]')).some(x => x.dataset.taskId === taskId);
+  }
+
+  async function renderSavedTasks() {
+    if (!dbInstance) return;
+    const saved = await dbGetAll(STORE_TASKS).catch(() => []);
+    saved
+      .filter(t => t && t.taskId && !tasks.has(t.taskId) && !hasTaskCard(t.taskId))
+      .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+      .forEach(task => {
+        const card = renderRecoverableTask(task);
+        if ((task.status === "running" || task.status === "pending") &&
+            !autoResumedTaskIds.has(task.taskId) &&
+            document.visibilityState !== "hidden") {
+          autoResumedTaskIds.add(task.taskId);
+          setTimeout(() => retrySavedTask(task, card), 500);
+        }
+      });
+  }
+
+  function renderRecoverableTask(task) {
+    const card = document.createElement("div");
+    card.className = "hist-card";
+    card.dataset.expanded = "0";
+    card.dataset.taskId = task.taskId;
+    const failed = task.status === "failed";
+    const title = failed ? "上次生成失败，可继续" : "检测到未完成任务，正在恢复";
+    const detail = failed ? (task.error || "未知错误") : "切到后台或页面被系统回收时，任务会保存在本地，回来后自动继续提交。";
+    card.innerHTML = `
+      <div class="loading-placeholder" style="min-height:220px; background:#F8FAFC; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+        <div class="spinner" style="${failed ? 'display:none;' : ''}"></div>
+        <div style="margin-top:14px; font-weight:800; color:${failed ? 'var(--danger)' : 'var(--brand)'};">${escapeHtml(title)}</div>
+        <div style="font-size:12px; margin-top:6px; color:var(--muted); max-width:88%; text-align:center; line-height:1.5;">${escapeHtml(detail)}</div>
+      </div>
+      <div class="hist-meta">
+        <div class="meta-info">
+          <span class="meta-title">${escapeHtml(task.modelId || 'gpt-image-2')} · ${escapeHtml(task.ratio || '')}</span>
+          <span class="meta-res">${escapeHtml(task.quality || 'auto')} · ${escapeHtml(task.moderation || 'auto')}</span>
+        </div>
+        <div class="actions-group">
+          <button class="link-btn retry-btn">继续生成</button>
+          <button class="link-btn toggle-btn">查看Prompt</button>
+          <button class="del-btn">删除任务</button>
+        </div>
+      </div>
+      <div class="hist-details">
+        <div class="prompt-label">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span>Prompt</span>
+            <button class="copy-mini-btn">复制Prompt</button>
+          </div>
+          <span style="font-weight:800; color:var(--muted);">${escapeHtml(task.date || '')}</span>
+        </div>
+        <p class="prompt-text">${escapeHtml(task.prompt || "(无 Prompt)")}</p>
+        <div class="ref-mini-grid"></div>
+      </div>
+    `;
+    const toggleBtn = card.querySelector(".toggle-btn");
+    toggleBtn.onclick = () => {
+      const isEx = card.dataset.expanded === "1";
+      card.dataset.expanded = isEx ? "0" : "1";
+      toggleBtn.textContent = isEx ? "查看Prompt" : "收起";
+      if (!isEx && task.refs && task.refs.length) renderRefMinis(card, task.refs);
+    };
+    const copyBtn = card.querySelector(".copy-mini-btn");
+    copyBtn.onclick = () => copyText(task.prompt, copyBtn);
+    const retryBtn = card.querySelector(".retry-btn");
+    retryBtn.onclick = () => retrySavedTask(task, card);
+    const delBtn = card.querySelector(".del-btn");
+    delBtn.onclick = async () => {
+      if (tasks.has(task.taskId)) {
+        tasks.get(task.taskId).controller.abort();
+        tasks.delete(task.taskId);
+        inFlight = Math.max(0, inFlight - 1);
+        updateStatus();
+      }
+      await removeTaskState(task.taskId);
+      card.remove();
+    };
+    el.historyList.prepend(card);
+    return card;
+  }
+
+  async function retrySavedTask(task, card) {
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      openKeyLayer();
+      showError("请先填写 API Key，再继续生成");
+      return;
+    }
+    if (tasks.has(task.taskId)) return;
+    await dbReadyPromise.catch(() => {});
+    task.status = "running";
+    task.updatedAt = Date.now();
+    await saveTaskState(task, "running");
+
+    const placeholder = card.querySelector(".loading-placeholder");
+    const retryBtn = card.querySelector(".retry-btn");
+    placeholder.innerHTML = `
+      <div class="spinner"></div>
+      <div style="margin-top:14px; font-weight:700; color:var(--brand);">正在继续生成...</div>
+      <div style="font-size:12px; margin-top:4px; color:var(--muted);">${escapeHtml(task.modelId || 'gpt-image-2')}</div>
+    `;
+    retryBtn.textContent = "生成中";
+    retryBtn.style.pointerEvents = "none";
+    retryBtn.style.opacity = ".6";
+
+    const controller = new AbortController();
+    tasks.set(task.taskId, { card, controller });
+    inFlight++; updateStatus();
+
+    try {
+      const json = await callImageApi(apiKey, task, controller.signal);
+      const image = await imageResponseToImage(json);
+      const item = {
+        id: Date.now(),
+        blob: image.blob,
+        imageDataUrl: image.dataUrl,
+        mimeType: image.mimeType,
+        meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
+        prompt: task.prompt,
+        refs: task.refs || [],
+        date: new Date().toLocaleString(),
+        isFavorite: false
+      };
+      await removeTaskState(task.taskId);
+      saveToDB(image.blob, item);
+      card.remove();
+      loadHistory();
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      await saveTaskState(task, "failed", e.message);
+      placeholder.innerHTML = `
+        <div style="color:var(--danger); text-align:center; padding:12px;">
+          <div style="font-weight:bold; margin-bottom:6px;">生成失败，可点“继续生成”重试</div>
+          <div style="font-size:12px; line-height:1.5;">${escapeHtml(e.message)}</div>
+        </div>
+      `;
+      retryBtn.textContent = "继续生成";
+      retryBtn.style.pointerEvents = "auto";
+      retryBtn.style.opacity = "1";
+    } finally {
+      if (tasks.has(task.taskId)) {
+        tasks.delete(task.taskId);
+        inFlight = Math.max(0, inFlight - 1); updateStatus();
+      }
+    }
   }
 
   /* =========================================
@@ -1982,6 +2205,7 @@
 
     const prompt = el.prompt.value.trim();
     if (!prompt) return showError("请输入提示词");
+    await dbReadyPromise.catch(() => {});
     
     saveParams();
 
@@ -1991,12 +2215,19 @@
 
     const task = {
       taskId, prompt, modelId, ratio: el.ratio.value, res: el.res.value,
-      refs: refImages.map(r => ({ mime: r.mime, blob: r.blob }))
+      quality: el.quality.value, moderation: el.moderation.value,
+      refs: refImages.map(r => ({ mime: r.mime, blob: r.blob, imageDataUrl: r.imageDataUrl || "" })),
+      status: "running",
+      date: new Date().toLocaleString(),
+      updatedAt: Date.now()
     };
+
+    await saveTaskState(task, "running");
 
     // 创建生成中的卡片 (完整结构)
     const card = document.createElement("div");
     card.className = "hist-card";
+    card.dataset.taskId = taskId;
     // 默认折叠
     card.dataset.expanded = "0";
 
@@ -2062,6 +2293,7 @@
       controller.abort();
       card.remove();
       tasks.delete(taskId);
+      removeTaskState(taskId);
       inFlight = Math.max(0, inFlight - 1); updateStatus();
     };
     
@@ -2076,19 +2308,21 @@
         id: Date.now(), blob,
         imageDataUrl: image.dataUrl,
         mimeType: image.mimeType,
-        meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)}`,
+        meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
         prompt, refs: task.refs,
         date: new Date().toLocaleString(),
         isFavorite: false
       };
 
       // 任务成功，保存并替换卡片
+      await removeTaskState(task.taskId);
       saveToDB(blob, item);
       loadHistory(); // 刷新列表
       el.prompt.value = "";
 
     } catch (e) {
       if (e.name === 'AbortError') return;
+      await saveTaskState(task, "failed", e.message);
       // 错误状态也保留卡片结构，替换占位符区域
       card.querySelector(".loading-placeholder").innerHTML = `
         <div style="color:var(--danger); text-align:center;">
@@ -2217,7 +2451,14 @@
   
   el.gen.onclick = startTask;
   el.clearHistory.onclick = () => { if(confirm("清空？")) { idbTx(STORE_IMGS, "readwrite").clear(); loadHistory(); } };
-  el.cancelAll.onclick = () => { tasks.forEach(t => t.controller.abort()); tasks.clear(); inFlight=0; updateStatus(); };
+  el.cancelAll.onclick = () => {
+    tasks.forEach((t, taskId) => {
+      t.controller.abort();
+      if (t.card) t.card.remove();
+      removeTaskState(taskId);
+    });
+    tasks.clear(); inFlight=0; updateStatus();
+  };
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.onclick = () => {
@@ -2231,6 +2472,16 @@
   const savedLightBox = localStorage.getItem("setting_lightbox");
   if (savedLightBox !== null) el.lightboxToggle.checked = savedLightBox === "true";
   el.lightboxToggle.onchange = () => localStorage.setItem("setting_lightbox", el.lightboxToggle.checked);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && dbInstance && tasks.size === 0) loadHistory();
+  });
+  window.addEventListener('pageshow', () => {
+    if (dbInstance && tasks.size === 0) loadHistory();
+  });
+  window.addEventListener('online', () => {
+    if (dbInstance && tasks.size === 0) loadHistory();
+  });
 
   initModels();
   loadParams();
