@@ -323,11 +323,6 @@
       color: rgba(100,116,139,.85);
     }
 
-    input:disabled, select:disabled, textarea:disabled {
-      opacity: .62;
-      cursor: not-allowed;
-    }
-
     /* 按钮样式 */
     .btn {
       border: none;
@@ -1150,6 +1145,7 @@
       <div class="control-item">
         <label>画面比例</label>
         <select id="ratio">
+          <option value="auto">自动 (auto)</option>
           <option value="1:1">1:1 (正方形)</option>
           <option value="16:9" selected>16:9 (横屏)</option>
           <option value="21:9">21:9 (超宽屏)</option>
@@ -1160,9 +1156,8 @@
       </div>
 
       <div class="control-item">
-        <label>图片尺寸</label>
+        <label>分辨率</label>
         <select id="res">
-          <option value="auto">自动尺寸 (auto)</option>
           <option value="1K">标准 (1K)</option>
           <option value="2K">高清 (2K)</option>
           <option value="4K" selected>超清 (4K)</option>
@@ -1529,14 +1524,12 @@
       if (params.customName) el.customModelName.value = params.customName;
       
       // 触发一次 UI 更新
-      el.model.onchange();
-      updateSizeModeUI(); 
+      el.model.onchange(); 
     } catch(e) { console.error("参数恢复失败", e); }
   }
 
   // 绑定保存事件
   [el.model, el.ratio, el.res, el.quality, el.moderation].forEach(input => input.addEventListener('change', saveParams));
-  el.res.addEventListener('change', updateSizeModeUI);
   [el.customModelId, el.customModelName].forEach(input => input.addEventListener('input', saveParams));
 
   /* =========================================
@@ -1684,9 +1677,9 @@
   }
 
   // gpt-image-2 的 size 需要满足：边长为 16 的倍数、最大边不超过 3840、最长边/最短边不超过 3:1。
-  // 当选择“自动尺寸”时，直接向 API 发送 size: "auto"，由模型自动决定输出尺寸。
+  // 当画面比例选择 auto 时，直接交给接口自动决定尺寸。
   function getImageSize(ratio, res) {
-    if (res === "auto") return "auto";
+    if (ratio === "auto") return "auto";
     const sizes = {
       "1K": {
         "1:1": "1024x1024",
@@ -1714,22 +1707,6 @@
       }
     };
     return sizes[res]?.[ratio] || "auto";
-  }
-
-  function getImageSizeLabel(ratio, res) {
-    const size = getImageSize(ratio, res);
-    return size === "auto" ? "自动尺寸" : size;
-  }
-
-  function getRatioLabel(task) {
-    if (!task) return "";
-    return task.res === "auto" || task.ratio === "auto" ? "自动比例" : (task.ratio || "");
-  }
-
-  function updateSizeModeUI() {
-    const isAuto = el.res.value === "auto";
-    el.ratio.disabled = isAuto;
-    el.ratio.title = isAuto ? "自动尺寸模式下，画面比例由模型决定" : "";
   }
 
   function getImageQuality(task) {
@@ -2104,7 +2081,7 @@
       </div>
       <div class="hist-meta">
         <div class="meta-info">
-          <span class="meta-title">${escapeHtml(task.modelId || 'gpt-image-2')} · ${escapeHtml(getRatioLabel(task))} · ${escapeHtml(getImageSizeLabel(task.ratio, task.res))}</span>
+          <span class="meta-title">${escapeHtml(task.modelId || 'gpt-image-2')} · ${escapeHtml(task.ratio || '')}</span>
           <span class="meta-res">${escapeHtml(task.quality || 'auto')} · ${escapeHtml(task.moderation || 'auto')}</span>
         </div>
         <div class="actions-group">
@@ -2187,7 +2164,7 @@
         blob: image.blob,
         imageDataUrl: image.dataUrl,
         mimeType: image.mimeType,
-        meta: `${task.modelId} · ${getRatioLabel(task)} · ${getImageSizeLabel(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
+        meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
         prompt: task.prompt,
         refs: task.refs || [],
         date: new Date().toLocaleString(),
@@ -2240,7 +2217,7 @@
     if (!modelId) return showError("请选择有效的模型");
 
     const task = {
-      taskId, prompt, modelId, ratio: el.res.value === "auto" ? "auto" : el.ratio.value, res: el.res.value,
+      taskId, prompt, modelId, ratio: el.ratio.value, res: el.res.value,
       quality: el.quality.value, moderation: el.moderation.value,
       refs: refImages.map(r => ({ mime: r.mime, blob: r.blob, imageDataUrl: r.imageDataUrl || "" })),
       status: "running",
@@ -2269,7 +2246,7 @@
       <div class="hist-meta">
         <div class="meta-info">
           <span class="meta-title">任务进行中</span>
-          <span class="meta-res">${getRatioLabel(task)} · ${getImageSizeLabel(task.ratio, task.res)}</span>
+          <span class="meta-res">${task.ratio}</span>
         </div>
         <div class="actions-group">
           <button class="copy-mini-btn">复制Prompt</button>
@@ -2334,7 +2311,7 @@
         id: Date.now(), blob,
         imageDataUrl: image.dataUrl,
         mimeType: image.mimeType,
-        meta: `${task.modelId} · ${getRatioLabel(task)} · ${getImageSizeLabel(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
+        meta: `${task.modelId} · ${task.ratio} · ${getImageSize(task.ratio, task.res)} · ${getImageQuality(task)} · ${getModeration(task)}`,
         prompt, refs: task.refs,
         date: new Date().toLocaleString(),
         isFavorite: false
@@ -2511,7 +2488,6 @@
 
   initModels();
   loadParams();
-  updateSizeModeUI();
   updateKeyStatus();
   dbReadyPromise.then(loadHistory);
 })();
