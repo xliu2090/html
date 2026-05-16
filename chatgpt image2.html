@@ -1194,7 +1194,7 @@
              <button id="btnUseTempModel" class="link-btn" style="flex:1; height:40px;">仅本次使用</button>
            </div>
            <div class="hint" style="font-size:12px; color:var(--muted); margin-top:6px;">
-             添加到列表会保存到浏览器本地，需兼容 OpenAI Images API。
+             添加到列表会保存到浏览器本地，需兼容 OpenAI Images API；接口地址可在右上角钥匙里填写。
            </div>
            <div id="customList" class="pill-list"></div>
         </div>
@@ -1271,8 +1271,11 @@
 
 <div id="keyLayer">
   <div class="keyBox">
-    <h3>填写 API Key</h3>
-    <p class="keySub">这里填写你自己的 VectorEngine API Key，保存在当前浏览器本地，不写死在代码里。</p>
+    <h3>填写 API 配置</h3>
+    <p class="keySub">这里填写你自己的 API 提供商地址和 API Key，保存在当前浏览器本地，不写死在代码里。支持 OpenAI 兼容接口、中转站、VectorEngine 等常见格式。</p>
+    <label style="display:block; font-size:12px; color:var(--muted); font-weight:800; margin:4px 0 6px;">API 提供商地址</label>
+    <input id="apiBaseInput" type="text" placeholder="例如：https://api.openai.com/v1 或 https://api.xxx.com/v1" autocomplete="off" />
+    <label style="display:block; font-size:12px; color:var(--muted); font-weight:800; margin:12px 0 6px;">API Key</label>
     <input id="apiKeyInput" type="password" placeholder="请输入 API Key" autocomplete="off" />
     <div class="key-actions">
       <button class="btn btn-secondary" id="btnClearKey" type="button">清空</button>
@@ -1287,8 +1290,9 @@
   /* =========================================
      1. 配置与全局状态
      ========================================= */
-  const API_BASE_URL = "https://api.vectorengine.ai/v1";
+  const DEFAULT_API_BASE_URL = "https://api.vectorengine.ai/v1";
   const LS_API_KEY = "ai_art_api_key_v1";
+  const LS_API_BASE_URL = "ai_art_api_base_url_v1";
   
   // 运行时状态
   let dbInstance = null;
@@ -1316,7 +1320,7 @@
     ratio: $("ratio"), res: $("res"), quality: $("quality"), moderation: $("moderation"), fileInput: $("fileInput"),
     prompt: $("prompt"), gen: $("gen"), historyList: $("historyList"),
     welcomeText: $("welcomeText"), keyBtn: $("keyBtn"), keyLayer: $("keyLayer"),
-    apiKeyInput: $("apiKeyInput"), btnSaveKey: $("btnSaveKey"), btnClearKey: $("btnClearKey"), keyMsg: $("keyMsg"), clearHistory: $("clearHistory"),
+    apiBaseInput: $("apiBaseInput"), apiKeyInput: $("apiKeyInput"), btnSaveKey: $("btnSaveKey"), btnClearKey: $("btnClearKey"), keyMsg: $("keyMsg"), clearHistory: $("clearHistory"),
     customPanel: $("customPanel"), customModelId: $("customModelId"), customModelName: $("customModelName"),
     btnAddModel: $("btnAddModel"), btnUseTempModel: $("btnUseTempModel"), customList: $("customList"),
     errorBox: $("errorBox"), refGrid: $("refGrid"), taskBar: $("taskBar"), taskCount: $("taskCount"), cancelAll: $("cancelAll"),
@@ -1549,6 +1553,28 @@
     return (localStorage.getItem(LS_API_KEY) || "").trim();
   }
 
+  function getApiBaseUrl() {
+    return normalizeApiBaseUrl(localStorage.getItem(LS_API_BASE_URL) || DEFAULT_API_BASE_URL);
+  }
+
+  function normalizeApiBaseUrl(url) {
+    let raw = String(url || "").trim();
+    if (!raw) raw = DEFAULT_API_BASE_URL;
+    if (!/^https?:\/\//i.test(raw)) raw = "https://" + raw;
+    return raw.replace(/\/+$/, "");
+  }
+
+  function joinApiUrl(base, path) {
+    const cleanBase = normalizeApiBaseUrl(base);
+    const cleanPath = String(path || "").replace(/^\/+/, "");
+    return `${cleanBase}/${cleanPath}`;
+  }
+
+  function maskBaseUrl(url) {
+    const base = normalizeApiBaseUrl(url);
+    return base.replace(/^https?:\/\//i, "");
+  }
+
   function maskKey(key) {
     if (!key) return "未配置 API Key";
     if (key.length <= 8) return "已配置 API Key";
@@ -1557,15 +1583,17 @@
 
   function updateKeyStatus() {
     const key = getApiKey();
-    el.welcomeText.textContent = maskKey(key);
-    el.keyMsg.textContent = key ? "已保存到当前浏览器" : "当前还没有保存 key";
+    const base = getApiBaseUrl();
+    el.welcomeText.textContent = `${maskKey(key)} · ${maskBaseUrl(base)}`;
+    el.keyMsg.textContent = key ? `已保存：${base}` : `当前还没有保存 key，默认地址：${base}`;
   }
 
   function openKeyLayer() {
+    el.apiBaseInput.value = getApiBaseUrl();
     el.apiKeyInput.value = getApiKey();
     updateKeyStatus();
     el.keyLayer.style.display = "flex";
-    setTimeout(() => el.apiKeyInput.focus(), 0);
+    setTimeout(() => el.apiBaseInput.focus(), 0);
   }
 
   function closeKeyLayer() {
@@ -1737,17 +1765,48 @@
     });
   }
 
-  function pickBase64FromResponse(json) {
-    const first = json?.data?.[0];
-    if (first?.b64_json) return first.b64_json;
-    if (first?.base64) return first.base64;
-    if (first?.image_base64) return first.image_base64;
-    if (first?.result) return first.result;
-    // 兼容 Responses API 风格或部分中转字段。
-    const output = Array.isArray(json?.output) ? json.output : [];
-    const imgOutput = output.find(x => x?.type === "image_generation_call" && x?.result);
-    if (imgOutput?.result) return imgOutput.result;
+  function looksLikeBase64Image(str) {
+    const raw = String(str || "").trim();
+    if (!raw) return false;
+    if (/^data:image\/[^;]+;base64,/i.test(raw)) return true;
+    const clean = raw.replace(/\s/g, "");
+    if (clean.length < 80) return false;
+    return /^(iVBOR|\/9j\/|UklGR|R0lGOD|PHN2Z)/.test(clean);
+  }
+
+  function pickByKeysDeep(obj, keys, validator, depth=0) {
+    if (!obj || depth > 8) return null;
+    if (typeof obj === "string") return validator(obj) ? obj : null;
+    if (Array.isArray(obj)) {
+      for (const item of obj) {
+        const found = pickByKeysDeep(item, keys, validator, depth + 1);
+        if (found) return found;
+      }
+      return null;
+    }
+    if (typeof obj === "object") {
+      for (const key of keys) {
+        if (obj[key] && validator(obj[key])) return obj[key];
+      }
+      for (const value of Object.values(obj)) {
+        const found = pickByKeysDeep(value, keys, validator, depth + 1);
+        if (found) return found;
+      }
+    }
     return null;
+  }
+
+  function pickBase64FromResponse(json) {
+    return pickByKeysDeep(json, [
+      "b64_json", "base64", "image_base64", "imageBase64", "result", "data", "image"
+    ], looksLikeBase64Image);
+  }
+
+  function pickUrlFromResponse(json) {
+    return pickByKeysDeep(json, ["url", "image_url", "imageUrl", "output_url"], (v) => {
+      const raw = String(v || "").trim();
+      return /^https?:\/\//i.test(raw) || /^data:image\//i.test(raw);
+    });
   }
 
   async function imageResponseToImage(json) {
@@ -1762,9 +1821,16 @@
       return { blob, dataUrl, mimeType: blob.type || mimeType };
     }
 
-    if (first?.url) {
+    const imgUrl = pickUrlFromResponse(json);
+    if (imgUrl) {
       // 如果中转返回的是 data URL，直接转成 blob；如果是远程 URL，下载后再转成 data URL，避免历史记录里的跨域/临时 URL 失效。
-      const imgResp = await fetch(first.url);
+      if (/^data:image\//i.test(imgUrl)) {
+        const mimeType = detectImageMimeFromBase64(imgUrl);
+        const blob = base64ToBlob(imgUrl, mimeType);
+        await validateImageSrc(imgUrl);
+        return { blob, dataUrl: imgUrl, mimeType: blob.type || mimeType };
+      }
+      const imgResp = await fetch(imgUrl);
       if (!imgResp.ok) throw new Error("图片 URL 下载失败");
       const blob = await imgResp.blob();
       const mimeType = blob.type || "image/png";
@@ -1773,16 +1839,14 @@
       return { blob, dataUrl, mimeType };
     }
 
-    throw new Error("API未返回可读取的图片数据，请检查模型、Key 或平台是否支持 gpt-image-2");
+    throw new Error("API未返回可读取的图片数据，请检查模型、Key、接口地址，或平台是否支持图片生成/编辑接口");
   }
 
-  async function callImageApi(apiKey, task, signal) {
+  function buildImageRequestBody(task, hasRefs, refFieldName="image[]") {
     const size = getImageSize(task.ratio, task.res);
     const quality = getImageQuality(task);
     const moderation = getModeration(task);
-    const hasRefs = task.refs && task.refs.length > 0;
 
-    let resp;
     if (hasRefs) {
       const form = new FormData();
       form.append("model", task.modelId);
@@ -1795,35 +1859,63 @@
       form.append("background", "auto");
       task.refs.slice(0, 16).forEach((r, idx) => {
         const ext = mimeToExt(r.mime);
-        form.append("image[]", r.blob, `reference_${idx + 1}.${ext}`);
+        form.append(refFieldName, r.blob, `reference_${idx + 1}.${ext}`);
       });
-
-      resp = await fetch(`${API_BASE_URL}/images/edits`, {
-        method: "POST",
-        headers: { "Authorization": "Bearer " + apiKey },
-        body: form,
-        signal
-      });
-    } else {
-      resp = await fetch(`${API_BASE_URL}/images/generations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
-        body: JSON.stringify({
-          model: task.modelId,
-          prompt: task.prompt,
-          n: 1,
-          size,
-          quality,
-          output_format: "png",
-          background: "auto",
-          moderation
-        }),
-        signal
-      });
+      return { body: form, headers: {} };
     }
+
+    const body = {
+      model: task.modelId,
+      prompt: task.prompt,
+      n: 1,
+      size,
+      quality,
+      output_format: "png",
+      background: "auto",
+      moderation
+    };
+    return {
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" }
+    };
+  }
+
+  async function fetchImageApiOnce(apiKey, task, signal, refFieldName) {
+    const hasRefs = task.refs && task.refs.length > 0;
+    const { body, headers } = buildImageRequestBody(task, hasRefs, refFieldName);
+    const apiBase = getApiBaseUrl();
+    const endpoint = hasRefs ? "images/edits" : "images/generations";
+
+    const resp = await fetch(joinApiUrl(apiBase, endpoint), {
+      method: "POST",
+      headers: { ...headers, "Authorization": "Bearer " + apiKey },
+      body,
+      signal
+    });
 
     if (!resp.ok) throw new Error(await readApiError(resp));
     return await resp.json();
+  }
+
+  async function callImageApi(apiKey, task, signal) {
+    const hasRefs = task.refs && task.refs.length > 0;
+
+    // 无参考图时，大多数 OpenAI 兼容接口都是 JSON 请求。
+    if (!hasRefs) return await fetchImageApiOnce(apiKey, task, signal, "image[]");
+
+    // 有参考图时，不同中转站对 multipart 字段名要求不同：image[] / image。
+    // 先尝试原来的 image[]，失败后自动用 OpenAI 常见的 image 重试一次。
+    const refFieldNames = ["image[]", "image"];
+    let lastErr = null;
+    for (const fieldName of refFieldNames) {
+      if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+      try {
+        return await fetchImageApiOnce(apiKey, task, signal, fieldName);
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    throw lastErr || new Error("图片编辑接口调用失败");
   }
 
   function escapeHtml(str) {
@@ -2433,24 +2525,29 @@
 
   el.keyBtn.onclick = openKeyLayer;
   el.btnSaveKey.onclick = () => {
+    const base = el.apiBaseInput.value.trim();
     const key = el.apiKeyInput.value.trim();
+    if (!base) return showError("请输入 API 提供商地址");
     if (!key) return showError("请输入 API Key");
+    localStorage.setItem(LS_API_BASE_URL, normalizeApiBaseUrl(base));
     localStorage.setItem(LS_API_KEY, key);
     updateKeyStatus();
     closeKeyLayer();
   };
   el.btnClearKey.onclick = () => {
     localStorage.removeItem(LS_API_KEY);
+    localStorage.removeItem(LS_API_BASE_URL);
+    el.apiBaseInput.value = DEFAULT_API_BASE_URL;
     el.apiKeyInput.value = "";
     updateKeyStatus();
   };
   el.keyLayer.addEventListener('click', (e) => {
     if (e.target === el.keyLayer) closeKeyLayer();
   });
-  el.apiKeyInput.addEventListener('keydown', (e) => {
+  [el.apiBaseInput, el.apiKeyInput].forEach(input => input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') el.btnSaveKey.click();
     if (e.key === 'Escape') closeKeyLayer();
-  });
+  }));
   
   el.gen.onclick = startTask;
   el.clearHistory.onclick = () => { if(confirm("清空？")) { idbTx(STORE_IMGS, "readwrite").clear(); loadHistory(); } };
